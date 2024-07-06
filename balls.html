@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Balls - Sjors Heefer</title>
+<link rel="stylesheet" type="text/css" href="style.css">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body onload="OnLoad()">
+
+
+
+<div class="container">
+ 
+
+<header>
+   <EinsteinQuote><i>"The most beautiful thing we can experience is the mysterious.<br> It is the source of all true art and science."</i> - A. Einstein</EinsteinQuote> 
+   <h1>Sjors Heefer</h1>
+</header>
+
+<article>
+<h1>&#149; Balls - A (not so realistic) simulator of Newtonian mechanics </h1>
+</article>
+<div class="BallsContainer">
+
+
+	<div class="BallsCanvas">
+		<a href="android-release.apk" download="balls.apk" target="_blank"> Download the Android app. </a>
+		<p id = "Balls_mobile_text"> </p>
+		<!-- <h1>&#149; Balls: Newton's laws in action!</h1> -->
+		<canvas id="myCanvas" width = "800px" height = "600px"
+		style="border:3px solid #000000;">
+		</canvas>
+		<script src = "app.js"></script><br><br>
+	</div>
+	<div class="BallsControls">
+		<form action="">	
+			<p style="padding: 4px; border: 1px solid blue"><i>Click anywhere in the box to add balls. Below you can change the properties of each new ball.</i></p>
+			<h3 style = "text-align:center;">Settings</h3>
+			
+			<div class="checkboxdiv">
+				<input type="checkbox" class = "CheckboxGeneralSettings fancyCheckbox" id = "chbPauseResume"  name="chbPauseResume" onclick='handle_chbPauseResume_Click();'>
+				<label for="chbPauseResume" data-on="Simulation running" data-off="Simulation paused"></label>	
+			</div>
+			<div class="checkboxdiv">
+				<input type="checkbox" class = "CheckboxGeneralSettings fancyCheckbox" id = "chbBoundaries"  name="chbBoundaries" onclick='handle_chbBoundaries_Click();'>
+				<label for="chbBoundaries" data-on="Boundaries enabled" data-off="Boundaries disabled"></label>		
+			</div>
+			<div class="checkboxdiv">
+				<input type="checkbox" class = "CheckboxGeneralSettings fancyCheckbox" id = "chbCollisions"  name="chbCollisions" onclick='handle_chbCollisions_Click();'>
+				<label for="chbCollisions" data-on="Collisions enabled" data-off="Collisions disabled"></label>	
+			</div>	
+			<div class="checkboxdiv">
+				<input type="checkbox" class = "CheckboxGeneralSettings fancyCheckbox" id = "chbVerticalGravity"  name="chbVerticalGravity" onclick='handle_chbVerticalGravity_Click();'>
+				<label for="chbVerticalGravity" data-on="Vertical gravity enabled" data-off="Vertical gravity disabled"></label>	
+			</div>	
+			<div class="checkboxdiv">
+				<input type="checkbox" class = "CheckboxGeneralSettings fancyCheckbox" id = "chbMutualGravity"  name="chbMutualGravity" onclick='handle_chbMutualGravity_Click();'>
+				<label for="chbMutualGravity" data-on="Mutual gravity enabled" data-off="Mutual gravity disabled"></label>	
+			</div>
+			<div class="checkboxdiv">
+				<input type="checkbox" class = "CheckboxGeneralSettings fancyCheckbox" id = "chbDrawingMode"  name="chbDrawingMode" onclick='handle_chbDrawingMode_Click();'>
+				<label for="chbDrawingMode" data-on="Drawing mode enabled" data-off="Drawing mode disabled"></label>	
+			</div><br>
+			<center>Energy dissipation: <input type = "text" id = "txtEnergyDissipation" style=" width:60px;" value="2" style = "width:90%;"onchange = "handle_txtEnergyDissipation_change();" onkeydown="if (event.keyCode == 13 &&  event.which == 13){ event.preventDefault(); this.blur();}"> % </center> <br><br>
+		</form>	
+	</div>
+	<div class="BallsControls">
+		<form action="">
+			<!-- <button type="button" id = "btnInvertVerticalGravity" onclick = "handle_btnInvertVerticalGravity_Click();">Invert</button><br><br> -->
+			<!-- <button type="button" id = "btnInvertMutualGravity" onclick = "handle_btnInvertMutualGravity_Click();">Invert</button><br><br> -->
+			<center>
+				<h3>Design new ball</h3>
+				Radius: <input type = "text" id = "txtSizeNewBall" style="width:60px;" value="30" onchange = "handle_txtSizeNewBall_change();" onkeydown="if (event.keyCode == 13 &&  event.which == 13){ event.preventDefault(); this.blur();}"><br><br>
+				Mass: <input type = "text" id = "txtMassNewBall" style="width:60px;" value="30" onchange = "handle_txtMassNewBall_change();" onkeydown="if (event.keyCode == 13 &&  event.which == 13){ event.preventDefault(); this.blur();}"><br><br>
+				x-speed: <input type = "text" id = "txtXspeedNewBall" style="width:60px;" value="3" onchange = "handle_txtXspeedNewBall_change();" onkeydown="if (event.keyCode == 13 &&  event.which == 13){ event.preventDefault(); this.blur();}"><br><br>
+				y-speed: <input type = "text" id = "txtYspeedNewBall" style="width:60px;" value="0" onchange = "handle_txtYspeedNewBall_change();" onkeydown="if (event.keyCode == 13 &&  event.which == 13){ event.preventDefault(); this.blur();}"><br><br>
+			</center>
+		</form>
+	</div>
+	<div class="BallsControls">
+		<form action="">
+			<a href="javascript:void(0)" class = "btn" id = "btnRemoveLastBall" onclick = "handle_btnRemoveLastBall_click();">Remove last ball</a>	
+			<a href="javascript:void(0)" class = "btn" id = "btnClearScreen" onclick = "handle_btnClearScreen_click();">Clear screen</a>			
+			<a href="javascript:void(0)" class = "btn" id = "btnSaveConfig" onclick = "handle_btnSaveConfig_click();">Save configuration</a>			
+			<a href="javascript:void(0)" class = "btn" id = "btnLoadConfig" onclick = "handle_btnLoadConfig_click();">Load saved configuration</a>					
+		</form>	
+	</div>
+	<div class="BallsControls">
+		<form action="">
+			<a href="javascript:void(0)" class = "btn" id = "btnSaveCanvasAsImage" onclick = "handle_btnSaveCanvasAsImage_click();">Save canvas as image</a>					
+			<a href="javascript:void(0)" class = "btn" id = "btnScenario1" onclick = "handle_btnScenario1_click();">Load scenario 1</a>					
+			<a href="javascript:void(0)" class = "btn" id = "btnScenario2" onclick = "handle_btnScenario2_click();">Load scenario 2</a>					
+		</form>	
+	</div>
+	
+</div>
+	
+<article>
+<br><br><br><br><br><br><br><br><br><br><br><br>
+<p>&copy; 2017 Sjors Heefer<p>
+</article>
+	
+</div>
+
+
+
+<!-- <footer>Contact: sjorsheefer/at/live.nl</footer> -->
+
+
+<menubar>
+<menu>
+	<menu-item><a href="index.html">Home</a></menu-item>
+	<menu-item><a href="publications.html">Publications</a></menu-item>
+	<menu-item><a href="teaching.html">Teaching</a></menu-item>
+	<menu-item><a href="pianist.html">Pianist</a></menu-item>
+	<menu-item class = "currentpage"><a href="balls.html">Balls</a></menu-item>
+</menu>
+</menubar>
+
+</body>
+</html>
+
+
+
