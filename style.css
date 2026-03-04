@@ -231,8 +231,8 @@ input.fancyCheckbox + label:hover:after {
 
 img.home {
 	float: right;
-	width: 23%;
-    margin: 125px 25px auto auto;
+	width: 24%;
+    margin: 90px 75px auto auto;
     padding-right: 0px;
 }
 
@@ -273,7 +273,7 @@ header h1 {
 }
 	
 	
-	img.home {
+/*	img.home {
 	float:none;
 	display:block;
 	margin-left:auto;
@@ -281,7 +281,7 @@ header h1 {
 	padding-top:100px;
 	width: 75%;
 }
-	
+*/	
 	.BallsCanvas {
 		display:block;
 		text-align:center;
