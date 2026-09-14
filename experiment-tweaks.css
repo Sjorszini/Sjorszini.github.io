@@ -1,0 +1,142 @@
+/* Test-only refinements for design-refresh-experiments. */
+
+/* Desktop: keep contact semantically separate, but place it in the sixth cell
+   of the same visual 3 x 2 action grid. */
+@media (min-width: 641px) {
+  .professional-panel {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 10px;
+  }
+
+  .professional-panel h3 {
+    grid-column: 1 / -1;
+    margin-bottom: 4px;
+  }
+
+  .professional-panel .profile-grid,
+  .professional-contact-row {
+    display: contents;
+  }
+
+  .professional-panel .profile-link,
+  .professional-contact-row .contact-action {
+    min-height: 54px;
+    width: 100%;
+    margin: 0;
+  }
+
+  .professional-contact-row .contact-action {
+    justify-self: stretch;
+    padding: 12px 14px;
+  }
+}
+
+/* This experimental mobile navigation lives in the banner instead of a fixed bar. */
+.banner-mobile-nav {
+  display: none;
+}
+
+@media (max-width: 560px) {
+  body:has(.banner-mobile-nav) menubar {
+    display: none;
+  }
+
+  body:has(.banner-mobile-nav) .container {
+    margin-top: 0;
+  }
+
+  body:has(.banner-mobile-nav) header {
+    overflow: visible;
+  }
+
+  .banner-mobile-nav {
+    position: absolute;
+    z-index: 20;
+    top: 14px;
+    right: 16px;
+    display: block;
+  }
+
+  .banner-menu-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    padding: 0;
+    color: rgba(255, 255, 255, 0.92);
+    background: rgba(255, 255, 255, 0.07);
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    border-radius: 10px;
+    cursor: pointer;
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+  }
+
+  .banner-menu-toggle:hover,
+  .banner-menu-toggle:focus-visible {
+    color: #fff;
+    background: rgba(255, 255, 255, 0.12);
+  }
+
+  .banner-menu-icon::before {
+    content: "☰";
+    font-size: 1.2rem;
+    line-height: 1;
+  }
+
+  .banner-mobile-nav.is-open .banner-menu-icon::before {
+    content: "×";
+    font-size: 1.55rem;
+  }
+
+  .banner-menu-list {
+    position: absolute;
+    top: 52px;
+    right: 0;
+    display: none;
+    width: min(230px, calc(100vw - 32px));
+    padding: 7px;
+    background: rgba(7, 20, 38, 0.98);
+    border: 1px solid rgba(255, 255, 255, 0.10);
+    border-radius: 12px;
+    box-shadow: 0 16px 36px rgba(4, 14, 28, 0.28);
+  }
+
+  .banner-mobile-nav.is-open .banner-menu-list {
+    display: grid;
+  }
+
+  .banner-menu-list a {
+    display: block;
+    padding: 10px 12px;
+    color: rgba(255, 255, 255, 0.76);
+    border-radius: 7px;
+    font-size: 0.88rem;
+    font-weight: 600;
+    line-height: 1.35;
+    text-decoration: none;
+  }
+
+  .banner-menu-list a:hover,
+  .banner-menu-list a:focus-visible {
+    color: #fff;
+    background: rgba(255, 255, 255, 0.07);
+  }
+
+  .banner-menu-list a.current {
+    color: #fff;
+    background: rgba(120, 170, 224, 0.13);
+  }
+
+  .banner-menu-list a.current::after {
+    content: "";
+    display: block;
+    width: 28px;
+    height: 2px;
+    margin-top: 5px;
+    border-radius: 2px;
+    background: #78aae0;
+  }
+}
