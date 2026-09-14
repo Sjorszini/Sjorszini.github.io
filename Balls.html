@@ -10,7 +10,7 @@
   <link rel="stylesheet" type="text/css" href="balls-presets.css?v=2">
   <link rel="icon" href="icon.ico" type="image/vnd.microsoft.icon">
 </head>
-<body onload="OnLoad()">
+<body onload="OnLoad(); loadBallsPreset('swarm');">
 
 <div class="container">
   <header>
@@ -20,47 +20,8 @@
 
   <article>
     <h1>Balls</h1>
-    <p>A small simulator of Newtonian mechanics, just for fun. Click inside the canvas to add balls, change the physics settings, or start with one of the presets below.</p>
+    <p>A small simulator of Newtonian mechanics, just for fun. Click inside the canvas to add balls, change the physics settings, or load a preset from the Tools panel below.</p>
   </article>
-
-  <section class="BallsPresets" aria-labelledby="balls-presets-heading">
-    <div class="BallsPresetsHeader">
-      <h2 id="balls-presets-heading">Presets</h2>
-      <p>Instant starting points for different kinds of motion.</p>
-    </div>
-    <div class="BallsPresetGrid">
-      <button class="BallsPreset" type="button" onclick="loadBallsPreset('solar')">
-        <strong>Mini solar system</strong>
-        <span>A heavy central body with three orbiting planets.</span>
-      </button>
-      <button class="BallsPreset" type="button" onclick="loadBallsPreset('billiards')">
-        <strong>Billiard break</strong>
-        <span>One fast cue ball hits a fifteen-ball rack.</span>
-      </button>
-      <button class="BallsPreset" type="button" onclick="loadBallsPreset('rain')">
-        <strong>Gravity rain</strong>
-        <span>Balls fall, collide, bounce and gradually settle.</span>
-      </button>
-      <button class="BallsPreset" type="button" onclick="loadBallsPreset('trails')">
-        <strong>Orbit trails</strong>
-        <span>Gravity plus drawing mode creates persistent orbital paths.</span>
-      </button>
-      <button class="BallsPreset" type="button" onclick="loadBallsPreset('cloud300')">
-        <strong>300-ball gravity cloud</strong>
-        <span>Exact mutual gravity, collisions and damping in a medium-sized swarm.</span>
-      </button>
-      <button class="BallsPreset" type="button" onclick="loadBallsPreset('swarm')">
-        <strong>1,000-ball swarm</strong>
-        <span>A self-gravitating, dissipative stress test for the optimized engine.</span>
-      </button>
-      <button class="BallsPreset" type="button" onclick="loadBallsPreset('mega2500')">
-        <strong>2,500-ball mega swarm</strong>
-        <span>A very large collision stress test; mutual gravity starts off for speed.</span>
-      </button>
-    </div>
-    <p id="preset-status" role="status" aria-live="polite">Choose a preset, or build your own setup below.</p>
-    <p id="performance-status" aria-live="polite">Performance data will appear while the simulation runs.</p>
-  </section>
 
   <div class="BallsContainer">
     <div class="BallsCanvas">
@@ -70,7 +31,7 @@
       <script src="app.js"></script>
       <script src="balls-fast-engine-v3.js?v=2"></script>
       <script src="balls-contact-settle.js?v=1"></script>
-      <script src="balls-presets.js?v=4"></script>
+      <script src="balls-presets.js?v=5"></script>
     </div>
 
     <div class="BallsControls">
@@ -131,8 +92,14 @@
       <form action="">
         <h3>Tools</h3>
         <a href="javascript:void(0)" class="btn" id="btnSaveCanvasAsImage" onclick="handle_btnSaveCanvasAsImage_click();">Save canvas as image</a>
-        <a href="javascript:void(0)" class="btn" id="btnScenario1" onclick="handle_btnScenario1_click();">Load scenario 1</a>
-        <a href="javascript:void(0)" class="btn" id="btnScenario2" onclick="handle_btnScenario2_click();">Load scenario 2</a>
+        <a href="javascript:void(0)" class="btn" onclick="loadBallsPreset('solar');">Mini solar system</a>
+        <a href="javascript:void(0)" class="btn" onclick="loadBallsPreset('billiards');">Billiard break</a>
+        <a href="javascript:void(0)" class="btn" onclick="loadBallsPreset('rain');">Gravity rain</a>
+        <a href="javascript:void(0)" class="btn" onclick="loadBallsPreset('trails');">Orbit trails</a>
+        <a href="javascript:void(0)" class="btn" onclick="loadBallsPreset('cloud300');">300-ball gravity cloud</a>
+        <a href="javascript:void(0)" class="btn" onclick="loadBallsPreset('swarm');">1,000-ball swarm</a>
+        <p id="preset-status" role="status" aria-live="polite">1,000-ball swarm is the default preset.</p>
+        <p id="performance-status" aria-live="polite">Performance data will appear while the simulation runs.</p>
       </form>
     </div>
   </div>
