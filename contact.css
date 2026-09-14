@@ -90,22 +90,19 @@
   align-items: center;
 }
 
-.contact-submit,
-.contact-copy {
+.contact-submit {
   appearance: none;
   min-height: 44px;
   padding: 10px 15px;
+  color: #fff;
+  background: var(--navy-800);
+  border: 1px solid var(--navy-800);
   border-radius: 9px;
   font: inherit;
   font-size: 0.92rem;
   font-weight: 650;
   cursor: pointer;
-}
-
-.contact-submit {
-  color: #fff;
-  background: var(--navy-800);
-  border: 1px solid var(--navy-800);
+  transition: background 150ms ease, border-color 150ms ease, opacity 150ms ease;
 }
 
 .contact-submit:hover,
@@ -114,16 +111,9 @@
   border-color: var(--blue-600);
 }
 
-.contact-copy {
-  color: var(--navy-800);
-  background: #fff;
-  border: 1px solid #b9c7d6;
-}
-
-.contact-copy:hover,
-.contact-copy:focus-visible {
-  border-color: #8fa8c0;
-  background: var(--surface);
+.contact-submit:disabled {
+  cursor: wait;
+  opacity: 0.68;
 }
 
 .contact-note,
@@ -141,19 +131,12 @@
   font-weight: 600;
 }
 
-.contact-alternatives {
-  max-width: 720px;
-  margin-top: 24px;
-  padding-top: 22px;
-  border-top: 1px solid var(--line);
+.contact-status.is-success {
+  color: #216446;
 }
 
-.contact-alternatives p {
-  margin-bottom: 10px;
-}
-
-.contact-alternatives .profile-grid {
-  max-width: 620px;
+.contact-status.is-error {
+  color: #8c2f2f;
 }
 
 .contact-honeypot {
@@ -178,8 +161,7 @@
     align-items: stretch;
   }
 
-  .contact-submit,
-  .contact-copy {
+  .contact-submit {
     width: 100%;
   }
 }
