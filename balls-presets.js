@@ -122,6 +122,24 @@
     announce("Orbit trails", "drawing mode leaves persistent paths behind the orbiters");
   }
 
+  function removeCenterOfMassDrift() {
+    var totalMass = 0;
+    var px = 0;
+    var py = 0;
+    for (var i = 0; i < NumberOfBalls; i += 1) {
+      totalMass += ball[i].m;
+      px += ball[i].m * ball[i].vx;
+      py += ball[i].m * ball[i].vy;
+    }
+    if (totalMass <= 0) return;
+    var cvx = px / totalMass;
+    var cvy = py / totalMass;
+    for (var j = 0; j < NumberOfBalls; j += 1) {
+      ball[j].vx -= cvx;
+      ball[j].vy -= cvy;
+    }
+  }
+
   function thousandBallSwarm() {
     resetWorld({ verticalGravity: false, mutualGravity: true, collisions: true, drawingMode: false, boundaries: true, energyDissipation: 7, G: 10 });
     var columns = 40;
@@ -140,7 +158,8 @@
         addBall(x, y, 3.6, 1, Math.cos(angle) * speed, Math.sin(angle) * speed, colorFrom(palettes.swarm, index++));
       }
     }
-    announce("1,000-ball swarm", "mutual gravity and 7% dissipation are enabled for a self-gravitating stress test");
+    removeCenterOfMassDrift();
+    announce("1,000-ball swarm", "mutual gravity and 7% dissipation are enabled; initial centre-of-mass drift is removed");
   }
 
   window.loadBallsPreset = function (name) {
