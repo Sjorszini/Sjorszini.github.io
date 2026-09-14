@@ -1,10 +1,10 @@
 /* Test-only refinements for design-refresh-experiments. */
 
-/* Slightly deeper navy banner, closer to the darker tones of the homepage portrait. */
+/* Darker navy banner: noticeably deeper than the live version, while staying within the site's blue palette. */
 header {
   background:
-    radial-gradient(circle at 82% 10%, rgba(78, 132, 188, 0.16), transparent 23rem),
-    linear-gradient(135deg, #06111f 0%, #0d2947 58%, #12385d 100%);
+    radial-gradient(circle at 82% 10%, rgba(66, 111, 159, 0.12), transparent 23rem),
+    linear-gradient(135deg, #030b14 0%, #081b30 56%, #0f3154 100%);
 }
 
 /* Desktop: keep contact semantically separate, but place it in the sixth cell
@@ -106,7 +106,7 @@ header {
     display: none;
     width: min(230px, calc(100vw - 36px));
     padding: 7px;
-    background: rgba(6, 17, 31, 0.985);
+    background: rgba(3, 11, 20, 0.985);
     border: 1px solid rgba(255, 255, 255, 0.10);
     border-radius: 12px;
     box-shadow: 0 16px 36px rgba(4, 14, 28, 0.30);
