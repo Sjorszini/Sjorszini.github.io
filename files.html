@@ -7,6 +7,7 @@
   <title>Files - Sjors Heefer</title>
   <link rel="stylesheet" type="text/css" href="style.css">
   <link rel="stylesheet" type="text/css" href="short-page.css">
+  <link rel="stylesheet" type="text/css" href="menu-clean.css?v=4">
   <link rel="icon" href="icon.ico" type="image/vnd.microsoft.icon">
 </head>
 <body>
@@ -29,7 +30,8 @@
 </div>
 
 <menubar>
-  <menu>
+  <button class="mobile-menu-toggle" type="button" aria-expanded="false" aria-controls="site-menu" onclick="var o=this.parentElement.classList.toggle('menu-open');this.setAttribute('aria-expanded',o?'true':'false');"><span>Menu</span><span class="mobile-menu-icon" aria-hidden="true"></span></button>
+  <menu id="site-menu">
     <menu-item><a href="index.html">Home</a></menu-item>
     <menu-item><a href="publications.html">Publications</a></menu-item>
     <menu-item><a href="teaching.html">Teaching</a></menu-item>
