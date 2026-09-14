@@ -5,7 +5,6 @@
     orbit: ["#327eb1", "#438fc0", "#245f99", "#579dca", "#3a75a4"],
     billiards: ["#2f6fa5", "#4d8fbe", "#245a86", "#5f98c4", "#397bad"],
     rain: ["#438fc0", "#2f6fa5", "#5c9ac7", "#245a86", "#4b83b0"],
-    trails: ["#5f98c4", "#438fc0", "#3278aa", "#245f99", "#4c88b6"],
     cloud: ["#1c527f", "#286a9d", "#367faf", "#468fbc", "#5a9ec8", "#346f9d"],
     swarm: ["#174d7a", "#23679c", "#327eb1", "#438fc0", "#579dca", "#3a75a4"]
   };
@@ -94,21 +93,6 @@
     announce("Gravity rain", "thirty-two balls fall, collide and settle");
   }
 
-  function orbitTrails() {
-    resetWorld({ verticalGravity: false, mutualGravity: true, collisions: false, drawingMode: true, boundaries: false, energyDissipation: 0, G: 14 });
-    var cx = width / 2;
-    var cy = height / 2;
-    var coreMass = 700;
-    addBall(cx, cy, 18, coreMass, 0, 0, "#3d78a8");
-    for (var i = 0; i < 9; i += 1) {
-      var radius = 75 + i * 24;
-      var angle = (Math.PI * 2 * i) / 9 + (i % 2) * 0.17;
-      var speed = Math.sqrt(G * coreMass / radius) * (0.88 + (i % 3) * 0.07);
-      addBall(cx + Math.cos(angle) * radius, cy + Math.sin(angle) * radius, 4 + (i % 3), 1.5 + (i % 2), -Math.sin(angle) * speed, Math.cos(angle) * speed, colorFrom(palettes.trails, i));
-    }
-    announce("Orbit trails", "drawing mode leaves persistent paths behind the orbiters");
-  }
-
   function removeCenterOfMassDrift() {
     var totalMass = 0;
     var px = 0;
@@ -152,10 +136,10 @@
     announce("300-ball gravity cloud", "exact mutual gravity, collisions and 7% dissipation are enabled");
   }
 
-  function thousandBallSwarm() {
+  function thousandBallGravityCloud() {
     resetWorld({ verticalGravity: false, mutualGravity: true, collisions: true, drawingMode: false, boundaries: true, energyDissipation: 7, G: 10 });
     gridCloud(40, 25, 3.6, 1.5, 4.7, palettes.swarm);
-    announce("1,000-ball swarm", "mutual gravity and 7% dissipation are enabled; initial centre-of-mass drift is removed");
+    announce("1,000-ball gravity cloud", "mutual gravity and 7% dissipation are enabled; initial centre-of-mass drift is removed");
   }
 
   window.loadBallsPreset = function (name) {
@@ -163,9 +147,8 @@
       solar: solarSystem,
       billiards: billiardBreak,
       rain: gravityRain,
-      trails: orbitTrails,
       cloud300: threeHundredBallCloud,
-      swarm: thousandBallSwarm
+      swarm: thousandBallGravityCloud
     };
     if (presets[name]) presets[name]();
   };
