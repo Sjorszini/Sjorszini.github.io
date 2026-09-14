@@ -25,7 +25,7 @@
   <div class="BallsContainer">
     <div class="BallsCanvas">
       <a href="android-release.apk" download="balls.apk" target="_blank" rel="noopener noreferrer">Download the Android app</a>
-      <p id="Balls_mobile_text"></p>
+      <p id="Balls_mobile_text" hidden></p>
       <canvas id="myCanvas" width="800" height="600">Your browser does not support the canvas element.</canvas>
       <script src="app.js"></script>
       <script src="balls-fast-engine-v3.js?v=2"></script>
