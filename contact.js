@@ -1,9 +1,8 @@
 (function () {
   "use strict";
 
-  // Kept out of the HTML so addresses are not exposed as visible page content.
-  // After FormSubmit activation, these can be replaced by FormSubmit's opaque
-  // endpoint tokens for stronger address hiding.
+  // Addresses are kept out of the visible HTML. After FormSubmit activation,
+  // these can be replaced by FormSubmit's opaque endpoint tokens.
   var destinations = {
     academic: "cy5qLmhlZWZlckB0dWUubmw=",
     teaching: "cy5qLmhlZWZlckB0dWUubmw=",
@@ -55,6 +54,13 @@
     }
   }
 
+  function showReturnStatus() {
+    var params = new URLSearchParams(window.location.search);
+    if (params.get("sent") === "1") {
+      setStatus("Message sent. Thank you.", false);
+    }
+  }
+
   function formPayload() {
     var topicSelect = document.getElementById("contact-topic");
     var topicLabel = topicSelect.options[topicSelect.selectedIndex].text;
@@ -76,6 +82,38 @@
       _honey: honey,
       _url: window.location.href.split("?")[0]
     };
+  }
+
+  function setHidden(form, name, value) {
+    var input = form.querySelector('input[type="hidden"][name="' + name + '"]');
+    if (!input) {
+      input = document.createElement("input");
+      input.type = "hidden";
+      input.name = name;
+      form.appendChild(input);
+    }
+    input.value = value;
+  }
+
+  function nativeFallback(form, payload, destination) {
+    setStatus("Sending securely…", false);
+    setBusy(false);
+
+    setHidden(form, "_subject", payload._subject);
+    setHidden(form, "_template", payload._template);
+    setHidden(form, "_url", payload._url);
+    setHidden(
+      form,
+      "_next",
+      window.location.origin + window.location.pathname + "?sent=1"
+    );
+
+    form.method = "POST";
+    form.action = "https://formsubmit.co/" + destination;
+
+    // Call the native form submit method directly so this submit handler does
+    // not intercept the fallback request a second time.
+    HTMLFormElement.prototype.submit.call(form);
   }
 
   async function submitForm(form) {
@@ -124,15 +162,18 @@
       form.reset();
       initialiseTopicFromQuery();
       setStatus("Message sent. Thank you.", false);
-    } catch (error) {
-      setStatus("The message could not be sent. Please try again later.", true);
-    } finally {
       setBusy(false);
+    } catch (error) {
+      // Cross-origin AJAX can be blocked by preview hosts or browser policy.
+      // A normal HTTPS form POST is much more widely permitted, so use that
+      // automatically instead of leaving the button apparently unresponsive.
+      nativeFallback(form, payload, destination);
     }
   }
 
   document.addEventListener("DOMContentLoaded", function () {
     initialiseTopicFromQuery();
+    showReturnStatus();
 
     var form = document.getElementById("contact-form");
     if (!form) return;
