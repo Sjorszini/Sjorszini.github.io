@@ -7,8 +7,7 @@
     rain: ["#438fc0", "#2f6fa5", "#5c9ac7", "#245a86", "#4b83b0"],
     trails: ["#5f98c4", "#438fc0", "#3278aa", "#245f99", "#4c88b6"],
     cloud: ["#1c527f", "#286a9d", "#367faf", "#468fbc", "#5a9ec8", "#346f9d"],
-    swarm: ["#174d7a", "#23679c", "#327eb1", "#438fc0", "#579dca", "#3a75a4"],
-    mega: ["#174d7a", "#205c8e", "#2a6fa3", "#347faf", "#438fc0", "#5a98c1"]
+    swarm: ["#174d7a", "#23679c", "#327eb1", "#438fc0", "#579dca", "#3a75a4"]
   };
 
   function colorFrom(palette, index) {
@@ -159,12 +158,6 @@
     announce("1,000-ball swarm", "mutual gravity and 7% dissipation are enabled; initial centre-of-mass drift is removed");
   }
 
-  function megaSwarm() {
-    resetWorld({ verticalGravity: false, mutualGravity: false, collisions: true, drawingMode: false, boundaries: true, energyDissipation: 3, G: 10 });
-    gridCloud(50, 50, 2.5, 0.8, 3.0, palettes.mega);
-    announce("2,500-ball mega swarm", "collisions, boundaries and 3% dissipation are enabled; mutual gravity is off by default for performance testing");
-  }
-
   window.loadBallsPreset = function (name) {
     var presets = {
       solar: solarSystem,
@@ -172,8 +165,7 @@
       rain: gravityRain,
       trails: orbitTrails,
       cloud300: threeHundredBallCloud,
-      swarm: thousandBallSwarm,
-      mega2500: megaSwarm
+      swarm: thousandBallSwarm
     };
     if (presets[name]) presets[name]();
   };
