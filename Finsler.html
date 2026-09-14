@@ -21,13 +21,41 @@
       font-size: 0.94rem;
       line-height: 1.55;
     }
-    .construction-warning strong {
-      color: #3f2905;
+    .construction-warning strong { color: #3f2905; }
+    .input-header-controls {
+      display: flex;
+      gap: 12px;
+      align-items: end;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+    .input-mode-control,
+    .dimension-control {
+      display: grid;
+      gap: 5px;
+    }
+    .input-mode-control label,
+    .dimension-control label {
+      font-size: .76rem;
+      font-weight: 700;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: .055em;
+    }
+    .input-mode-control select { min-width: 210px; }
+    .input-panel[hidden] { display: none !important; }
+    #metricTensor { min-height: 132px; }
+    .coordinate-note {
+      margin: 9px 0 0;
+      color: var(--muted);
+      font-size: .85rem;
+      line-height: 1.45;
     }
     @media (max-width: 700px) {
-      .construction-warning {
-        margin: 20px 24px 0;
-      }
+      .construction-warning { margin: 20px 24px 0; }
+      .input-header-controls { width: 100%; justify-content: stretch; }
+      .input-mode-control { flex: 1 1 100%; }
+      .input-mode-control select { min-width: 0; width: 100%; }
     }
   </style>
   <script defer src="https://cdn.jsdelivr.net/npm/mathjs@11.11.2/lib/browser/math.js"></script>
@@ -38,7 +66,7 @@
     };
   </script>
   <script defer src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
-  <script defer src="finsler-progressive-ui.js?v=3"></script>
+  <script defer src="finsler-progressive-ui.js?v=4"></script>
 </head>
 <body>
 <div class="container finsler-page">
@@ -54,7 +82,7 @@
   <article class="finsler-intro">
     <p class="eyebrow">Geometry tool</p>
     <h1>Finsler geometry calculator</h1>
-    <p>Enter a positively 2-homogeneous Finsler Lagrangian <em>L(x,y)</em>. The calculator derives the canonical nonlinear connection, Berwald and Chern–Rund Christoffel symbols, nonlinear curvature, geodesic-deviation tensor and Finsler-Ricci quantities symbolically.</p>
+    <p>Enter either a positively 2-homogeneous Finsler Lagrangian <em>L(x,y)</em>, or a symmetric nondegenerate pseudo-Riemannian metric matrix <em>g<sub>ij</sub>(x)</em>. The calculator derives the canonical nonlinear connection, Christoffel symbols and curvature quantities symbolically.</p>
     <p class="finsler-reference">Conventions follow Chapters 1–4 of <a href="PhDDissertation.pdf" target="_blank" rel="noopener noreferrer"><em>Finsler Geometry, Spacetime &amp; Gravity</em></a>, in particular equations (1.4), (2.14), (2.32)–(2.34), (3.16), (3.23), and (4.3)–(4.4).</p>
   </article>
 
@@ -65,24 +93,44 @@
           <p class="card-kicker">Input</p>
           <h2 id="input-title">Finsler Lagrangian</h2>
         </div>
-        <div class="dimension-control">
-          <label for="dimension">Dimension</label>
-          <select id="dimension">
-            <option value="2" selected>2</option>
-            <option value="3">3</option>
-            <option value="4">4</option>
-          </select>
+        <div class="input-header-controls">
+          <div class="input-mode-control">
+            <label for="inputMode">Input type</label>
+            <select id="inputMode">
+              <option value="lagrangian" selected>Finsler Lagrangian</option>
+              <option value="metric">Pseudo-Riemannian metric</option>
+            </select>
+          </div>
+          <div class="dimension-control">
+            <label for="dimension">Dimension</label>
+            <select id="dimension">
+              <option value="2">2</option>
+              <option value="3">3</option>
+              <option value="4" selected>4</option>
+            </select>
+          </div>
         </div>
       </div>
 
-      <label class="field-label" for="lagrangian">L(x,y)</label>
-      <textarea id="lagrangian" rows="4" spellcheck="false">(sqrt(exp(2*x1)*y1^2 + y2^2) + 0.18*y2)^2</textarea>
-      <p class="input-help">Use <code>x1,…,xn</code> and <code>y1,…,yn</code>. Syntax follows math.js: <code>^</code>, <code>sqrt(...)</code>, <code>exp(...)</code>, <code>sin(...)</code>, etc.</p>
+      <div id="lagrangianPanel" class="input-panel">
+        <label class="field-label" for="lagrangian">L(x,y)</label>
+        <textarea id="lagrangian" rows="4" spellcheck="false">(sqrt(-2*y1*y2 + (x3^2 - x4^2)*y1^2 + y3^2 + y4^2) + y1)^2</textarea>
+        <p class="input-help">Use <code>x1,…,xn</code> and <code>y1,…,yn</code>. Syntax follows math.js: <code>^</code>, <code>sqrt(...)</code>, <code>exp(...)</code>, <code>sin(...)</code>, etc.</p>
+      </div>
+
+      <div id="metricPanel" class="input-panel" hidden>
+        <label class="field-label" for="metricTensor">g<sub>ij</sub>(x)</label>
+        <textarea id="metricTensor" rows="6" spellcheck="false">[[x3^2 - x4^2, -1, 0, 0], [-1, 0, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]]</textarea>
+        <p class="input-help">Enter a square symmetric matrix using double brackets. Entries may depend on <code>x1,…,xn</code> but not on <code>y</code>. Any nondegenerate signature is allowed.</p>
+      </div>
+
+      <p id="coordinateNote" class="coordinate-note">Randers pp-wave: x1=u, x2=v, x3=x, x4=y; H=x3^2-x4^2 and β=du.</p>
 
       <div class="example-row">
         <label for="exampleSelect">Example</label>
         <select id="exampleSelect">
-          <option value="randers" selected>Position-dependent Randers (2D)</option>
+          <option value="randerspp" selected>Randers pp-wave (4D, β = du)</option>
+          <option value="ppwaveMetric4">Pseudo-Riemannian pp-wave metric (4D)</option>
           <option value="riemann2">Riemannian test metric (2D)</option>
           <option value="minkowski4">Minkowski metric (4D)</option>
         </select>
@@ -98,7 +146,7 @@
           </div>
         </div>
         <div class="output-checklist">
-          <label><input type="checkbox" data-output="metric" checked> Fundamental tensor <span>g<sub>ij</sub></span></label>
+          <label><input type="checkbox" data-output="metric" checked> Fundamental / metric tensor <span>g<sub>ij</sub></span></label>
           <label><input type="checkbox" data-output="inverse" checked> Inverse metric &amp; determinant</label>
           <label><input type="checkbox" data-output="cartan" checked> Cartan tensor</label>
           <label><input type="checkbox" data-output="spray" checked> Geodesic spray</label>
