@@ -7,57 +7,8 @@
   <title>Finsler Calculator - Sjors Heefer</title>
   <link rel="stylesheet" type="text/css" href="style.css">
   <link rel="stylesheet" type="text/css" href="menu-clean.css?v=4">
-  <link rel="stylesheet" type="text/css" href="finsler-calculator.css?v=1">
-  <link rel="stylesheet" type="text/css" href="finsler-progressive.css?v=2">
+  <link rel="stylesheet" type="text/css" href="finsler-workbench-v2.css?v=1">
   <link rel="icon" href="icon.ico" type="image/vnd.microsoft.icon">
-  <style>
-    .construction-warning {
-      margin: 28px 48px 0;
-      padding: 16px 18px;
-      color: #5a3b08;
-      background: #fff7df;
-      border: 1px solid #e5c36c;
-      border-radius: 12px;
-      font-size: 0.94rem;
-      line-height: 1.55;
-    }
-    .construction-warning strong { color: #3f2905; }
-    .input-header-controls {
-      display: flex;
-      gap: 12px;
-      align-items: end;
-      flex-wrap: wrap;
-      justify-content: flex-end;
-    }
-    .input-mode-control,
-    .dimension-control {
-      display: grid;
-      gap: 5px;
-    }
-    .input-mode-control label,
-    .dimension-control label {
-      font-size: .76rem;
-      font-weight: 700;
-      color: var(--muted);
-      text-transform: uppercase;
-      letter-spacing: .055em;
-    }
-    .input-mode-control select { min-width: 210px; }
-    .input-panel[hidden] { display: none !important; }
-    #metricTensor { min-height: 132px; }
-    .coordinate-note {
-      margin: 9px 0 0;
-      color: var(--muted);
-      font-size: .85rem;
-      line-height: 1.45;
-    }
-    @media (max-width: 700px) {
-      .construction-warning { margin: 20px 24px 0; }
-      .input-header-controls { width: 100%; justify-content: stretch; }
-      .input-mode-control { flex: 1 1 100%; }
-      .input-mode-control select { min-width: 0; width: 100%; }
-    }
-  </style>
   <script defer src="https://cdn.jsdelivr.net/npm/mathjs@11.11.2/lib/browser/math.js"></script>
   <script>
     window.MathJax = {
@@ -66,7 +17,7 @@
     };
   </script>
   <script defer src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
-  <script defer src="finsler-progressive-ui.js?v=4"></script>
+  <script defer src="finsler-ui-v5.js?v=1"></script>
 </head>
 <body>
 <div class="container finsler-page">
@@ -76,116 +27,179 @@
   </header>
 
   <div class="construction-warning" role="note">
-    <strong>Work under construction.</strong> This calculator is experimental. Results may be incomplete or incorrect and should not be trusted without independent verification.
+    <span class="warning-label">Experimental</span>
+    <div><strong>Work under construction.</strong> This calculator is experimental. Results may be incomplete or incorrect and should not be trusted without independent verification.</div>
   </div>
 
   <article class="finsler-intro">
     <p class="eyebrow">Geometry tool</p>
     <h1>Finsler geometry calculator</h1>
-    <p>Enter either a positively 2-homogeneous Finsler Lagrangian <em>L(x,y)</em>, or a symmetric nondegenerate pseudo-Riemannian metric matrix <em>g<sub>ij</sub>(x)</em>. The calculator derives the canonical nonlinear connection, Christoffel symbols and curvature quantities symbolically.</p>
-    <p class="finsler-reference">Conventions follow Chapters 1–4 of <a href="PhDDissertation.pdf" target="_blank" rel="noopener noreferrer"><em>Finsler Geometry, Spacetime &amp; Gravity</em></a>, in particular equations (1.4), (2.14), (2.32)–(2.34), (3.16), (3.23), and (4.3)–(4.4).</p>
+    <p>Symbolically calculate connection and curvature quantities from a 2-homogeneous Finsler Lagrangian, a pseudo-Riemannian metric, or an α–β metric built from a metric and 1-form.</p>
+    <p class="finsler-reference">Conventions follow <a href="PhDDissertation.pdf" target="_blank" rel="noopener noreferrer"><em>Finsler Geometry, Spacetime &amp; Gravity</em></a>.</p>
   </article>
 
   <main class="finsler-workbench">
-    <section class="finsler-card input-card" aria-labelledby="input-title">
-      <div class="card-heading">
-        <div>
-          <p class="card-kicker">Input</p>
-          <h2 id="input-title">Finsler Lagrangian</h2>
-        </div>
-        <div class="input-header-controls">
-          <div class="input-mode-control">
-            <label for="inputMode">Input type</label>
-            <select id="inputMode">
-              <option value="lagrangian" selected>Finsler Lagrangian</option>
-              <option value="metric">Pseudo-Riemannian metric</option>
-            </select>
-          </div>
-          <div class="dimension-control">
-            <label for="dimension">Dimension</label>
-            <select id="dimension">
-              <option value="2">2</option>
-              <option value="3">3</option>
-              <option value="4" selected>4</option>
-            </select>
+    <section class="calculator-shell" id="calculator-shell">
+      <div class="calculator-toolbar">
+        <div class="toolbar-title">
+          <span class="toolbar-step">1</span>
+          <div>
+            <h2>Define the geometry</h2>
+            <p>Choose the input representation and dimension.</p>
           </div>
         </div>
+        <label class="dimension-box" for="dimension">Dimension
+          <select id="dimension">
+            <option value="2">2</option>
+            <option value="3">3</option>
+            <option value="4" selected>4</option>
+          </select>
+        </label>
       </div>
 
-      <div id="lagrangianPanel" class="input-panel">
-        <label class="field-label" for="lagrangian">L(x,y)</label>
-        <textarea id="lagrangian" rows="4" spellcheck="false">(sqrt(-2*y1*y2 + (x3^2 - x4^2)*y1^2 + y3^2 + y4^2) + y1)^2</textarea>
-        <p class="input-help">Use <code>x1,…,xn</code> and <code>y1,…,yn</code>. Syntax follows math.js: <code>^</code>, <code>sqrt(...)</code>, <code>exp(...)</code>, <code>sin(...)</code>, etc.</p>
-      </div>
+      <div class="workspace-grid">
+        <div class="input-column">
+          <section class="workflow-card input-card">
+            <div class="card-title-row">
+              <div>
+                <span class="section-kicker">Input</span>
+                <h3>Geometry source</h3>
+                <p class="card-explainer">Enter the Finsler Lagrangian directly, or build from a metric tensor.</p>
+              </div>
+            </div>
 
-      <div id="metricPanel" class="input-panel" hidden>
-        <label class="field-label" for="metricTensor">g<sub>ij</sub>(x)</label>
-        <textarea id="metricTensor" rows="6" spellcheck="false">[[x3^2 - x4^2, -1, 0, 0], [-1, 0, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]]</textarea>
-        <p class="input-help">Enter a square symmetric matrix using double brackets. Entries may depend on <code>x1,…,xn</code> but not on <code>y</code>. Any nondegenerate signature is allowed.</p>
-      </div>
+            <div class="segmented-control" role="radiogroup" aria-label="Input representation">
+              <label><input type="radio" name="inputMode" value="lagrangian"><span>Lagrangian L(x,y)</span></label>
+              <label><input type="radio" name="inputMode" value="metric" checked><span>Metric / α–β builder</span></label>
+            </div>
 
-      <p id="coordinateNote" class="coordinate-note">Randers pp-wave: x1=u, x2=v, x3=x, x4=y; H=x3^2-x4^2 and β=du.</p>
+            <div id="lagrangianInputPanel" class="input-panel" hidden>
+              <label class="field-label" for="lagrangian">Finsler Lagrangian L(x,y)</label>
+              <textarea id="lagrangian" rows="5" spellcheck="false">(sqrt((1+x1^2)*y1^2 + y2^2) + 0.15*y2)^2</textarea>
+              <p class="input-help">Use x1,…,xn and y1,…,yn. Standard math.js syntax is accepted.</p>
+            </div>
 
-      <div class="example-row">
-        <label for="exampleSelect">Example</label>
-        <select id="exampleSelect">
-          <option value="randerspp" selected>Randers pp-wave (4D, β = du)</option>
-          <option value="ppwaveMetric4">Pseudo-Riemannian pp-wave metric (4D)</option>
-          <option value="riemann2">Riemannian test metric (2D)</option>
-          <option value="minkowski4">Minkowski metric (4D)</option>
-        </select>
-        <button type="button" class="secondary-button" id="loadExample">Load</button>
-      </div>
+            <div id="metricInputPanel" class="input-panel">
+              <label class="field-label">Metric tensor g<sub>ij</sub>(x)</label>
+              <p class="inline-hint">Edit the matrix directly. Symmetry is enforced automatically: changing g<sub>ij</sub> also updates g<sub>ji</sub>.</p>
+              <div class="matrix-editor-wrap">
+                <div id="metricGrid" class="matrix-editor" aria-label="Metric matrix editor"></div>
+              </div>
 
-      <fieldset class="output-options">
-        <div class="output-options-heading">
-          <legend>Results to compute / show</legend>
-          <div class="output-option-actions">
-            <button type="button" class="mini-action" id="selectAllOutputs">Select all</button>
-            <button type="button" class="mini-action" id="clearAllOutputs">Clear all</button>
-          </div>
+              <div class="metric-mode-box">
+                <div class="segmented-control" role="radiogroup" aria-label="Metric use">
+                  <label><input type="radio" name="geometryMode" value="riemannian" checked><span>Pseudo-Riemannian</span></label>
+                  <label><input type="radio" name="geometryMode" value="alphabeta"><span>Build α–β metric</span></label>
+                </div>
+                <p id="plainMetricHint" class="plain-metric-hint">The matrix is used directly as g<sub>ij</sub>(x). No α–β data are needed.</p>
+
+                <div id="alphaBetaPanel" class="alpha-beta-panel" hidden>
+                  <div class="alpha-beta-top">
+                    <div class="alpha-type-control">
+                      <label for="alphaBetaType">α–β metric</label>
+                      <select id="alphaBetaType">
+                        <option value="randers">Randers</option>
+                        <option value="kropina">Kropina</option>
+                        <option value="mkropina">m-Kropina</option>
+                        <option value="matsumoto">Matsumoto</option>
+                      </select>
+                    </div>
+                    <div class="m-control" id="mParameterWrap" hidden>
+                      <label for="mParameter">m parameter</label>
+                      <input id="mParameter" type="text" value="1" inputmode="decimal">
+                    </div>
+                  </div>
+
+                  <p class="oneform-title">1-form β = b<sub>i</sub> dx<sup>i</sup></p>
+                  <div id="oneFormGrid" class="oneform-editor" aria-label="One-form components"></div>
+                  <p class="input-help">The metric defines α² = g<sub>ij</sub>y<sup>i</sup>y<sup>j</sup>; the vector above defines β = b<sub>i</sub>y<sup>i</sup>.</p>
+                  <div id="alphaBetaFormula" class="alpha-beta-formula" aria-live="polite"></div>
+                </div>
+              </div>
+            </div>
+
+            <div class="example-controls">
+              <span>Example</span>
+              <select id="exampleSelect">
+                <option value="randerspp" selected>Randers pp-wave, β = du</option>
+                <option value="ppwaveMetric4">Pseudo-Riemannian pp-wave</option>
+                <option value="mkropinaPP">m-Kropina pp-wave, β = du</option>
+                <option value="riemann2">Riemannian 2D test metric</option>
+                <option value="minkowski4">Minkowski metric</option>
+                <option value="finsler2">Direct 2D Finsler Lagrangian</option>
+              </select>
+              <button type="button" class="small-button" id="loadExample">Load</button>
+            </div>
+            <p id="exampleNote" class="example-note"></p>
+          </section>
         </div>
-        <div class="output-checklist">
-          <label><input type="checkbox" data-output="metric" checked> Fundamental / metric tensor <span>g<sub>ij</sub></span></label>
-          <label><input type="checkbox" data-output="inverse" checked> Inverse metric &amp; determinant</label>
-          <label><input type="checkbox" data-output="cartan" checked> Cartan tensor</label>
-          <label><input type="checkbox" data-output="spray" checked> Geodesic spray</label>
-          <label><input type="checkbox" data-output="nonlinear" checked> Nonlinear connection</label>
-          <label><input type="checkbox" data-output="connections" checked> Christoffel symbols</label>
-          <label><input type="checkbox" data-output="curvature" checked> Nonlinear curvature</label>
-          <label><input type="checkbox" data-output="deviation" checked> Geodesic deviation tensor</label>
-          <label><input type="checkbox" data-output="ricci" checked> Finsler-Ricci quantities</label>
-          <label><input type="checkbox" data-output="affine" checked> Affine curvature / Ricci (when applicable)</label>
-        </div>
-        <p class="output-options-note">Unchecked result sections are not displayed. Quantities required as prerequisites for selected results may still be calculated internally.</p>
-      </fieldset>
 
-      <div class="compute-row">
-        <button type="button" class="primary-button" id="computeConnection">Compute connection</button>
-        <button type="button" class="primary-button curvature-button" id="computeCurvature">Compute curvature</button>
-        <button type="button" class="secondary-button" id="clearResults">Clear</button>
+        <aside class="output-column">
+          <section class="workflow-card output-card">
+            <div class="options-title-row">
+              <div>
+                <span class="section-kicker">2 · Output</span>
+                <h3>Choose quantities</h3>
+                <p class="card-explainer">Only selected outputs are displayed and fully simplified.</p>
+              </div>
+              <span class="selection-count" id="selectionCount">0 selected</span>
+            </div>
+
+            <div class="option-actions">
+              <button type="button" class="utility-button" id="selectAllOutputs">All</button>
+              <button type="button" class="utility-button" id="selectEssentials">Essentials</button>
+              <button type="button" class="utility-button" id="clearAllOutputs">None</button>
+            </div>
+
+            <div class="output-groups">
+              <div class="output-group">
+                <p class="output-group-title">Metric data</p>
+                <label class="output-check"><input type="checkbox" data-output="metric" checked><span><strong id="metricOutputLabel">Metric / fundamental tensor</strong><span>g<sub>ij</sub></span></span></label>
+                <label class="output-check"><input type="checkbox" data-output="inverse" checked><span><strong>Inverse & determinant</strong><span>g<sup>ij</sup>, det(g)</span></span></label>
+                <label class="output-check"><input type="checkbox" data-output="cartan" checked><span><strong>Cartan tensor</strong><span>C<sub>ijk</sub></span></span></label>
+              </div>
+
+              <div class="output-group">
+                <p class="output-group-title">Connection</p>
+                <label class="output-check"><input type="checkbox" data-output="spray" checked><span><strong>Geodesic spray</strong><span>G<sup>i</sup></span></span></label>
+                <label class="output-check"><input type="checkbox" data-output="nonlinear" checked><span><strong>Nonlinear connection</strong><span>N<sup>i</sup><sub>j</sub></span></span></label>
+                <label class="output-check"><input type="checkbox" data-output="connections" checked><span><strong>Christoffel symbols</strong><span>Berwald / Chern–Rund / Levi-Civita</span></span></label>
+              </div>
+
+              <div class="output-group">
+                <p class="output-group-title">Curvature</p>
+                <label class="output-check"><input type="checkbox" data-output="curvature" checked><span><strong>Nonlinear curvature</strong><span>R<sup>k</sup><sub>ij</sub></span></span></label>
+                <label class="output-check"><input type="checkbox" data-output="deviation" checked><span><strong>Geodesic deviation</strong><span>R<sup>k</sup><sub>i</sub></span></span></label>
+                <label class="output-check"><input type="checkbox" data-output="ricci" checked><span><strong>Finsler-Ricci</strong><span>Ric, R<sub>ij</sub></span></span></label>
+                <label class="output-check"><input type="checkbox" data-output="affine" checked><span><strong>Affine curvature / Ricci</strong><span>When an affine connection is available</span></span></label>
+              </div>
+            </div>
+
+            <div class="calculate-panel">
+              <button type="button" class="calculate-button" id="calculateSelected">Calculate selected</button>
+              <button type="button" class="utility-button clear-results-button" id="clearResults">Clear results</button>
+              <div id="status" class="calc-status" role="status" aria-live="polite">Ready.</div>
+            </div>
+          </section>
+        </aside>
       </div>
 
-      <div id="status" class="calc-status" role="status" aria-live="polite">Ready.</div>
-      <p class="performance-note">Calculations run in a background worker. Finished tensor components are shown immediately with timings. Very large expressions are collapsed initially and rendered only when you choose to expand them.</p>
+      <div class="results-area" id="results" aria-live="polite"></div>
+
+      <details class="reference-drawer">
+        <summary>Definitions and conventions used</summary>
+        <div class="formula-grid">
+          <div>\[g_{ij}=\frac12\bar\partial_i\bar\partial_j L\]</div>
+          <div>\[G^j=\frac12 g^{jk}\left(y^m\partial_m\bar\partial_k L-\partial_kL\right)\]</div>
+          <div>\[N^j{}_i=\frac12\bar\partial_iG^j,\qquad \delta_i=\partial_i-N^a{}_i\bar\partial_a\]</div>
+          <div>\[{}^B\Gamma^k{}_{ij}=\frac12\bar\partial_i\bar\partial_jG^k\]</div>
+          <div>\[{}^C\Gamma^k{}_{ij}=\frac12g^{k\ell}(\delta_i g_{\ell j}+\delta_j g_{i\ell}-\delta_\ell g_{ij})\]</div>
+          <div>\[R^k{}_{ij}=\delta_iN^k{}_j-\delta_jN^k{}_i\]</div>
+          <div>\[R^k{}_i=R^k{}_{ij}y^j,\qquad \mathrm{Ric}=R^i{}_{ij}y^j\]</div>
+          <div>\[R_{ij}=\frac12\bar\partial_i\bar\partial_j\mathrm{Ric}\]</div>
+        </div>
+      </details>
     </section>
-
-    <section class="finsler-card conventions-card" aria-labelledby="conventions-title">
-      <p class="card-kicker">Definitions</p>
-      <h2 id="conventions-title">Conventions used</h2>
-      <div class="formula-grid">
-        <div>\[g_{ij}=\frac12\,\bar\partial_i\bar\partial_j L\]</div>
-        <div>\[G^j=\frac12 g^{jk}\left(y^m\partial_m\bar\partial_k L-\partial_kL\right)\]</div>
-        <div>\[N^j{}_i=\frac12\bar\partial_iG^j,\qquad \delta_i=\partial_i-N^a{}_i\bar\partial_a\]</div>
-        <div>\[{}^B\Gamma^k{}_{ij}=\frac12\bar\partial_i\bar\partial_jG^k\]</div>
-        <div>\[{}^C\Gamma^k{}_{ij}=\frac12g^{k\ell}(\delta_i g_{\ell j}+\delta_j g_{i\ell}-\delta_\ell g_{ij})\]</div>
-        <div>\[R^k{}_{ij}=\delta_iN^k{}_j-\delta_jN^k{}_i\]</div>
-        <div>\[R^k{}_i=R^k{}_{ij}y^j,\qquad \mathrm{Ric}=R^i{}_{ij}y^j\]</div>
-        <div>\[R_{ij}=\frac12\bar\partial_i\bar\partial_j\mathrm{Ric}\]</div>
-      </div>
-    </section>
-
-    <section id="results" class="results-stack" aria-live="polite"></section>
   </main>
 
   <footer class="site-footer"><span>&copy; 2017–2026 Sjors Heefer</span></footer>
