@@ -1,0 +1,47 @@
+.calculation-progress .live-step {
+  margin: 10px 0 12px;
+  padding: 11px 13px;
+  color: var(--navy-900);
+  background: #eef5fc;
+  border: 1px solid #c9dced;
+  border-radius: 9px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 650;
+}
+.timing-log {
+  max-height: 190px;
+  overflow: auto;
+  padding-right: 4px;
+  font-size: 0.82rem;
+  color: var(--muted);
+}
+.timing-log-row {
+  padding: 4px 0;
+  border-bottom: 1px solid rgba(219,227,236,.65);
+}
+.timed-component {
+  display: grid;
+  grid-template-columns: minmax(0,1fr) auto;
+  gap: 14px;
+  align-items: center;
+}
+.component-formula {
+  min-width: 0;
+  overflow-x: auto;
+}
+.component-time {
+  white-space: nowrap;
+  color: var(--muted);
+  font-size: .78rem;
+  font-variant-numeric: tabular-nums;
+}
+.section-summary {
+  margin-top: 12px;
+}
+.progressive-result [data-time] {
+  font-variant-numeric: tabular-nums;
+}
+@media (max-width: 640px) {
+  .timed-component { grid-template-columns: 1fr; gap: 2px; }
+  .component-time { padding: 0 0 7px 2px; }
+}
