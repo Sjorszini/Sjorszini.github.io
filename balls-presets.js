@@ -46,7 +46,7 @@
   }
 
   function solarSystem() {
-    resetWorld({ verticalGravity: false, mutualGravity: true, collisions: false, drawingMode: false, boundaries: false, energyDissipation: 0, G: 10 });
+    resetWorld({ verticalGravity: false, mutualGravity: true, collisions: true, drawingMode: false, boundaries: false, energyDissipation: 3, G: 10 });
     var cx = width / 2;
     var cy = height / 2;
     var starMass = 900;
@@ -61,7 +61,7 @@
       var speed = Math.sqrt(G * starMass / planet.r);
       addBall(x, y, planet.radius, planet.mass, -Math.sin(planet.angle) * speed, Math.cos(planet.angle) * speed, colorFrom(palettes.orbit, index));
     });
-    announce("Mini solar system", "three bodies orbit a heavy central mass");
+    announce("Mini solar system", "three bodies orbit a heavy central mass with 3% collision dissipation");
   }
 
   function billiardBreak() {
