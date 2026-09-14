@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Balls, an interactive Newtonian mechanics simulator by Sjors Heefer.">
+  <title>Balls - Sjors Heefer</title>
+  <link rel="stylesheet" type="text/css" href="style.css">
+  <link rel="stylesheet" type="text/css" href="menu-clean.css?v=3">
+  <link rel="icon" href="icon.ico" type="image/vnd.microsoft.icon">
+</head>
+<body onload="OnLoad()">
+
+<div class="container">
+  <header>
+    <EinsteinQuote><i>"The most beautiful thing we can experience is the mysterious.<br> It is the source of all true art and science."</i> — A. Einstein</EinsteinQuote>
+    <h1>Sjors Heefer</h1>
+  </header>
+
+  <article>
+    <h1>Balls</h1>
+    <p>A small simulator of Newtonian mechanics, just for fun. Click inside the canvas to add balls and experiment with the settings below.</p>
+  </article>
+
+  <div class="BallsContainer">
+    <div class="BallsCanvas">
+      <a href="android-release.apk" download="balls.apk" target="_blank" rel="noopener noreferrer">Download the Android app</a>
+      <p id="Balls_mobile_text"></p>
+      <canvas id="myCanvas" width="800" height="600">Your browser does not support the canvas element.</canvas>
+      <script src="app.js"></script>
+    </div>
+
+    <div class="BallsControls">
+      <form action="">
+        <p class="control-note"><i>Change the properties below to control the simulation and each new ball.</i></p>
+        <h3>Simulation</h3>
+
+        <div class="checkboxdiv">
+          <input type="checkbox" class="CheckboxGeneralSettings fancyCheckbox" id="chbPauseResume" name="chbPauseResume" onclick="handle_chbPauseResume_Click();">
+          <label for="chbPauseResume" data-on="Simulation running" data-off="Simulation paused"></label>
+        </div>
+        <div class="checkboxdiv">
+          <input type="checkbox" class="CheckboxGeneralSettings fancyCheckbox" id="chbBoundaries" name="chbBoundaries" onclick="handle_chbBoundaries_Click();">
+          <label for="chbBoundaries" data-on="Boundaries enabled" data-off="Boundaries disabled"></label>
+        </div>
+        <div class="checkboxdiv">
+          <input type="checkbox" class="CheckboxGeneralSettings fancyCheckbox" id="chbCollisions" name="chbCollisions" onclick="handle_chbCollisions_Click();">
+          <label for="chbCollisions" data-on="Collisions enabled" data-off="Collisions disabled"></label>
+        </div>
+        <div class="checkboxdiv">
+          <input type="checkbox" class="CheckboxGeneralSettings fancyCheckbox" id="chbVerticalGravity" name="chbVerticalGravity" onclick="handle_chbVerticalGravity_Click();">
+          <label for="chbVerticalGravity" data-on="Vertical gravity enabled" data-off="Vertical gravity disabled"></label>
+        </div>
+        <div class="checkboxdiv">
+          <input type="checkbox" class="CheckboxGeneralSettings fancyCheckbox" id="chbMutualGravity" name="chbMutualGravity" onclick="handle_chbMutualGravity_Click();">
+          <label for="chbMutualGravity" data-on="Mutual gravity enabled" data-off="Mutual gravity disabled"></label>
+        </div>
+        <div class="checkboxdiv">
+          <input type="checkbox" class="CheckboxGeneralSettings fancyCheckbox" id="chbDrawingMode" name="chbDrawingMode" onclick="handle_chbDrawingMode_Click();">
+          <label for="chbDrawingMode" data-on="Drawing mode enabled" data-off="Drawing mode disabled"></label>
+        </div>
+
+        <p>Energy dissipation: <input type="text" id="txtEnergyDissipation" style="width:60px;" value="2" onchange="handle_txtEnergyDissipation_change();" onkeydown="if (event.keyCode == 13 && event.which == 13){ event.preventDefault(); this.blur();}"> %</p>
+      </form>
+    </div>
+
+    <div class="BallsControls">
+      <form action="">
+        <h3>Design new ball</h3>
+        <p>Radius: <input type="text" id="txtSizeNewBall" style="width:60px;" value="30" onchange="handle_txtSizeNewBall_change();" onkeydown="if (event.keyCode == 13 && event.which == 13){ event.preventDefault(); this.blur();}"></p>
+        <p>Mass: <input type="text" id="txtMassNewBall" style="width:60px;" value="30" onchange="handle_txtMassNewBall_change();" onkeydown="if (event.keyCode == 13 && event.which == 13){ event.preventDefault(); this.blur();}"></p>
+        <p>x-speed: <input type="text" id="txtXspeedNewBall" style="width:60px;" value="3" onchange="handle_txtXspeedNewBall_change();" onkeydown="if (event.keyCode == 13 && event.which == 13){ event.preventDefault(); this.blur();}"></p>
+        <p>y-speed: <input type="text" id="txtYspeedNewBall" style="width:60px;" value="0" onchange="handle_txtYspeedNewBall_change();" onkeydown="if (event.keyCode == 13 && event.which == 13){ event.preventDefault(); this.blur();}"></p>
+      </form>
+    </div>
+
+    <div class="BallsControls">
+      <form action="">
+        <h3>Configuration</h3>
+        <a href="javascript:void(0)" class="btn" id="btnRemoveLastBall" onclick="handle_btnRemoveLastBall_click();">Remove last ball</a>
+        <a href="javascript:void(0)" class="btn" id="btnClearScreen" onclick="handle_btnClearScreen_click();">Clear screen</a>
+        <a href="javascript:void(0)" class="btn" id="btnSaveConfig" onclick="handle_btnSaveConfig_click();">Save configuration</a>
+        <a href="javascript:void(0)" class="btn" id="btnLoadConfig" onclick="handle_btnLoadConfig_click();">Load saved configuration</a>
+      </form>
+    </div>
+
+    <div class="BallsControls">
+      <form action="">
+        <h3>Tools</h3>
+        <a href="javascript:void(0)" class="btn" id="btnSaveCanvasAsImage" onclick="handle_btnSaveCanvasAsImage_click();">Save canvas as image</a>
+        <a href="javascript:void(0)" class="btn" id="btnScenario1" onclick="handle_btnScenario1_click();">Load scenario 1</a>
+        <a href="javascript:void(0)" class="btn" id="btnScenario2" onclick="handle_btnScenario2_click();">Load scenario 2</a>
+      </form>
+    </div>
+  </div>
+
+  <footer class="site-footer"><span>&copy; 2017–2026 Sjors Heefer</span></footer>
+</div>
+
+<menubar>
+  <button class="mobile-menu-toggle" type="button" aria-expanded="false" aria-controls="site-menu" onclick="var o=this.parentElement.classList.toggle('menu-open');this.setAttribute('aria-expanded',o?'true':'false');"><span>Menu</span><span class="mobile-menu-icon" aria-hidden="true"></span></button>
+  <menu id="site-menu">
+    <menu-item><a href="index.html">Home</a></menu-item>
+    <menu-item><a href="publications.html">Publications</a></menu-item>
+    <menu-item><a href="teaching.html">Teaching</a></menu-item>
+    <menu-item><a href="pianist.html">Pianist</a></menu-item>
+    <menu-item class="currentpage"><a href="Balls.html">Balls</a></menu-item>
+    <menu-item><a href="contact.html">Contact</a></menu-item>
+  </menu>
+</menubar>
+
+</body>
+</html>
