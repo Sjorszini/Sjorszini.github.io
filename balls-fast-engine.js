@@ -73,7 +73,9 @@
   }
 
   function buildGravityCells() {
-    var cellSize = 120;
+    // Keep cells small enough that the exact near-field region contains the
+    // important short-range interactions, while the far field remains cheap.
+    var cellSize = Math.max(60, 3 * maximumRadius());
     var map = new Map();
     var cells = [];
 
@@ -84,10 +86,20 @@
       var k = key(cx, cy);
       var c = map.get(k);
       if (!c) {
-        c = { cx: cx, cy: cy, mass: 0, x: 0, y: 0, indices: [] };
+        c = {
+          cx: cx,
+          cy: cy,
+          mass: 0,
+          x: 0,
+          y: 0,
+          ax: 0,
+          ay: 0,
+          indices: []
+        };
         map.set(k, c);
         cells.push(c);
       }
+
       var oldMass = c.mass;
       c.mass += b.m;
       c.x = (c.x * oldMass + b.x * b.m) / c.mass;
@@ -95,61 +107,75 @@
       c.indices.push(i);
     }
 
-    return { size: cellSize, cells: cells };
+    return cells;
   }
 
-  function addAggregateGravity(target, mass, x, y) {
-    var dx = x - target.x;
-    var dy = y - target.y;
+  function exactGravityWithinCell(cell) {
+    for (var a = 0; a < cell.indices.length; a += 1) {
+      for (var b = a + 1; b < cell.indices.length; b += 1) {
+        pairGravity(ball[cell.indices[a]], ball[cell.indices[b]]);
+      }
+    }
+  }
+
+  function exactGravityBetweenCells(cellA, cellB) {
+    for (var a = 0; a < cellA.indices.length; a += 1) {
+      for (var b = 0; b < cellB.indices.length; b += 1) {
+        pairGravity(ball[cellA.indices[a]], ball[cellB.indices[b]]);
+      }
+    }
+  }
+
+  function aggregateCellPairGravity(cellA, cellB) {
+    var dx = cellB.x - cellA.x;
+    var dy = cellB.y - cellA.y;
     var r2 = dx * dx + dy * dy;
-    if (r2 < 1e-10 || mass <= 0) return;
+    if (r2 < 1e-10 || cellA.mass <= 0 || cellB.mass <= 0) return;
 
     var softening = 24;
     var denom = Math.pow(r2 + softening * softening, 1.5);
-    var scale = G * target.m * mass / denom;
-    target.Fx += scale * dx;
-    target.Fy += scale * dy;
+    var scale = G * cellA.mass * cellB.mass / denom;
+    var fx = scale * dx;
+    var fy = scale * dy;
+
+    // Equal-and-opposite cell forces preserve total linear momentum exactly.
+    cellA.ax += fx / cellA.mass;
+    cellA.ay += fy / cellA.mass;
+    cellB.ax -= fx / cellB.mass;
+    cellB.ay -= fy / cellB.mass;
   }
 
-  function addOneWayPairGravity(target, source) {
-    var dx = source.x - target.x;
-    var dy = source.y - target.y;
-    var r2 = dx * dx + dy * dy;
-    if (r2 < 1e-10) return;
-
-    var contact = target.r + source.r + 0.75;
-    if (Collisions && r2 <= contact * contact) return;
-
-    var softening = 18;
-    var denom = Math.pow(r2 + softening * softening, 1.5);
-    var scale = G * target.m * source.m / denom;
-    target.Fx += scale * dx;
-    target.Fy += scale * dy;
-  }
-
-  function calculateApproximateGravity() {
-    gravityMode = "spatial approximation";
-    var grid = buildGravityCells();
-
-    for (var i = 0; i < NumberOfBalls; i += 1) {
-      var target = ball[i];
-      var tcx = Math.floor(target.x / grid.size);
-      var tcy = Math.floor(target.y / grid.size);
-
-      for (var c = 0; c < grid.cells.length; c += 1) {
-        var cell = grid.cells[c];
-        var near = Math.abs(cell.cx - tcx) <= 1 && Math.abs(cell.cy - tcy) <= 1;
-
-        if (near) {
-          for (var n = 0; n < cell.indices.length; n += 1) {
-            var index = cell.indices[n];
-            if (index !== i) addOneWayPairGravity(target, ball[index]);
-          }
-        } else {
-          addAggregateGravity(target, cell.mass, cell.x, cell.y);
-        }
+  function applyAggregateCellAcceleration(cells) {
+    for (var c = 0; c < cells.length; c += 1) {
+      var cell = cells[c];
+      for (var n = 0; n < cell.indices.length; n += 1) {
+        var b = ball[cell.indices[n]];
+        b.Fx += b.m * cell.ax;
+        b.Fy += b.m * cell.ay;
       }
     }
+  }
+
+  function calculateClusteredGravity() {
+    gravityMode = "momentum-conserving clustered";
+    var cells = buildGravityCells();
+
+    // Resolve all gravity within each cell exactly.
+    for (var c = 0; c < cells.length; c += 1) exactGravityWithinCell(cells[c]);
+
+    // Resolve neighbouring cells exactly. Distant cell pairs interact through
+    // their centres of mass, but always as one symmetric equal/opposite pair.
+    for (var a = 0; a < cells.length; a += 1) {
+      var cellA = cells[a];
+      for (var b = a + 1; b < cells.length; b += 1) {
+        var cellB = cells[b];
+        var near = Math.abs(cellA.cx - cellB.cx) <= 1 && Math.abs(cellA.cy - cellB.cy) <= 1;
+        if (near) exactGravityBetweenCells(cellA, cellB);
+        else aggregateCellPairGravity(cellA, cellB);
+      }
+    }
+
+    applyAggregateCellAcceleration(cells);
   }
 
   function calculateForces() {
@@ -168,7 +194,7 @@
         }
       }
     } else {
-      calculateApproximateGravity();
+      calculateClusteredGravity();
     }
   }
 
@@ -230,8 +256,8 @@
     // Correct overlap explicitly. This prevents gravity + discrete collision
     // handling from repeatedly pulling overlapping balls into one another.
     var penetration = minDistance - distance;
-    var slop = 0.02;
-    var percent = 0.92;
+    var slop = 0.015;
+    var percent = 0.94;
     var correction = Math.max(penetration - slop, 0) * percent / invSum;
     a.x -= nx * correction * invA;
     a.y -= ny * correction * invA;
@@ -246,9 +272,12 @@
     var vt = rvx * tx + rvy * ty;
     var e = restitution();
 
-    // At 100% dissipation, relative contact velocity goes to zero, so the
-    // balls settle to their centre-of-mass velocity instead of jittering.
-    var desiredVn = vn < 0 ? -e * vn : vn;
+    // Dissipation acts on all relative contact motion. Approaching bodies
+    // bounce with restitution e; separating bodies that are still overlapping
+    // also lose the requested fraction of relative speed. Tangential sliding is
+    // damped too. Total pair momentum is preserved because all changes are
+    // applied as equal/opposite impulses in the centre-of-mass frame.
+    var desiredVn = vn < 0 ? -e * vn : e * vn;
     var desiredVt = e * vt;
     var impulseN = (desiredVn - vn) / invSum;
     var impulseT = (desiredVt - vt) / invSum;
@@ -319,7 +348,7 @@
     calculateForces();
     integrate(stepDt);
 
-    var iterations = NumberOfBalls <= 160 ? 3 : (NumberOfBalls <= 500 ? 2 : 1);
+    var iterations = NumberOfBalls <= 160 ? 3 : (NumberOfBalls <= 500 ? 2 : 2);
     for (var i = 0; i < iterations; i += 1) resolveCollisionsWithGrid();
     resolveWalls();
   }
@@ -379,6 +408,38 @@
     }
   }
 
+  function motionStats() {
+    var totalMass = 0;
+    var px = 0;
+    var py = 0;
+    var kinetic = 0;
+
+    for (var i = 0; i < NumberOfBalls; i += 1) {
+      var b = ball[i];
+      totalMass += b.m;
+      px += b.m * b.vx;
+      py += b.m * b.vy;
+      kinetic += 0.5 * b.m * (b.vx * b.vx + b.vy * b.vy);
+    }
+
+    var cvx = totalMass > 0 ? px / totalMass : 0;
+    var cvy = totalMass > 0 ? py / totalMass : 0;
+    var internalKinetic = 0;
+
+    for (var j = 0; j < NumberOfBalls; j += 1) {
+      var q = ball[j];
+      var ux = q.vx - cvx;
+      var uy = q.vy - cvy;
+      internalKinetic += 0.5 * q.m * (ux * ux + uy * uy);
+    }
+
+    return {
+      kinetic: kinetic,
+      internalKinetic: internalKinetic,
+      comSpeed: Math.sqrt(cvx * cvx + cvy * cvy)
+    };
+  }
+
   function updateStats(now) {
     perfFrames += 1;
     var elapsed = now - perfStarted;
@@ -389,8 +450,11 @@
 
     var output = document.getElementById("performance-status");
     if (output) {
+      var motion = motionStats();
       output.textContent = NumberOfBalls.toLocaleString() + " balls · " + fps + " fps · " +
-        collisionChecks.toLocaleString() + " nearby collision checks/frame · gravity: " + gravityMode;
+        collisionChecks.toLocaleString() + " nearby collision checks/frame · gravity: " + gravityMode +
+        " · internal KE: " + motion.internalKinetic.toFixed(1) +
+        " · COM speed: " + motion.comSpeed.toFixed(3);
     }
   }
 
