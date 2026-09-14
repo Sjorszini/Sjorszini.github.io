@@ -1,0 +1,9 @@
+/* Keep the fixed navigation focused on page links; the name already appears in the main header. */
+menu:before {
+  display: none !important;
+  content: none !important;
+}
+
+menu {
+  justify-content: flex-start;
+}
