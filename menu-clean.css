@@ -7,3 +7,45 @@ menu:before {
 menu {
   justify-content: flex-start;
 }
+
+/* On small phones, show all six destinations in a stable 3 × 2 grid. */
+@media (max-width: 560px) {
+  menubar {
+    overflow: visible;
+  }
+
+  menu {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    width: 100%;
+    min-height: 0;
+    padding: 4px 6px;
+    overflow: visible;
+  }
+
+  menu-item {
+    min-width: 0;
+  }
+
+  menu-item a {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 40px;
+    padding: 8px 4px 7px;
+    font-size: 0.76rem;
+    line-height: 1.25;
+    text-align: center;
+    white-space: nowrap;
+  }
+
+  menu-item a:after {
+    left: 18%;
+    right: 18%;
+    bottom: 4px;
+  }
+
+  .container {
+    margin-top: 98px;
+  }
+}
