@@ -7,6 +7,33 @@
   <title>Teaching - Sjors Heefer</title>
   <link rel="stylesheet" type="text/css" href="style.css">
   <link rel="icon" href="icon.ico" type="image/vnd.microsoft.icon">
+  <style>
+    .container {
+      min-height: calc(100vh - 124px);
+      display: flex;
+      flex-direction: column;
+    }
+
+    .container > article {
+      flex: 0 0 auto;
+    }
+
+    .site-footer {
+      margin-top: auto;
+    }
+
+    @media (max-width: 800px) {
+      .container {
+        min-height: calc(100vh - 112px);
+      }
+    }
+
+    @media (max-width: 560px) {
+      .container {
+        min-height: calc(100vh - 58px);
+      }
+    }
+  </style>
 </head>
 <body>
 
