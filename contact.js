@@ -1,30 +1,22 @@
 (function () {
   "use strict";
 
-  // Addresses are kept out of the visible HTML. After FormSubmit activation,
-  // these can be replaced by FormSubmit's opaque endpoint tokens.
+  // Opaque FormSubmit endpoint tokens. The actual destination email addresses
+  // are no longer present in or reconstructed by the website code.
   var destinations = {
-    academic: "cy5qLmhlZWZlckB0dWUubmw=",
-    teaching: "cy5qLmhlZWZlckB0dWUubmw=",
-    music: "c2pvcnNoZWVmZXJAbGl2ZS5ubA==",
-    other: "cy5qLmhlZWZlckB0dWUubmw="
+    academic: "7393c84eb6c87dd7567b1680cf4b095b",
+    teaching: "7393c84eb6c87dd7567b1680cf4b095b",
+    music: "1202e52dbad7f4f683257ad4e1241422",
+    other: "7393c84eb6c87dd7567b1680cf4b095b"
   };
-
-  function decode(value) {
-    try {
-      return atob(value);
-    } catch (error) {
-      return "";
-    }
-  }
 
   function currentTopic() {
     var select = document.getElementById("contact-topic");
     return select && destinations[select.value] ? select.value : "academic";
   }
 
-  function destinationAddress() {
-    return decode(destinations[currentTopic()]);
+  function destinationEndpoint() {
+    return destinations[currentTopic()] || "";
   }
 
   function setStatus(message, isError) {
@@ -129,7 +121,7 @@
       return;
     }
 
-    var destination = destinationAddress();
+    var destination = destinationEndpoint();
     if (!destination) {
       setStatus("The contact form is temporarily unavailable.", true);
       return;
