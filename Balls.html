@@ -30,7 +30,7 @@
       <script src="app.js"></script>
       <script src="balls-fast-engine-v3.js?v=2"></script>
       <script src="balls-contact-settle.js?v=1"></script>
-      <script src="balls-presets.js?v=5"></script>
+      <script src="balls-presets.js?v=6"></script>
     </div>
 
     <div class="BallsControls">
@@ -44,13 +44,10 @@
             <option value="solar">Mini solar system</option>
             <option value="billiards">Billiard break</option>
             <option value="rain">Gravity rain</option>
-            <option value="trails">Orbit trails</option>
             <option value="cloud300">300-ball gravity cloud</option>
-            <option value="swarm" selected>1,000-ball swarm</option>
+            <option value="swarm" selected>1,000-ball gravity cloud</option>
           </select>
         </p>
-        <p id="preset-status" role="status" aria-live="polite">1,000-ball swarm is the default preset.</p>
-        <p id="performance-status" aria-live="polite">Performance data will appear while the simulation runs.</p>
 
         <div class="checkboxdiv">
           <input type="checkbox" class="CheckboxGeneralSettings fancyCheckbox" id="chbPauseResume" name="chbPauseResume" onclick="handle_chbPauseResume_Click();">
