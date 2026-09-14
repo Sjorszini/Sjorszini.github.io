@@ -4,7 +4,7 @@
   var palettes = {
     orbit: ["#327eb1", "#438fc0", "#245f99", "#579dca", "#3a75a4"],
     billiards: ["#2f6fa5", "#4d8fbe", "#245a86", "#5f98c4", "#397bad"],
-    rain: ["#438fc0", "#2f6fa5", "#5c9ac7", "#245a86", "#4b83b0"],
+    rain: ["#286a9d", "#367faf", "#468fbc", "#5a9ec8", "#245a86", "#3a75a4"],
     cloud: ["#1c527f", "#286a9d", "#367faf", "#468fbc", "#5a9ec8", "#346f9d"],
     swarm: ["#174d7a", "#23679c", "#327eb1", "#438fc0", "#579dca", "#3a75a4"]
   };
@@ -82,15 +82,30 @@
   }
 
   function gravityRain() {
-    resetWorld({ verticalGravity: true, mutualGravity: false, collisions: true, drawingMode: false, boundaries: true, energyDissipation: 12, G: 10, gy: 0.22 });
+    resetWorld({ verticalGravity: true, mutualGravity: false, collisions: true, drawingMode: false, boundaries: true, energyDissipation: 8, G: 10, gy: 0.30 });
+
+    var columns = 15;
+    var rows = 8;
     var index = 0;
-    for (var row = 0; row < 4; row += 1) {
-      for (var col = 0; col < 8; col += 1) {
-        var radius = 8 + ((row + col) % 3) * 3;
-        addBall(75 + col * 92 + (row % 2) * 18, 55 + row * 62, radius, radius * 0.7, (Math.random() - 0.5) * 2.2, Math.random() * 1.5, colorFrom(palettes.rain, index++));
+    var left = 34;
+    var top = 42;
+    var spacingX = (width - 68) / (columns - 1);
+    var spacingY = 46;
+
+    for (var row = 0; row < rows; row += 1) {
+      for (var col = 0; col < columns; col += 1) {
+        var radius = 4 + ((row * 3 + col) % 4) * 1.7;
+        var x = left + col * spacingX + (row % 2) * 10 + (Math.random() - 0.5) * 8;
+        var y = top + row * spacingY + (Math.random() - 0.5) * 10;
+        var direction = ((row + col) % 2 === 0) ? 1 : -1;
+        var vx = direction * (1.2 + Math.random() * 4.0);
+        var vy = 0.5 + Math.random() * 4.5;
+        var mass = 0.18 * radius * radius;
+        addBall(x, y, radius, mass, vx, vy, colorFrom(palettes.rain, index++));
       }
     }
-    announce("Gravity rain", "thirty-two balls fall, collide and settle");
+
+    announce("Gravity rain", "120 mixed-size balls cross, collide, cascade and settle under stronger vertical gravity");
   }
 
   function removeCenterOfMassDrift() {
