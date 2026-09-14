@@ -18,6 +18,7 @@
   </script>
   <script defer src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
   <script defer src="finsler-calculator.js?v=1"></script>
+  <script defer src="finsler-riemann-fast.js?v=1"></script>
 </head>
 <body>
 <div class="container finsler-page">
@@ -71,7 +72,7 @@
       </div>
 
       <div id="status" class="calc-status" role="status" aria-live="polite">Ready.</div>
-      <p class="performance-note">Symbolic expressions can grow rapidly. Four-dimensional non-quadratic examples may take substantial time; computing the connection first lets you inspect the intermediate geometry before requesting curvature.</p>
+      <p class="performance-note">Quadratic/Riemannian inputs use a dedicated fast path. Non-quadratic Finsler expressions can still grow rapidly, especially in four dimensions; computing the connection first lets you inspect the intermediate geometry before requesting curvature.</p>
     </section>
 
     <section class="finsler-card conventions-card" aria-labelledby="conventions-title">
