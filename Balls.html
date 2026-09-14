@@ -41,17 +41,21 @@
         <strong>Gravity rain</strong>
         <span>Balls fall, collide, bounce and gradually settle.</span>
       </button>
-      <button class="BallsPreset" type="button" onclick="loadBallsPreset('storm')">
-        <strong>Particle storm</strong>
-        <span>A box full of fast, elastic particles ricocheting around.</span>
-      </button>
       <button class="BallsPreset" type="button" onclick="loadBallsPreset('trails')">
         <strong>Orbit trails</strong>
         <span>Gravity plus drawing mode creates persistent orbital paths.</span>
       </button>
+      <button class="BallsPreset" type="button" onclick="loadBallsPreset('cloud300')">
+        <strong>300-ball gravity cloud</strong>
+        <span>Exact mutual gravity, collisions and damping in a medium-sized swarm.</span>
+      </button>
       <button class="BallsPreset" type="button" onclick="loadBallsPreset('swarm')">
         <strong>1,000-ball swarm</strong>
         <span>A self-gravitating, dissipative stress test for the optimized engine.</span>
+      </button>
+      <button class="BallsPreset" type="button" onclick="loadBallsPreset('mega2500')">
+        <strong>2,500-ball mega swarm</strong>
+        <span>A very large collision stress test; mutual gravity starts off for speed.</span>
       </button>
     </div>
     <p id="preset-status" role="status" aria-live="polite">Choose a preset, or build your own setup below.</p>
@@ -66,7 +70,7 @@
       <script src="app.js"></script>
       <script src="balls-fast-engine-v3.js?v=2"></script>
       <script src="balls-contact-settle.js?v=1"></script>
-      <script src="balls-presets.js?v=3"></script>
+      <script src="balls-presets.js?v=4"></script>
     </div>
 
     <div class="BallsControls">
