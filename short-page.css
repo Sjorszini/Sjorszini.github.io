@@ -1,3 +1,5 @@
+@import url("menu-clean.css");
+
 /* Keeps the footer at the bottom of the viewport on pages with little content. */
 .container {
   min-height: calc(100vh - 118px);
