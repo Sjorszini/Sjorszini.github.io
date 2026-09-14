@@ -1,6 +1,6 @@
 /* Keeps the footer at the bottom of the viewport on pages with little content. */
 .container {
-  min-height: calc(100vh - 124px);
+  min-height: calc(100vh - 118px);
   display: flex;
   flex-direction: column;
 }
@@ -20,12 +20,12 @@
 
 @media (max-width: 800px) {
   .container {
-    min-height: calc(100vh - 112px);
+    min-height: calc(100vh - 108px);
   }
 }
 
 @media (max-width: 560px) {
   .container {
-    min-height: calc(100vh - 58px);
+    min-height: calc(100vh - 56px);
   }
 }
