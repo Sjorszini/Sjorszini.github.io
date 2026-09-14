@@ -1,5 +1,12 @@
 /* Test-only refinements for design-refresh-experiments. */
 
+/* Slightly deeper navy banner, closer to the darker tones of the homepage portrait. */
+header {
+  background:
+    radial-gradient(circle at 82% 10%, rgba(78, 132, 188, 0.16), transparent 23rem),
+    linear-gradient(135deg, #06111f 0%, #0d2947 58%, #12385d 100%);
+}
+
 /* Desktop: keep contact semantically separate, but place it in the sixth cell
    of the same visual 3 x 2 action grid. */
 @media (min-width: 641px) {
@@ -53,22 +60,23 @@
   .banner-mobile-nav {
     position: absolute;
     z-index: 20;
-    top: 14px;
-    right: 16px;
+    top: 50%;
+    right: 18px;
     display: block;
+    transform: translateY(-50%);
   }
 
   .banner-menu-toggle {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 44px;
-    height: 44px;
+    width: 48px;
+    height: 48px;
     padding: 0;
-    color: rgba(255, 255, 255, 0.92);
+    color: rgba(255, 255, 255, 0.94);
     background: rgba(255, 255, 255, 0.07);
-    border: 1px solid rgba(255, 255, 255, 0.16);
-    border-radius: 10px;
+    border: 1px solid rgba(255, 255, 255, 0.17);
+    border-radius: 11px;
     cursor: pointer;
     backdrop-filter: blur(8px);
     -webkit-backdrop-filter: blur(8px);
@@ -82,26 +90,26 @@
 
   .banner-menu-icon::before {
     content: "☰";
-    font-size: 1.2rem;
+    font-size: 1.35rem;
     line-height: 1;
   }
 
   .banner-mobile-nav.is-open .banner-menu-icon::before {
     content: "×";
-    font-size: 1.55rem;
+    font-size: 1.62rem;
   }
 
   .banner-menu-list {
     position: absolute;
-    top: 52px;
+    top: 56px;
     right: 0;
     display: none;
-    width: min(230px, calc(100vw - 32px));
+    width: min(230px, calc(100vw - 36px));
     padding: 7px;
-    background: rgba(7, 20, 38, 0.98);
+    background: rgba(6, 17, 31, 0.985);
     border: 1px solid rgba(255, 255, 255, 0.10);
     border-radius: 12px;
-    box-shadow: 0 16px 36px rgba(4, 14, 28, 0.28);
+    box-shadow: 0 16px 36px rgba(4, 14, 28, 0.30);
   }
 
   .banner-mobile-nav.is-open .banner-menu-list {
@@ -111,7 +119,7 @@
   .banner-menu-list a {
     display: block;
     padding: 10px 12px;
-    color: rgba(255, 255, 255, 0.76);
+    color: rgba(255, 255, 255, 0.78);
     border-radius: 7px;
     font-size: 0.88rem;
     font-weight: 600;
