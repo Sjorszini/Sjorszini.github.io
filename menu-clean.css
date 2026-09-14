@@ -145,4 +145,120 @@ menubar {
   body:has(.mobile-menu-toggle) .container {
     margin-top: 56px;
   }
+
+  /* Main navigation pages: visually move the existing disclosure control into
+     the banner and eliminate the separate mobile menubar. */
+  body:has(.mobile-menu-toggle) .container {
+    margin-top: 0;
+  }
+
+  body:has(.mobile-menu-toggle) menubar {
+    position: absolute;
+    z-index: 100;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 111px;
+    overflow: visible;
+    background: transparent;
+    border: 0;
+    box-shadow: none;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    pointer-events: none;
+  }
+
+  body:has(.mobile-menu-toggle) .mobile-menu-toggle {
+    position: absolute;
+    top: 50%;
+    right: 18px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 48px;
+    height: 48px;
+    min-height: 48px;
+    padding: 0;
+    color: rgba(255, 255, 255, 0.94);
+    background: rgba(255, 255, 255, 0.07);
+    border: 1px solid rgba(255, 255, 255, 0.17);
+    border-radius: 11px;
+    transform: translateY(-50%);
+    cursor: pointer;
+    pointer-events: auto;
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+  }
+
+  body:has(.mobile-menu-toggle) .mobile-menu-toggle > span:first-child {
+    display: none;
+  }
+
+  body:has(.mobile-menu-toggle) .mobile-menu-toggle:hover,
+  body:has(.mobile-menu-toggle) .mobile-menu-toggle:focus-visible {
+    color: #fff;
+    background: rgba(255, 255, 255, 0.12);
+  }
+
+  body:has(.mobile-menu-toggle) .mobile-menu-icon:before {
+    content: "☰";
+    min-width: 0;
+    font-size: 1.35rem;
+    line-height: 1;
+  }
+
+  body:has(.mobile-menu-toggle) menubar.menu-open .mobile-menu-icon:before {
+    content: "×";
+    font-size: 1.62rem;
+  }
+
+  body:has(.mobile-menu-toggle) menubar > .mobile-menu-toggle + menu {
+    position: absolute;
+    top: 83px;
+    right: 18px;
+    display: none;
+    width: min(230px, calc(100vw - 36px));
+    margin: 0;
+    padding: 7px;
+    overflow: visible;
+    background: rgba(3, 11, 20, 0.985);
+    border: 1px solid rgba(255, 255, 255, 0.10);
+    border-radius: 12px;
+    box-shadow: 0 16px 36px rgba(4, 14, 28, 0.30);
+    pointer-events: auto;
+  }
+
+  body:has(.mobile-menu-toggle) menubar.menu-open > .mobile-menu-toggle + menu {
+    display: block;
+  }
+
+  body:has(.mobile-menu-toggle) menubar > .mobile-menu-toggle + menu menu-item a {
+    display: block;
+    padding: 10px 12px;
+    color: rgba(255, 255, 255, 0.78);
+    border-radius: 7px;
+    font-size: 0.88rem;
+    font-weight: 600;
+    line-height: 1.35;
+    text-align: left;
+    text-decoration: none;
+  }
+
+  body:has(.mobile-menu-toggle) menubar > .mobile-menu-toggle + menu menu-item a:hover,
+  body:has(.mobile-menu-toggle) menubar > .mobile-menu-toggle + menu menu-item a:focus-visible {
+    color: #fff;
+    background: rgba(255, 255, 255, 0.07);
+  }
+
+  body:has(.mobile-menu-toggle) menubar > .mobile-menu-toggle + menu .currentpage a {
+    color: #fff;
+    background: rgba(120, 170, 224, 0.13);
+  }
+
+  body:has(.mobile-menu-toggle) menubar > .mobile-menu-toggle + menu menu-item a:after {
+    left: 12px;
+    right: auto;
+    bottom: 5px;
+    width: 28px;
+  }
 }
