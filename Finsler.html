@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Symbolic Finsler geometry calculator using the conventions of Sjors Heefer's PhD dissertation.">
+  <title>Finsler Calculator - Sjors Heefer</title>
+  <link rel="stylesheet" type="text/css" href="style.css">
+  <link rel="stylesheet" type="text/css" href="menu-clean.css?v=4">
+  <link rel="stylesheet" type="text/css" href="finsler-calculator.css?v=1">
+  <link rel="icon" href="icon.ico" type="image/vnd.microsoft.icon">
+  <script defer src="https://cdn.jsdelivr.net/npm/mathjs@11.11.2/lib/browser/math.js"></script>
+  <script>
+    window.MathJax = {
+      tex: {inlineMath: [['\\(', '\\)']], displayMath: [['\\[', '\\]']]},
+      options: {skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code']}
+    };
+  </script>
+  <script defer src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+  <script defer src="finsler-calculator.js?v=1"></script>
+</head>
+<body>
+<div class="container finsler-page">
+  <header>
+    <EinsteinQuote><i>"The most beautiful thing we can experience is the mysterious.<br> It is the source of all true art and science."</i> — A. Einstein</EinsteinQuote>
+    <h1>Sjors Heefer</h1>
+  </header>
+
+  <article class="finsler-intro">
+    <p class="eyebrow">Geometry tool</p>
+    <h1>Finsler geometry calculator</h1>
+    <p>Enter a positively 2-homogeneous Finsler Lagrangian <em>L(x,y)</em>. The calculator derives the canonical nonlinear connection, Berwald and Chern–Rund Christoffel symbols, nonlinear curvature, geodesic-deviation tensor and Finsler-Ricci quantities symbolically.</p>
+    <p class="finsler-reference">Conventions follow Chapters 1–4 of <a href="PhDDissertation.pdf" target="_blank" rel="noopener noreferrer"><em>Finsler Geometry, Spacetime &amp; Gravity</em></a>, in particular equations (1.4), (2.14), (2.32)–(2.34), (3.16), (3.23), and (4.3)–(4.4).</p>
+  </article>
+
+  <main class="finsler-workbench">
+    <section class="finsler-card input-card" aria-labelledby="input-title">
+      <div class="card-heading">
+        <div>
+          <p class="card-kicker">Input</p>
+          <h2 id="input-title">Finsler Lagrangian</h2>
+        </div>
+        <div class="dimension-control">
+          <label for="dimension">Dimension</label>
+          <select id="dimension">
+            <option value="2" selected>2</option>
+            <option value="3">3</option>
+            <option value="4">4</option>
+          </select>
+        </div>
+      </div>
+
+      <label class="field-label" for="lagrangian">L(x,y)</label>
+      <textarea id="lagrangian" rows="4" spellcheck="false">(sqrt(exp(2*x1)*y1^2 + y2^2) + 0.18*y2)^2</textarea>
+      <p class="input-help">Use <code>x1,…,xn</code> and <code>y1,…,yn</code>. Syntax follows math.js: <code>^</code>, <code>sqrt(...)</code>, <code>exp(...)</code>, <code>sin(...)</code>, etc.</p>
+
+      <div class="example-row">
+        <label for="exampleSelect">Example</label>
+        <select id="exampleSelect">
+          <option value="randers" selected>Position-dependent Randers (2D)</option>
+          <option value="riemann2">Riemannian test metric (2D)</option>
+          <option value="minkowski4">Minkowski metric (4D)</option>
+        </select>
+        <button type="button" class="secondary-button" id="loadExample">Load</button>
+      </div>
+
+      <div class="compute-row">
+        <button type="button" class="primary-button" id="computeConnection">Compute connection</button>
+        <button type="button" class="primary-button curvature-button" id="computeCurvature">Compute curvature</button>
+        <button type="button" class="secondary-button" id="clearResults">Clear</button>
+      </div>
+
+      <div id="status" class="calc-status" role="status" aria-live="polite">Ready.</div>
+      <p class="performance-note">Symbolic expressions can grow rapidly. Four-dimensional non-quadratic examples may take substantial time; computing the connection first lets you inspect the intermediate geometry before requesting curvature.</p>
+    </section>
+
+    <section class="finsler-card conventions-card" aria-labelledby="conventions-title">
+      <p class="card-kicker">Definitions</p>
+      <h2 id="conventions-title">Conventions used</h2>
+      <div class="formula-grid">
+        <div>\[g_{ij}=\frac12\,\bar\partial_i\bar\partial_j L\]</div>
+        <div>\[G^j=\frac12 g^{jk}\left(y^m\partial_m\bar\partial_k L-\partial_kL\right)\]</div>
+        <div>\[N^j{}_i=\frac12\bar\partial_iG^j,\qquad \delta_i=\partial_i-N^a{}_i\bar\partial_a\]</div>
+        <div>\[{}^B\Gamma^k{}_{ij}=\frac12\bar\partial_i\bar\partial_jG^k\]</div>
+        <div>\[{}^C\Gamma^k{}_{ij}=\frac12g^{k\ell}(\delta_i g_{\ell j}+\delta_j g_{i\ell}-\delta_\ell g_{ij})\]</div>
+        <div>\[R^k{}_{ij}=\delta_iN^k{}_j-\delta_jN^k{}_i\]</div>
+        <div>\[R^k{}_i=R^k{}_{ij}y^j,\qquad \mathrm{Ric}=R^i{}_{ij}y^j\]</div>
+        <div>\[R_{ij}=\frac12\bar\partial_i\bar\partial_j\mathrm{Ric}\]</div>
+      </div>
+    </section>
+
+    <section id="results" class="results-stack" aria-live="polite"></section>
+  </main>
+
+  <footer class="site-footer"><span>&copy; 2017–2026 Sjors Heefer</span></footer>
+</div>
+
+<menubar>
+  <button class="mobile-menu-toggle" type="button" aria-expanded="false" aria-controls="site-menu" onclick="var o=this.parentElement.classList.toggle('menu-open');this.setAttribute('aria-expanded',o?'true':'false');"><span>Menu</span><span class="mobile-menu-icon" aria-hidden="true"></span></button>
+  <menu id="site-menu">
+    <menu-item><a href="index.html">Home</a></menu-item>
+    <menu-item><a href="publications.html">Publications</a></menu-item>
+    <menu-item><a href="teaching.html">Teaching</a></menu-item>
+    <menu-item><a href="pianist.html">Pianist</a></menu-item>
+    <menu-item><a href="Balls.html">Balls</a></menu-item>
+    <menu-item class="currentpage"><a href="Finsler.html">Finsler</a></menu-item>
+    <menu-item><a href="contact.html">Contact</a></menu-item>
+  </menu>
+</menubar>
+</body>
+</html>
