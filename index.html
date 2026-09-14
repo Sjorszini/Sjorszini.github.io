@@ -8,6 +8,7 @@
   <link rel="stylesheet" type="text/css" href="style.css">
   <link rel="stylesheet" type="text/css" href="contact.css?v=6">
   <link rel="stylesheet" type="text/css" href="menu-clean.css?v=3">
+  <link rel="stylesheet" type="text/css" href="experiment-tweaks.css?v=1">
   <link rel="icon" href="icon.ico" type="image/vnd.microsoft.icon">
 </head>
 <body>
@@ -15,6 +16,17 @@
   <header>
     <EinsteinQuote><i>"The most beautiful thing we can experience is the mysterious.<br> It is the source of all true art and science."</i> — A. Einstein</EinsteinQuote>
     <h1>Sjors Heefer</h1>
+    <nav class="banner-mobile-nav" aria-label="Mobile navigation">
+      <button class="banner-menu-toggle" type="button" aria-label="Open navigation menu" aria-expanded="false" aria-controls="banner-mobile-menu" onclick="var n=this.parentElement;var o=n.classList.toggle('is-open');this.setAttribute('aria-expanded',o?'true':'false');this.setAttribute('aria-label',o?'Close navigation menu':'Open navigation menu');"><span class="banner-menu-icon" aria-hidden="true"></span></button>
+      <div class="banner-menu-list" id="banner-mobile-menu">
+        <a class="current" href="index.html">Home</a>
+        <a href="publications.html">Publications</a>
+        <a href="teaching.html">Teaching</a>
+        <a href="pianist.html">Pianist</a>
+        <a href="Balls.html">Balls</a>
+        <a href="contact.html">Contact</a>
+      </div>
+    </nav>
   </header>
   <main>
     <section class="home-intro">
@@ -46,7 +58,6 @@
   <footer class="site-footer"><span>&copy; 2017–2026 Sjors Heefer</span></footer>
 </div>
 <menubar>
-  <button class="mobile-menu-toggle" type="button" aria-expanded="false" aria-controls="site-menu" onclick="var o=this.parentElement.classList.toggle('menu-open');this.setAttribute('aria-expanded',o?'true':'false');"><span>Menu</span><span class="mobile-menu-icon" aria-hidden="true"></span></button>
   <menu id="site-menu">
     <menu-item class="currentpage"><a href="index.html">Home</a></menu-item>
     <menu-item><a href="publications.html">Publications</a></menu-item>
