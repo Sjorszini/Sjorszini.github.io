@@ -1,8 +1,6 @@
 (function () {
   "use strict";
 
-  // Stop the legacy 5 ms timer. The optimized engine runs on the browser's
-  // animation clock and uses fixed physics substeps for numerical stability.
   if (typeof TimerStatus !== "undefined") clearInterval(TimerStatus);
 
   var started = false;
@@ -10,6 +8,12 @@
   var perfStarted = performance.now();
   var collisionChecks = 0;
   var gravityMode = "exact";
+
+  var GRAVITY_CONTACT_MARGIN = 0.18;
+  var COLLISION_CONTACT_MARGIN = 0.035;
+  var RESTITUTION_SPEED_THRESHOLD = 0.45;
+  var REST_SPEED = 0.16;
+  var FLOOR_REST_SPEED = 0.28;
 
   var darkerColors = [
     "#174d7a", "#23679c", "#327eb1", "#438fc0",
@@ -48,16 +52,13 @@
     }
   }
 
-  // Symmetric softened Newtonian pair force. The reciprocal-distance form is
-  // substantially faster than Math.pow(..., 1.5), which makes exact gravity
-  // practical for the 1,000-ball benchmark.
   function pairGravity(a, b) {
     var dx = b.x - a.x;
     var dy = b.y - a.y;
     var r2 = dx * dx + dy * dy;
     if (r2 < 1e-12) return;
 
-    var contact = a.r + b.r + 0.5;
+    var contact = a.r + b.r + GRAVITY_CONTACT_MARGIN;
     if (Collisions && r2 <= contact * contact) return;
 
     var softened2 = r2 + 18 * 18;
@@ -82,9 +83,6 @@
     }
   }
 
-  // Above the exact-gravity limit, retain a symmetric clustered solver so very
-  // large experiments stay responsive. Cell-pair forces are equal/opposite,
-  // preserving total linear momentum.
   function buildGravityCells() {
     var cellSize = Math.max(60, 3 * maximumRadius());
     var map = new Map();
@@ -174,6 +172,7 @@
 
   function calculateForces() {
     resetForces();
+
     if (!MutualGravity) {
       gravityMode = "off";
       return;
@@ -183,9 +182,6 @@
     else clusteredGravity();
   }
 
-  // Semi-implicit Euler is symplectic. With the restored small fixed substeps it
-  // gives bounded energy error for gravity while remaining much cheaper than a
-  // two-force-evaluation Verlet step.
   function integrate(stepDt) {
     for (var i = 0; i < NumberOfBalls; i += 1) {
       var b = ball[i];
@@ -215,67 +211,126 @@
     return grid;
   }
 
-  function resolvePair(a, b) {
+  function pairGeometry(a, b) {
     var dx = b.x - a.x;
     var dy = b.y - a.y;
     var minDistance = a.r + b.r;
     var distance2 = dx * dx + dy * dy;
-    if (distance2 >= minDistance * minDistance) return;
+    var contactDistance = minDistance + COLLISION_CONTACT_MARGIN;
+
+    if (distance2 > contactDistance * contactDistance) return null;
 
     var distance = Math.sqrt(Math.max(distance2, 1e-12));
     var nx;
     var ny;
+
     if (distance > 1e-6) {
       nx = dx / distance;
       ny = dy / distance;
     } else {
-      var rvx0 = b.vx - a.vx;
-      var rvy0 = b.vy - a.vy;
-      var rvLen = Math.sqrt(rvx0 * rvx0 + rvy0 * rvy0) || 1;
-      nx = rvx0 / rvLen;
-      ny = rvy0 / rvLen;
+      var rvx = b.vx - a.vx;
+      var rvy = b.vy - a.vy;
+      var rvLength = Math.sqrt(rvx * rvx + rvy * rvy);
+      if (rvLength > 1e-8) {
+        nx = rvx / rvLength;
+        ny = rvy / rvLength;
+      } else {
+        nx = 1;
+        ny = 0;
+      }
     }
+
+    return {
+      nx: nx,
+      ny: ny,
+      distance: distance,
+      penetration: minDistance - distance
+    };
+  }
+
+  function resetContactState() {
+    for (var i = 0; i < NumberOfBalls; i += 1) {
+      ball[i]._contactCount = 0;
+      ball[i]._floorContact = false;
+      ball[i]._ceilingContact = false;
+      ball[i]._leftContact = false;
+      ball[i]._rightContact = false;
+    }
+  }
+
+  function solvePairVelocity(a, b, firstPass) {
+    var g = pairGeometry(a, b);
+    if (!g) return;
+
+    a._contactCount += 1;
+    b._contactCount += 1;
 
     var invA = a.m > 0 ? 1 / a.m : 0;
     var invB = b.m > 0 ? 1 / b.m : 0;
     var invSum = invA + invB;
     if (invSum <= 0) return;
 
-    // Position correction removes overlap without adding a separating kick.
-    var penetration = minDistance - distance;
-    var correction = Math.max(penetration - 0.01, 0) * 0.92 / invSum;
-    a.x -= nx * correction * invA;
-    a.y -= ny * correction * invA;
-    b.x += nx * correction * invB;
-    b.y += ny * correction * invB;
-
     var rvx = b.vx - a.vx;
     var rvy = b.vy - a.vy;
-    var vn = rvx * nx + rvy * ny;
-    var tx = -ny;
-    var ty = nx;
-    var vt = rvx * tx + rvy * ty;
-    var e = restitution();
+    var vn = rvx * g.nx + rvy * g.ny;
 
-    // Dissipate the complete relative contact velocity in the pair COM frame.
-    // This preserves linear momentum exactly while ensuring that the requested
-    // dissipation also affects sliding/tangential motion in dense clusters.
-    var desiredVn = vn < 0 ? -e * vn : e * vn;
-    var desiredVt = e * vt;
-    var impulseN = (desiredVn - vn) / invSum;
-    var impulseT = (desiredVt - vt) / invSum;
-    var impulseX = impulseN * nx + impulseT * tx;
-    var impulseY = impulseN * ny + impulseT * ty;
+    if (vn < 0) {
+      var e = 0;
+      if (firstPass && -vn >= RESTITUTION_SPEED_THRESHOLD) e = restitution();
 
-    a.vx -= impulseX * invA;
-    a.vy -= impulseY * invA;
-    b.vx += impulseX * invB;
-    b.vy += impulseY * invB;
+      var impulseN = -(1 + e) * vn / invSum;
+      var ix = impulseN * g.nx;
+      var iy = impulseN * g.ny;
+
+      a.vx -= ix * invA;
+      a.vy -= iy * invA;
+      b.vx += ix * invB;
+      b.vy += iy * invB;
+    }
+
+    if (firstPass && EnergyDissipation > 0) {
+      rvx = b.vx - a.vx;
+      rvy = b.vy - a.vy;
+      var tx = -g.ny;
+      var ty = g.nx;
+      var vt = rvx * tx + rvy * ty;
+      var desiredVt = restitution() * vt;
+      var impulseT = (desiredVt - vt) / invSum;
+      var tix = impulseT * tx;
+      var tiy = impulseT * ty;
+
+      a.vx -= tix * invA;
+      a.vy -= tiy * invA;
+      b.vx += tix * invB;
+      b.vy += tiy * invB;
+    }
   }
 
-  function resolveCollisionsWithGrid() {
+  function projectPair(a, b) {
+    var g = pairGeometry(a, b);
+    if (!g || g.penetration <= 0) return;
+
+    a._contactCount += 1;
+    b._contactCount += 1;
+
+    var invA = a.m > 0 ? 1 / a.m : 0;
+    var invB = b.m > 0 ? 1 / b.m : 0;
+    var invSum = invA + invB;
+    if (invSum <= 0) return;
+
+    var slop = 0.0015;
+    var correction = Math.max(g.penetration - slop, 0) * 0.92 / invSum;
+
+    a.x -= g.nx * correction * invA;
+    a.y -= g.ny * correction * invA;
+    b.x += g.nx * correction * invB;
+    b.y += g.ny * correction * invB;
+  }
+
+  function forEachNearbyPair(callback) {
     if (!Collisions || NumberOfBalls < 2) return;
-    var cellSize = Math.max(12, 2 * maximumRadius());
+
+    var cellSize = Math.max(12, 2 * maximumRadius() + COLLISION_CONTACT_MARGIN);
     var grid = collisionGrid(cellSize);
 
     for (var i = 0; i < NumberOfBalls; i += 1) {
@@ -287,54 +342,157 @@
         for (var oy = -1; oy <= 1; oy += 1) {
           var bucket = grid.get(key(cx + ox, cy + oy));
           if (!bucket) continue;
+
           for (var n = 0; n < bucket.length; n += 1) {
             var j = bucket[n];
             if (j <= i) continue;
             collisionChecks += 1;
-            resolvePair(a, ball[j]);
+            callback(a, ball[j], i, j);
           }
         }
       }
     }
   }
 
-  function resolveWalls() {
+  function solveVelocityContacts(firstPass) {
+    forEachNearbyPair(function (a, b) {
+      solvePairVelocity(a, b, firstPass);
+    });
+  }
+
+  function projectContacts() {
+    forEachNearbyPair(function (a, b) {
+      projectPair(a, b);
+    });
+  }
+
+  function solveWallVelocities(firstPass) {
     if (!Boundaries) return;
+
     var e = restitution();
+    for (var i = 0; i < NumberOfBalls; i += 1) {
+      var b = ball[i];
+
+      if (b.x - b.r <= COLLISION_CONTACT_MARGIN) {
+        b._leftContact = true;
+        b._contactCount += 1;
+        if (b.vx < 0) {
+          b.vx = (-b.vx >= RESTITUTION_SPEED_THRESHOLD && firstPass) ? -b.vx * e : 0;
+        }
+      }
+
+      if (width - (b.x + b.r) <= COLLISION_CONTACT_MARGIN) {
+        b._rightContact = true;
+        b._contactCount += 1;
+        if (b.vx > 0) {
+          b.vx = (b.vx >= RESTITUTION_SPEED_THRESHOLD && firstPass) ? -b.vx * e : 0;
+        }
+      }
+
+      if (b.y - b.r <= COLLISION_CONTACT_MARGIN) {
+        b._ceilingContact = true;
+        b._contactCount += 1;
+        if (b.vy < 0) {
+          b.vy = (-b.vy >= RESTITUTION_SPEED_THRESHOLD && firstPass) ? -b.vy * e : 0;
+        }
+      }
+
+      if (height - (b.y + b.r) <= COLLISION_CONTACT_MARGIN) {
+        b._floorContact = true;
+        b._contactCount += 1;
+        if (b.vy > 0) {
+          b.vy = (b.vy >= RESTITUTION_SPEED_THRESHOLD && firstPass) ? -b.vy * e : 0;
+        }
+      }
+    }
+  }
+
+  function projectWalls() {
+    if (!Boundaries) return;
 
     for (var i = 0; i < NumberOfBalls; i += 1) {
       var b = ball[i];
-      if (b.x - b.r < 0) {
+
+      if (b.x < b.r) {
         b.x = b.r;
-        if (b.vx < 0) b.vx = -b.vx * e;
-        b.vy *= e;
-      } else if (b.x + b.r > width) {
+        b._leftContact = true;
+        b._contactCount += 1;
+      } else if (b.x > width - b.r) {
         b.x = width - b.r;
-        if (b.vx > 0) b.vx = -b.vx * e;
-        b.vy *= e;
+        b._rightContact = true;
+        b._contactCount += 1;
       }
 
-      if (b.y - b.r < 0) {
+      if (b.y < b.r) {
         b.y = b.r;
-        if (b.vy < 0) b.vy = -b.vy * e;
-        b.vx *= e;
-      } else if (b.y + b.r > height) {
+        b._ceilingContact = true;
+        b._contactCount += 1;
+      } else if (b.y > height - b.r) {
         b.y = height - b.r;
-        if (b.vy > 0) b.vy = -b.vy * e;
-        b.vx *= e;
+        b._floorContact = true;
+        b._contactCount += 1;
       }
+    }
+  }
+
+  function stabilizeRestingContacts() {
+    if (!Collisions || EnergyDissipation <= 0) return;
+
+    for (var i = 0; i < NumberOfBalls; i += 1) {
+      var b = ball[i];
+
+      if (VerticalGravity && Boundaries) {
+        if (gy > 0 && b._floorContact && Math.abs(b.vy) < FLOOR_REST_SPEED) {
+          b.y = height - b.r;
+          b.vy = 0;
+        } else if (gy < 0 && b._ceilingContact && Math.abs(b.vy) < FLOOR_REST_SPEED) {
+          b.y = b.r;
+          b.vy = 0;
+        }
+      }
+
+      if (b._contactCount > 0) {
+        var speed2 = b.vx * b.vx + b.vy * b.vy;
+        if (speed2 < REST_SPEED * REST_SPEED) {
+          b._restCounter = (b._restCounter || 0) + 1;
+          if (b._restCounter >= 6) {
+            b.vx = 0;
+            b.vy = 0;
+          }
+        } else {
+          b._restCounter = 0;
+        }
+      } else {
+        b._restCounter = 0;
+      }
+
+      if (Math.abs(b.vx) < 1e-7) b.vx = 0;
+      if (Math.abs(b.vy) < 1e-7) b.vy = 0;
     }
   }
 
   function physicsStep(stepDt) {
     calculateForces();
     integrate(stepDt);
+    resetContactState();
 
-    // Small fixed timesteps are now doing most of the collision-stability work,
-    // so one broadphase pass is sufficient for large systems.
-    var iterations = NumberOfBalls <= 180 ? 3 : (NumberOfBalls <= 500 ? 2 : 1);
-    for (var i = 0; i < iterations; i += 1) resolveCollisionsWithGrid();
-    resolveWalls();
+    var velocityIterations = NumberOfBalls <= 180 ? 4 : 2;
+    for (var v = 0; v < velocityIterations; v += 1) {
+      solveVelocityContacts(v === 0);
+      solveWallVelocities(v === 0);
+    }
+
+    var positionIterations;
+    if (NumberOfBalls <= 180) positionIterations = 7;
+    else if (NumberOfBalls <= 1100) positionIterations = 5;
+    else positionIterations = 3;
+
+    for (var p = 0; p < positionIterations; p += 1) {
+      projectContacts();
+      projectWalls();
+    }
+
+    stabilizeRestingContacts();
   }
 
   function simulateFrame() {
@@ -345,7 +503,7 @@
     var substeps;
 
     if (NumberOfBalls <= 120) substeps = 6;
-    else if (NumberOfBalls <= 1100) substeps = 3; // dt = 0.5 in the 1,000-ball test
+    else if (NumberOfBalls <= 1100) substeps = 3;
     else if (NumberOfBalls <= 2500) substeps = 2;
     else substeps = 1;
 
@@ -401,6 +559,7 @@
     var totalMass = 0;
     var px = 0;
     var py = 0;
+
     for (var i = 0; i < NumberOfBalls; i += 1) {
       var b = ball[i];
       totalMass += b.m;
@@ -411,6 +570,7 @@
     var cvx = totalMass > 0 ? px / totalMass : 0;
     var cvy = totalMass > 0 ? py / totalMass : 0;
     var internalKinetic = 0;
+
     for (var j = 0; j < NumberOfBalls; j += 1) {
       var q = ball[j];
       var ux = q.vx - cvx;
@@ -422,6 +582,39 @@
       internalKinetic: internalKinetic,
       comSpeed: Math.sqrt(cvx * cvx + cvy * cvy)
     };
+  }
+
+  function maximumOverlap() {
+    if (!Collisions || NumberOfBalls < 2) return 0;
+
+    var cellSize = Math.max(12, 2 * maximumRadius() + COLLISION_CONTACT_MARGIN);
+    var grid = collisionGrid(cellSize);
+    var maxOverlap = 0;
+
+    for (var i = 0; i < NumberOfBalls; i += 1) {
+      var a = ball[i];
+      var cx = Math.floor(a.x / cellSize);
+      var cy = Math.floor(a.y / cellSize);
+
+      for (var ox = -1; ox <= 1; ox += 1) {
+        for (var oy = -1; oy <= 1; oy += 1) {
+          var bucket = grid.get(key(cx + ox, cy + oy));
+          if (!bucket) continue;
+
+          for (var n = 0; n < bucket.length; n += 1) {
+            var j = bucket[n];
+            if (j <= i) continue;
+            var b = ball[j];
+            var dx = b.x - a.x;
+            var dy = b.y - a.y;
+            var overlap = a.r + b.r - Math.sqrt(dx * dx + dy * dy);
+            if (overlap > maxOverlap) maxOverlap = overlap;
+          }
+        }
+      }
+    }
+
+    return Math.max(0, maxOverlap);
   }
 
   function updateStats(now) {
@@ -439,7 +632,8 @@
       output.textContent = NumberOfBalls.toLocaleString() + " balls · " + fps + " fps · " +
         collisionChecks.toLocaleString() + " nearby collision checks/frame · gravity: " + gravityMode +
         " · internal KE: " + motion.internalKinetic.toFixed(1) +
-        " · COM speed: " + motion.comSpeed.toFixed(3);
+        " · COM speed: " + motion.comSpeed.toFixed(3) +
+        " · max overlap: " + maximumOverlap().toFixed(3) + " px";
     }
   }
 
@@ -452,7 +646,8 @@
 
   OnLoad = function () {
     if (screen.width < 700) {
-      document.getElementById("Balls_mobile_text").textContent = "Tip: a larger screen gives you more room to experiment.";
+      document.getElementById("Balls_mobile_text").textContent =
+        "Tip: a larger screen gives you more room to experiment.";
     }
 
     ColorNewBall = getRandomBlueColor();
