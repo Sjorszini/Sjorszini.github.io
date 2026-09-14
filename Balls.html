@@ -9,7 +9,7 @@
   <link rel="stylesheet" type="text/css" href="menu-clean.css?v=4">
   <link rel="icon" href="icon.ico" type="image/vnd.microsoft.icon">
 </head>
-<body onload="OnLoad(); loadBallsPreset('swarm');">
+<body onload="OnLoad(); loadBallsPreset('solar');">
 
 <div class="container">
   <header>
@@ -30,7 +30,7 @@
       <script src="app.js"></script>
       <script src="balls-fast-engine-v3.js?v=2"></script>
       <script src="balls-contact-settle.js?v=1"></script>
-      <script src="balls-presets.js?v=6"></script>
+      <script src="balls-presets.js?v=7"></script>
     </div>
 
     <div class="BallsControls">
@@ -41,11 +41,11 @@
         <p>
           <label for="presetSelect">Preset:</label>
           <select id="presetSelect" onchange="if (this.value) loadBallsPreset(this.value);">
-            <option value="solar">Mini solar system</option>
+            <option value="solar" selected>Mini solar system</option>
             <option value="billiards">Billiard break</option>
             <option value="rain">Gravity rain</option>
             <option value="cloud300">300-ball gravity cloud</option>
-            <option value="swarm" selected>1,000-ball gravity cloud</option>
+            <option value="swarm">1,000-ball gravity cloud</option>
           </select>
         </p>
 
