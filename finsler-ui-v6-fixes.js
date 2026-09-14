@@ -1,38 +1,54 @@
 (function(){
   "use strict";
 
+  var currentDefinitions=null;
+  var lastCoords=[];
+
   function el(id){return document.getElementById(id);}
-  function replaceLegacy(expr,coords){
+  function coords(){return Array.prototype.map.call(document.querySelectorAll(".coordinate-input"),function(n){return n.value.trim();});}
+  function replaceSymbols(expr,map){
     if(!expr||!window.math)return expr;
-    try{
-      var map={};
-      coords.forEach(function(name,i){map["x"+(i+1)]=name;map["y"+(i+1)]="y_"+name;});
-      return math.parse(expr).transform(function(child){
-        if(child&&child.isSymbolNode&&map[child.name]) return math.parse(map[child.name]);
-        return child;
-      }).toString({parenthesis:"auto"});
-    }catch(e){return expr;}
+    try{return math.parse(expr).transform(function(child){if(child&&child.isSymbolNode&&map[child.name])return math.parse(map[child.name]);return child;}).toString({parenthesis:"auto"});}catch(e){return expr;}
   }
-  function currentCoords(){return Array.prototype.map.call(document.querySelectorAll(".coordinate-input"),function(n){return n.value.trim();});}
-  function normalizeLegacyAliases(){
-    var coords=currentCoords();
-    document.querySelectorAll(".metric-entry,.oneform-entry,#lagrangian").forEach(function(n){n.value=replaceLegacy(n.value,coords);});
-    var f=el("functionsInput");if(f)f.value=replaceLegacy(f.value,coords);
+  function replaceLegacy(expr,names){var map={};names.forEach(function(name,i){map["x"+(i+1)]=name;map["y"+(i+1)]="y_"+name;});return replaceSymbols(expr,map);}
+  function expandDefinitions(expr,defs){
+    var text=String(expr),keys=Object.keys(defs||{});if(!keys.length||!window.math)return text;
+    for(var pass=0;pass<8;pass++){
+      var changed=false;
+      try{text=math.parse(text).transform(function(child){if(child&&child.isSymbolNode&&Object.prototype.hasOwnProperty.call(defs,child.name)){changed=true;return math.parse("("+defs[child.name]+")");}return child;}).toString({parenthesis:"auto"});}catch(e){return text;}
+      if(!changed)break;
+    }
+    return text;
+  }
+  function normalizeBeforeCalculation(){
+    var names=coords();
+    document.querySelectorAll(".metric-entry,.oneform-entry,#lagrangian").forEach(function(n){var v=n.value;if(currentDefinitions&&n.classList.contains("metric-entry"))v=expandDefinitions(v,currentDefinitions);n.value=replaceLegacy(v,names);});
+    var f=el("functionsInput");if(f)f.value=replaceLegacy(f.value,names);
+  }
+  function renameDefinitionCoordinates(){
+    var now=coords();if(!currentDefinitions){lastCoords=now;return;}if(lastCoords.length!==now.length){lastCoords=now;return;}
+    var map={};for(var i=0;i<now.length;i++)if(lastCoords[i]&&lastCoords[i]!==now[i])map[lastCoords[i]]=now[i];
+    if(Object.keys(map).length)Object.keys(currentDefinitions).forEach(function(k){currentDefinitions[k]=replaceSymbols(currentDefinitions[k],map);});
+    lastCoords=now;
+  }
+  function rememberCatalogueEntry(button){
+    var card=button.closest(".catalogue-card"),title=card&&card.querySelector("h4")?card.querySelector("h4").textContent:"";
+    var items=window.FINSLER_METRIC_CATALOGUE||[],found=null;for(var i=0;i<items.length;i++)if(items[i].title===title){found=items[i];break;}
+    currentDefinitions=found?Object.assign({},found.definitions||{}):null;
+    setTimeout(function(){lastCoords=coords();},40);
   }
   function tidyTensorSummaries(root){
     (root||document).querySelectorAll("#section-nonlinear,#section-deviation,#section-ricci,#section-affineRicci").forEach(function(sec){
       var summary=sec.querySelector(".section-summary");if(summary)summary.hidden=true;
-      var list=sec.querySelector(".component-list"),empty=sec.querySelector("[data-empty]");
-      if(list&&empty&&list.children.length===0){empty.hidden=false;}
+      var list=sec.querySelector(".component-list"),empty=sec.querySelector("[data-empty]");if(list&&empty&&list.children.length===0)empty.hidden=false;
     });
   }
   function init(){
-    var calc=el("calculateSelected");
-    if(calc)calc.addEventListener("click",normalizeLegacyAliases,true);
-    var results=el("results");
-    if(results){
-      new MutationObserver(function(){tidyTensorSummaries(results);}).observe(results,{subtree:true,childList:true,attributes:true,attributeFilter:["hidden"]});
-    }
+    lastCoords=coords();
+    document.addEventListener("click",function(event){var load=event.target.closest&&event.target.closest(".catalogue-load");if(load)rememberCatalogueEntry(load);if(event.target&&event.target.id==="loadExample")currentDefinitions=null;},true);
+    document.addEventListener("change",function(event){if(event.target&&event.target.classList&&event.target.classList.contains("coordinate-input"))setTimeout(renameDefinitionCoordinates,0);},false);
+    var calc=el("calculateSelected");if(calc)calc.addEventListener("click",normalizeBeforeCalculation,true);
+    var results=el("results");if(results)new MutationObserver(function(){tidyTensorSummaries(results);}).observe(results,{subtree:true,childList:true,attributes:true,attributeFilter:["hidden"]});
   }
   if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",init);else init();
 })();
