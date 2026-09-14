@@ -8,12 +8,17 @@ menu {
   justify-content: flex-start;
 }
 
-/* On small phones, show all six destinations in a stable 3 × 2 grid. */
+.mobile-menu-toggle {
+  display: none;
+}
+
+/* Small-screen fallback plus the mobile dropdown used on the main site pages. */
 @media (max-width: 560px) {
   menubar {
     overflow: visible;
   }
 
+  /* Fallback for secondary pages that do not yet include the disclosure button. */
   menu {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -47,5 +52,85 @@ menu {
 
   .container {
     margin-top: 98px;
+  }
+
+  .mobile-menu-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 10px;
+    width: 100%;
+    min-height: 56px;
+    padding: 0 18px;
+    color: rgba(255, 255, 255, 0.9);
+    background: transparent;
+    border: 0;
+    font: inherit;
+    font-size: 0.88rem;
+    font-weight: 650;
+    letter-spacing: 0.012em;
+    cursor: pointer;
+  }
+
+  .mobile-menu-toggle:hover,
+  .mobile-menu-toggle:focus-visible {
+    color: #fff;
+    background: rgba(255, 255, 255, 0.035);
+  }
+
+  .mobile-menu-icon:before {
+    content: "☰";
+    display: block;
+    min-width: 1.15em;
+    font-size: 1.12rem;
+    line-height: 1;
+    text-align: center;
+  }
+
+  menubar.menu-open .mobile-menu-icon:before {
+    content: "×";
+    font-size: 1.4rem;
+  }
+
+  menubar > .mobile-menu-toggle + menu {
+    display: none;
+    width: 100%;
+    min-height: 0;
+    margin: 0;
+    padding: 5px 0 9px;
+    overflow: visible;
+    background: rgba(7, 20, 38, 0.98);
+    border-top: 1px solid rgba(255, 255, 255, 0.07);
+  }
+
+  menubar.menu-open > .mobile-menu-toggle + menu {
+    display: block;
+  }
+
+  menubar > .mobile-menu-toggle + menu menu-item {
+    display: block;
+    width: 100%;
+  }
+
+  menubar > .mobile-menu-toggle + menu menu-item a {
+    display: block;
+    min-height: 0;
+    padding: 11px 20px 12px;
+    font-size: 0.88rem;
+    line-height: 1.4;
+    text-align: left;
+    white-space: normal;
+  }
+
+  menubar > .mobile-menu-toggle + menu menu-item a:after {
+    left: 20px;
+    right: auto;
+    bottom: 5px;
+    width: 30px;
+  }
+
+  menubar:has(.mobile-menu-toggle) + .container,
+  body:has(.mobile-menu-toggle) .container {
+    margin-top: 56px;
   }
 }
