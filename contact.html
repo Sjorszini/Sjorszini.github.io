@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="Contact Sjors Heefer about academic work, teaching, research or piano bookings.">
+  <meta name="description" content="Contact Sjors Heefer about academic work, teaching, research or piano enquiries.">
   <title>Contact - Sjors Heefer</title>
   <link rel="stylesheet" type="text/css" href="style.css">
   <link rel="stylesheet" type="text/css" href="contact.css">
@@ -20,7 +20,7 @@
 
   <article>
     <h1>Contact</h1>
-    <p class="contact-intro">Use the form below for academic, teaching, research or piano enquiries. Your message is prepared locally in your email app, so my email addresses do not need to be displayed directly on this website.</p>
+    <p class="contact-intro">Use the form below for academic, teaching, research or piano enquiries. Your message is sent directly from this page; my email addresses are not displayed on the website.</p>
 
     <form class="contact-form" id="contact-form" novalidate>
       <div class="contact-field">
@@ -28,7 +28,7 @@
         <select id="contact-topic" name="topic" required>
           <option value="academic">Academic / research</option>
           <option value="teaching">Teaching</option>
-          <option value="music">Piano / booking</option>
+          <option value="music">Piano</option>
           <option value="other">Other</option>
         </select>
       </div>
@@ -54,28 +54,17 @@
       </div>
 
       <div class="contact-honeypot" aria-hidden="true">
-        <label for="contact-company">Company</label>
-        <input id="contact-company" name="company" type="text" tabindex="-1" autocomplete="off">
+        <label for="contact-honey">Leave this field empty</label>
+        <input id="contact-honey" name="_honey" type="text" tabindex="-1" autocomplete="off">
       </div>
 
       <div class="contact-actions">
-        <button class="contact-submit" type="submit">Open in email app</button>
-        <button class="contact-copy" id="copy-address" type="button">Copy destination address</button>
+        <button class="contact-submit" id="contact-submit" type="submit">Send message</button>
       </div>
 
-      <p class="contact-note">If your browser has no email app configured, use “Copy destination address” and paste it into your preferred webmail service. The address is only revealed after you interact with the page.</p>
+      <p class="contact-note">Messages are processed by FormSubmit for delivery and spam filtering.</p>
       <p class="contact-status" id="contact-status" role="status" aria-live="polite"></p>
     </form>
-
-    <div class="contact-alternatives">
-      <h2>Other ways to reach me</h2>
-      <p>For professional or research-related contact, you can also use one of these profiles.</p>
-      <div class="profile-grid">
-        <a class="profile-link" href="https://research.tue.nl/en/persons/sjors-heefer" target="_blank" rel="noopener noreferrer">TU/e Research</a>
-        <a class="profile-link" href="https://www.linkedin.com/in/sjorsheefer" target="_blank" rel="noopener noreferrer">LinkedIn</a>
-        <a class="profile-link" href="https://www.researchgate.net/profile/Sjors-Heefer" target="_blank" rel="noopener noreferrer">ResearchGate</a>
-      </div>
-    </div>
   </article>
 
   <footer class="site-footer"><span>&copy; 2017–2026 Sjors Heefer</span></footer>
