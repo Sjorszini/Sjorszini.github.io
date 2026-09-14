@@ -22,7 +22,6 @@
 
   function outputKeyForSection(section){
     var map={
-      homogeneity:"geometry", classification:"geometry",
       metric:"metric", inverse:"inverse", cartan:"cartan",
       spray:"spray", nonlinear:"nonlinear",
       christoffel:"connections", berwald:"connections", chern:"connections",
@@ -31,7 +30,11 @@
     };
     return map[section]||section;
   }
-  function wantsSection(section){ var key=outputKeyForSection(section); return activeOutputs[key]!==false; }
+  function wantsSection(section){
+    if(section==="homogeneity"||section==="classification") return false;
+    var key=outputKeyForSection(section);
+    return activeOutputs[key]!==false;
+  }
   function collectOutputs(){
     var out=Object.create(null);
     document.querySelectorAll("[data-output]").forEach(function(n){ out[n.getAttribute("data-output")]=!!n.checked; });
@@ -132,8 +135,6 @@
     var box=sec.querySelector("[data-summary]");
     if(summary.matrix) addMatrixSummary(box,summary.matrix);
     if(summary.det) addScalarSummary(box,"\\det(g)",summary.det);
-    if(summary.homogeneous!==undefined){ box.innerHTML+='<p class="result-note">2-homogeneity: <strong>'+(summary.homogeneous?'verified symbolically':'residual did not simplify to zero')+'</strong>.</p>'; }
-    if(summary.riemannian!==undefined){ box.innerHTML+='<p class="result-note">Detected geometry: <strong>'+(summary.riemannian?'quadratic / Riemannian':(summary.randers?'2D Randers':'general Finsler'))+'</strong>.</p>'; }
   }
 
   function handleMessage(e,token){
@@ -146,6 +147,7 @@
       return;
     }
     if(m.type==="stepStart"){
+      if(activeWorkerSection==="homogeneity"||activeWorkerSection==="classification") return;
       startLive(m.label);
       setStatus(m.label+"…","working");
       return;
