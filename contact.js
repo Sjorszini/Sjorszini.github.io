@@ -1,6 +1,9 @@
 (function () {
   "use strict";
 
+  // Kept out of the HTML so addresses are not exposed as visible page content.
+  // After FormSubmit activation, these can be replaced by FormSubmit's opaque
+  // endpoint tokens for stronger address hiding.
   var destinations = {
     academic: "cy5qLmhlZWZlckB0dWUubmw=",
     teaching: "cy5qLmhlZWZlckB0dWUubmw=",
@@ -25,11 +28,21 @@
     return decode(destinations[currentTopic()]);
   }
 
-  function setStatus(message) {
+  function setStatus(message, isError) {
     var status = document.getElementById("contact-status");
-    if (status) {
-      status.textContent = message;
-    }
+    if (!status) return;
+
+    status.textContent = message;
+    status.classList.toggle("is-error", Boolean(isError));
+    status.classList.toggle("is-success", !isError && Boolean(message));
+  }
+
+  function setBusy(isBusy) {
+    var button = document.getElementById("contact-submit");
+    if (!button) return;
+
+    button.disabled = isBusy;
+    button.textContent = isBusy ? "Sending…" : "Send message";
   }
 
   function initialiseTopicFromQuery() {
@@ -42,75 +55,91 @@
     }
   }
 
-  function buildMailto() {
-    var form = document.getElementById("contact-form");
-    if (!form) return "";
-
+  function formPayload() {
     var topicSelect = document.getElementById("contact-topic");
     var topicLabel = topicSelect.options[topicSelect.selectedIndex].text;
     var name = document.getElementById("contact-name").value.trim();
-    var replyTo = document.getElementById("contact-email").value.trim();
+    var email = document.getElementById("contact-email").value.trim();
     var subjectInput = document.getElementById("contact-subject").value.trim();
     var message = document.getElementById("contact-message").value.trim();
-    var honeypot = document.getElementById("contact-company").value.trim();
+    var honey = document.getElementById("contact-honey").value.trim();
+    var subject = subjectInput || topicLabel + " enquiry via sjorsheefer.com";
 
-    if (honeypot) {
-      return "";
+    return {
+      name: name,
+      email: email,
+      topic: topicLabel,
+      subject: subjectInput,
+      message: message,
+      _subject: subject,
+      _template: "table",
+      _honey: honey,
+      _url: window.location.href.split("?")[0]
+    };
+  }
+
+  async function submitForm(form) {
+    if (!form.reportValidity()) return;
+
+    var payload = formPayload();
+
+    // Silently accept honeypot submissions so bots get no useful feedback.
+    if (payload._honey) {
+      form.reset();
+      initialiseTopicFromQuery();
+      setStatus("Message sent. Thank you.", false);
+      return;
     }
 
-    var subject = subjectInput || topicLabel + " enquiry via sjorsheefer.com";
-    var body = [
-      "Name: " + name,
-      "Reply-to: " + replyTo,
-      "Topic: " + topicLabel,
-      "",
-      message
-    ].join("\n");
+    var destination = destinationAddress();
+    if (!destination) {
+      setStatus("The contact form is temporarily unavailable.", true);
+      return;
+    }
 
-    return "mailto:" + destinationAddress() +
-      "?subject=" + encodeURIComponent(subject) +
-      "&body=" + encodeURIComponent(body);
+    setBusy(true);
+    setStatus("Sending your message…", false);
+
+    try {
+      var response = await fetch("https://formsubmit.co/ajax/" + destination, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Accept": "application/json"
+        },
+        body: JSON.stringify(payload)
+      });
+
+      var data = {};
+      try {
+        data = await response.json();
+      } catch (error) {
+        data = {};
+      }
+
+      if (!response.ok || data.success === false || data.success === "false") {
+        throw new Error(data.message || "Submission failed");
+      }
+
+      form.reset();
+      initialiseTopicFromQuery();
+      setStatus("Message sent. Thank you.", false);
+    } catch (error) {
+      setStatus("The message could not be sent. Please try again later.", true);
+    } finally {
+      setBusy(false);
+    }
   }
 
   document.addEventListener("DOMContentLoaded", function () {
     initialiseTopicFromQuery();
 
     var form = document.getElementById("contact-form");
-    var copyButton = document.getElementById("copy-address");
+    if (!form) return;
 
-    if (form) {
-      form.addEventListener("submit", function (event) {
-        event.preventDefault();
-
-        if (!form.reportValidity()) {
-          return;
-        }
-
-        var mailto = buildMailto();
-        if (!mailto) {
-          setStatus("Unable to prepare the message.");
-          return;
-        }
-
-        setStatus("Opening your email app with a prefilled message…");
-        window.location.href = mailto;
-      });
-    }
-
-    if (copyButton) {
-      copyButton.addEventListener("click", function () {
-        var address = destinationAddress();
-        if (!address || !navigator.clipboard) {
-          setStatus("Copying is not supported in this browser. Use the email button instead.");
-          return;
-        }
-
-        navigator.clipboard.writeText(address).then(function () {
-          setStatus("Email address copied. You can paste it into your preferred webmail service.");
-        }).catch(function () {
-          setStatus("The browser blocked clipboard access. Use the email button instead.");
-        });
-      });
-    }
+    form.addEventListener("submit", function (event) {
+      event.preventDefault();
+      submitForm(form);
+    });
   });
 })();
