@@ -8,6 +8,18 @@ menu {
   justify-content: flex-start;
 }
 
+/* Shared darker navy palette for every redesigned page. */
+header,
+.pianist-page header {
+  background:
+    radial-gradient(circle at 82% 10%, rgba(66, 111, 159, 0.12), transparent 23rem),
+    linear-gradient(135deg, #030b14 0%, #081b30 56%, #0f3154 100%);
+}
+
+menubar {
+  background: rgba(3, 11, 20, 0.94);
+}
+
 .mobile-menu-toggle {
   display: none;
 }
@@ -99,7 +111,7 @@ menu {
     margin: 0;
     padding: 5px 0 9px;
     overflow: visible;
-    background: rgba(7, 20, 38, 0.98);
+    background: rgba(3, 11, 20, 0.985);
     border-top: 1px solid rgba(255, 255, 255, 0.07);
   }
 
