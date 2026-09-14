@@ -30,7 +30,7 @@
   box-shadow: 0 8px 16px rgba(35, 82, 132, 0.18);
 }
 
-/* Homepage professional links: one coherent, balanced action group. */
+/* Homepage professional links: profiles stay profiles; contact is a separate action. */
 .home-details-grid {
   display: block;
 }
@@ -45,7 +45,7 @@
 }
 
 .professional-panel .profile-grid {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 10px;
 }
 
@@ -53,16 +53,28 @@
   min-height: 54px;
   padding: 12px 14px;
   color: var(--navy-800);
-  background: linear-gradient(145deg, #f4f8fd, #eaf2fb);
-  border-color: #cbdced;
+  background: linear-gradient(145deg, #f0f6fc, #e3eef9);
+  border-color: #c4d8eb;
   border-radius: 9px;
   box-shadow: 0 3px 10px rgba(18, 52, 91, 0.05);
   font-size: 0.87rem;
   font-weight: 650;
 }
 
-.professional-panel .profile-link:nth-child(even):not(.profile-link-contact) {
-  background: linear-gradient(145deg, #f7f9fd, #edf3f9);
+.professional-panel .profile-link:nth-child(2) {
+  background: linear-gradient(145deg, #f5f8fd, #e8f0f8);
+}
+
+.professional-panel .profile-link:nth-child(3) {
+  background: linear-gradient(145deg, #edf5fb, #dfeefa);
+}
+
+.professional-panel .profile-link:nth-child(4) {
+  background: linear-gradient(145deg, #f3f7fc, #e5edf7);
+}
+
+.professional-panel .profile-link:nth-child(5) {
+  background: linear-gradient(145deg, #eef5fc, #e1ebf7);
 }
 
 .professional-panel .profile-link:after {
@@ -73,30 +85,37 @@
 .professional-panel .profile-link:hover,
 .professional-panel .profile-link:focus-visible {
   color: var(--navy-900);
-  background: linear-gradient(145deg, #ffffff, #e5f0fb);
-  border-color: #9fb7cf;
-  box-shadow: 0 7px 18px rgba(18, 52, 91, 0.09);
+  background: linear-gradient(145deg, #ffffff, #dfedf9);
+  border-color: #91aec9;
+  box-shadow: 0 7px 18px rgba(18, 52, 91, 0.10);
 }
 
-.professional-panel .profile-link-contact {
-  color: #fff;
+.professional-contact-row {
+  display: flex;
+  justify-content: center;
+  margin-top: 16px;
+}
+
+.professional-contact-row .contact-action {
+  min-width: 150px;
+  margin: 0;
+  padding: 10px 20px;
   background: linear-gradient(135deg, var(--navy-800), var(--blue-600));
   border-color: transparent;
-  box-shadow: 0 7px 18px rgba(18, 52, 91, 0.18);
+  border-radius: 9px;
+  box-shadow: 0 7px 18px rgba(18, 52, 91, 0.16);
 }
 
-.professional-panel .profile-link-contact:after {
+.professional-contact-row .contact-action:after {
   content: "→";
-  color: rgba(255, 255, 255, 0.9);
-  opacity: 1;
+  margin-left: 8px;
 }
 
-.professional-panel .profile-link-contact:hover,
-.professional-panel .profile-link-contact:focus-visible {
-  color: #fff;
+.professional-contact-row .contact-action:hover,
+.professional-contact-row .contact-action:focus-visible {
   background: linear-gradient(135deg, #0d2c50, #3676bd);
   border-color: transparent;
-  box-shadow: 0 9px 22px rgba(18, 52, 91, 0.22);
+  box-shadow: 0 9px 22px rgba(18, 52, 91, 0.21);
 }
 
 .contact-page article {
@@ -240,7 +259,13 @@
   color: #46576a;
 }
 
-@media (max-width: 800px) {
+@media (max-width: 900px) {
+  .professional-panel .profile-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
   .professional-panel .profile-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -249,6 +274,14 @@
 @media (max-width: 560px) {
   .professional-panel .profile-grid {
     grid-template-columns: 1fr;
+  }
+
+  .professional-contact-row {
+    justify-content: stretch;
+  }
+
+  .professional-contact-row .contact-action {
+    width: 100%;
   }
 
   .contact-form {
