@@ -5,8 +5,13 @@
   flex-direction: column;
 }
 
-.container > article {
+.container > article,
+.short-page-content {
   flex: 0 0 auto;
+}
+
+.short-page-content {
+  overflow: auto;
 }
 
 .site-footer {
