@@ -123,7 +123,7 @@
   }
 
   function thousandBallSwarm() {
-    resetWorld({ verticalGravity: false, mutualGravity: false, collisions: true, drawingMode: false, boundaries: true, energyDissipation: 0, G: 10 });
+    resetWorld({ verticalGravity: false, mutualGravity: true, collisions: true, drawingMode: false, boundaries: true, energyDissipation: 7, G: 10 });
     var columns = 40;
     var rows = 25;
     var marginX = 22;
@@ -140,7 +140,7 @@
         addBall(x, y, 3.6, 1, Math.cos(angle) * speed, Math.sin(angle) * speed, colorFrom(palettes.swarm, index++));
       }
     }
-    announce("1,000-ball swarm", "a collision-heavy stress test for the optimized spatial engine");
+    announce("1,000-ball swarm", "mutual gravity and 7% dissipation are enabled for a self-gravitating stress test");
   }
 
   window.loadBallsPreset = function (name) {
