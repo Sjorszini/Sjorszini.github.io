@@ -59,7 +59,6 @@ function finslerFindBase(name,args){
 
 function finslerTokenDerivative(info,variable){
   var terms=[];
-  var baseInfo=finslerFunctionInfo[info.baseToken] || info;
 
   /* Known Bessel identities used by Catalogue §2.6 and §2.11. */
   if(info.multi.length===0 && info.args.length===1 && (info.name==="J0" || info.name==="J1")){
@@ -75,7 +74,8 @@ function finslerTokenDerivative(info,variable){
   for(var j=0;j<info.args.length;j++){
     var da=finslerNativeD(info.args[j],variable);
     if(isZero(da)) continue;
-    terms.push(mul(finslerDerivativeToken(baseInfo,j),da));
+    /* Differentiate the CURRENT derivative token, not its base token. */
+    terms.push(mul(finslerDerivativeToken(info,j),da));
   }
   return terms.length ? S(sum(terms)) : "0";
 }
