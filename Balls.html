@@ -7,7 +7,7 @@
   <title>Balls - Sjors Heefer</title>
   <link rel="stylesheet" type="text/css" href="style.css">
   <link rel="stylesheet" type="text/css" href="menu-clean.css?v=4">
-  <link rel="stylesheet" type="text/css" href="balls-presets.css?v=1">
+  <link rel="stylesheet" type="text/css" href="balls-presets.css?v=2">
   <link rel="icon" href="icon.ico" type="image/vnd.microsoft.icon">
 </head>
 <body onload="OnLoad()">
@@ -49,8 +49,13 @@
         <strong>Orbit trails</strong>
         <span>Gravity plus drawing mode creates persistent orbital paths.</span>
       </button>
+      <button class="BallsPreset" type="button" onclick="loadBallsPreset('swarm')">
+        <strong>1,000-ball swarm</strong>
+        <span>A collision-heavy stress test for the optimized engine.</span>
+      </button>
     </div>
     <p id="preset-status" role="status" aria-live="polite">Choose a preset, or build your own setup below.</p>
+    <p id="performance-status" aria-live="polite">Performance data will appear while the simulation runs.</p>
   </section>
 
   <div class="BallsContainer">
@@ -59,7 +64,8 @@
       <p id="Balls_mobile_text"></p>
       <canvas id="myCanvas" width="800" height="600">Your browser does not support the canvas element.</canvas>
       <script src="app.js"></script>
-      <script src="balls-presets.js?v=1"></script>
+      <script src="balls-fast-engine.js?v=1"></script>
+      <script src="balls-presets.js?v=2"></script>
     </div>
 
     <div class="BallsControls">
