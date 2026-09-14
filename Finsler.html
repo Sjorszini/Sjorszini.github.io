@@ -8,7 +8,7 @@
   <link rel="stylesheet" type="text/css" href="style.css">
   <link rel="stylesheet" type="text/css" href="menu-clean.css?v=4">
   <link rel="stylesheet" type="text/css" href="finsler-calculator.css?v=1">
-  <link rel="stylesheet" type="text/css" href="finsler-progressive.css?v=1">
+  <link rel="stylesheet" type="text/css" href="finsler-progressive.css?v=2">
   <link rel="icon" href="icon.ico" type="image/vnd.microsoft.icon">
   <style>
     .construction-warning {
@@ -38,7 +38,7 @@
     };
   </script>
   <script defer src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
-  <script defer src="finsler-progressive-ui.js?v=1"></script>
+  <script defer src="finsler-progressive-ui.js?v=2"></script>
 </head>
 <body>
 <div class="container finsler-page">
@@ -89,6 +89,30 @@
         <button type="button" class="secondary-button" id="loadExample">Load</button>
       </div>
 
+      <fieldset class="output-options">
+        <div class="output-options-heading">
+          <legend>Results to compute / show</legend>
+          <div class="output-option-actions">
+            <button type="button" class="mini-action" id="selectAllOutputs">Select all</button>
+            <button type="button" class="mini-action" id="clearAllOutputs">Clear all</button>
+          </div>
+        </div>
+        <div class="output-checklist">
+          <label><input type="checkbox" data-output="geometry" checked> Geometry checks</label>
+          <label><input type="checkbox" data-output="metric" checked> Fundamental tensor <span>g<sub>ij</sub></span></label>
+          <label><input type="checkbox" data-output="inverse" checked> Inverse metric &amp; determinant</label>
+          <label><input type="checkbox" data-output="cartan" checked> Cartan tensor</label>
+          <label><input type="checkbox" data-output="spray" checked> Geodesic spray</label>
+          <label><input type="checkbox" data-output="nonlinear" checked> Nonlinear connection</label>
+          <label><input type="checkbox" data-output="connections" checked> Christoffel symbols</label>
+          <label><input type="checkbox" data-output="curvature" checked> Nonlinear curvature</label>
+          <label><input type="checkbox" data-output="deviation" checked> Geodesic deviation tensor</label>
+          <label><input type="checkbox" data-output="ricci" checked> Finsler-Ricci quantities</label>
+          <label><input type="checkbox" data-output="affine" checked> Affine curvature / Ricci (when applicable)</label>
+        </div>
+        <p class="output-options-note">Unchecked result sections are not displayed. Quantities required as prerequisites for selected results may still be calculated internally.</p>
+      </fieldset>
+
       <div class="compute-row">
         <button type="button" class="primary-button" id="computeConnection">Compute connection</button>
         <button type="button" class="primary-button curvature-button" id="computeCurvature">Compute curvature</button>
@@ -96,7 +120,7 @@
       </div>
 
       <div id="status" class="calc-status" role="status" aria-live="polite">Ready.</div>
-      <p class="performance-note">Calculations now run in a background worker. Finished tensor components are shown immediately, with timings for every component and a live elapsed timer for the component currently being computed.</p>
+      <p class="performance-note">Calculations run in a background worker. Finished tensor components are shown immediately with timings. Very large expressions are collapsed initially and rendered only when you choose to expand them.</p>
     </section>
 
     <section class="finsler-card conventions-card" aria-labelledby="conventions-title">
