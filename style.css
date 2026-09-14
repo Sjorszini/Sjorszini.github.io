@@ -65,7 +65,6 @@ a:focus-visible {
 
 .container {
   width: min(1120px, calc(100% - 32px));
-  min-height: calc(100vh - 124px);
   margin: 84px auto 40px;
   overflow: hidden;
   color: var(--ink);
@@ -81,8 +80,8 @@ header {
   align-items: flex-end;
   justify-content: space-between;
   gap: 36px;
-  min-height: 190px;
-  padding: 48px;
+  min-height: 184px;
+  padding: 46px 48px;
   overflow: hidden;
   color: #fff;
   background:
@@ -125,7 +124,7 @@ einsteinquote {
   display: block;
   max-width: 470px;
   margin: 0;
-  padding: 0 0 2px;
+  padding-bottom: 2px;
   color: rgba(255, 255, 255, 0.76);
   font-family: Georgia, "Times New Roman", serif;
   font-size: 0.94rem;
@@ -222,10 +221,9 @@ menu-item a:focus-visible:after,
 article {
   position: relative;
   margin: 0;
-  padding: 48px;
+  padding: 46px 48px 50px;
   overflow: visible;
   background: transparent;
-  font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   line-height: 1.75;
   text-align: left !important;
 }
@@ -239,7 +237,7 @@ article h3 {
 }
 
 article h1 {
-  margin: 2.4rem 0 1rem;
+  margin: 2.5rem 0 1rem;
   font-size: clamp(1.55rem, 2.4vw, 2rem);
   font-weight: 600;
   line-height: 1.25;
@@ -249,9 +247,13 @@ article h1:first-child {
   margin-top: 0;
 }
 
+article h2 {
+  margin: 2rem 0 0.8rem;
+  font-size: 1.35rem;
+}
+
 article h3 {
-  margin-top: 2.2rem;
-  margin-bottom: 0.75rem;
+  margin: 2.2rem 0 0.75rem;
   font-size: 1.2rem;
   font-weight: 600;
 }
@@ -263,6 +265,10 @@ article li {
 
 article p {
   margin: 0 0 1.15rem;
+}
+
+article > :last-child {
+  margin-bottom: 0;
 }
 
 article ul,
@@ -293,6 +299,83 @@ article img {
   height: auto;
 }
 
+.site-footer {
+  clear: both;
+  padding: 19px 48px 22px;
+  color: var(--muted);
+  background: linear-gradient(to bottom, rgba(246, 248, 251, 0.52), rgba(246, 248, 251, 0.92));
+  border-top: 1px solid var(--line);
+  font-size: 0.82rem;
+  letter-spacing: 0.01em;
+}
+
+.site-footer span {
+  display: block;
+  width: 100%;
+}
+
+.resource-card,
+.empty-state,
+.control-note {
+  max-width: 820px;
+  padding: 18px 20px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 13px;
+}
+
+.resource-card {
+  margin-top: 1rem;
+}
+
+.empty-state {
+  color: var(--muted);
+}
+
+.publication-list p {
+  max-width: 88ch;
+  margin: 0;
+  padding: 1rem 0;
+  border-bottom: 1px solid rgba(219, 227, 236, 0.78);
+}
+
+.publication-list p:first-child {
+  padding-top: 0;
+}
+
+.publication-list p:last-child {
+  border-bottom: 0;
+}
+
+.poster-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 16px;
+  max-width: 820px;
+  margin-top: 1rem;
+}
+
+.poster-grid a {
+  display: block;
+}
+
+.poster-grid img,
+article a > img {
+  display: block;
+  width: 100%;
+  margin: 0;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  box-shadow: 0 8px 22px rgba(21, 44, 70, 0.08);
+  transition: transform 160ms ease, box-shadow 160ms ease;
+}
+
+.poster-grid a:hover img,
+article a:hover > img {
+  transform: translateY(-2px);
+  box-shadow: 0 14px 28px rgba(21, 44, 70, 0.14);
+}
+
 /* Portraits on the home and pianist pages. */
 img.home {
   float: right;
@@ -306,28 +389,13 @@ img.home {
   box-shadow: 0 18px 45px rgba(13, 35, 60, 0.18);
 }
 
-/* Poster thumbnails. */
-article a > img {
-  margin: 6px 8px 6px 0;
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  box-shadow: 0 8px 22px rgba(21, 44, 70, 0.08);
-  transition: transform 160ms ease, box-shadow 160ms ease;
-}
-
-article a:hover > img {
-  transform: translateY(-2px);
-  box-shadow: 0 14px 28px rgba(21, 44, 70, 0.14);
-}
-
-/* The mechanics simulator keeps its playful controls while inheriting the new shell. */
+/* Mechanics simulator. */
 .BallsContainer {
   display: flex;
   flex-flow: row wrap;
   gap: 18px;
   margin: 0;
-  padding: 0 48px 48px;
-  font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  padding: 0 48px 50px;
 }
 
 .BallsCanvas {
@@ -340,11 +408,10 @@ article a:hover > img {
   display: block;
   max-width: 100%;
   height: auto;
-  margin-top: 12px;
+  margin-top: 14px;
   border: 1px solid #17283b !important;
   border-radius: 12px;
   background: #fff;
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.35);
 }
 
 .BallsControls {
@@ -361,6 +428,12 @@ article a:hover > img {
   margin: 0;
 }
 
+.BallsControls h3 {
+  margin: 0 0 12px;
+  color: var(--navy-900);
+  font-family: Georgia, "Times New Roman", serif;
+}
+
 .BallsControls input[type="text"] {
   padding: 7px 8px;
   color: var(--ink);
@@ -370,12 +443,12 @@ article a:hover > img {
   font: inherit;
 }
 
-button.BallsControls {
-  width: 100%;
-  min-height: 54px;
-  padding: 8px;
-  border: 0;
-  background: #8a98a8;
+.control-note {
+  margin: 0 0 14px;
+  padding: 12px 13px;
+  color: var(--muted);
+  font-size: 0.9rem;
+  line-height: 1.5;
 }
 
 .btn {
@@ -401,7 +474,6 @@ button.BallsControls {
   box-shadow: 0 8px 16px rgba(35, 82, 132, 0.18);
 }
 
-/* Custom checkbox controls used by Balls.html. */
 .CheckboxGeneralSettings {
   position: absolute;
   margin-left: -9999px;
@@ -493,6 +565,10 @@ input.fancyCheckbox + label:hover:after {
     padding: 32px 28px 38px;
   }
 
+  .site-footer {
+    padding: 17px 28px 20px;
+  }
+
   img.home {
     float: none;
     display: block;
@@ -551,8 +627,17 @@ input.fancyCheckbox + label:hover:after {
     font-size: 1.55rem;
   }
 
+  .site-footer {
+    padding: 16px 22px 19px;
+  }
+
   img.home {
     width: min(82%, 300px);
+  }
+
+  .poster-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
   }
 
   .BallsContainer {
