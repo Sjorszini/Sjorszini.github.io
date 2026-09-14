@@ -151,6 +151,26 @@
   white-space: nowrap !important;
 }
 
+/* Keep the Pianist page on the same navy/blue palette as the rest of the site. */
+.pianist-page {
+  background:
+    radial-gradient(circle at 8% 5%, rgba(62, 121, 191, 0.13), transparent 31rem),
+    radial-gradient(circle at 92% 18%, rgba(28, 67, 112, 0.09), transparent 28rem),
+    #eef3f8;
+}
+
+.pianist-page header {
+  background:
+    radial-gradient(circle at 82% 10%, rgba(95, 156, 221, 0.22), transparent 23rem),
+    linear-gradient(135deg, #08182b 0%, #153d67 100%);
+}
+
+.pianist-contact {
+  background: linear-gradient(145deg, #f8fafc, #eef3f8);
+  border-color: var(--line);
+  color: #46576a;
+}
+
 @media (max-width: 560px) {
   .contact-form {
     gap: 15px;
