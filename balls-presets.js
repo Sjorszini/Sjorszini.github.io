@@ -5,9 +5,10 @@
     orbit: ["#327eb1", "#438fc0", "#245f99", "#579dca", "#3a75a4"],
     billiards: ["#2f6fa5", "#4d8fbe", "#245a86", "#5f98c4", "#397bad"],
     rain: ["#438fc0", "#2f6fa5", "#5c9ac7", "#245a86", "#4b83b0"],
-    storm: ["#4a8bbb", "#3278aa", "#245f99", "#619bc4", "#3f7fae"],
     trails: ["#5f98c4", "#438fc0", "#3278aa", "#245f99", "#4c88b6"],
-    swarm: ["#174d7a", "#23679c", "#327eb1", "#438fc0", "#579dca", "#3a75a4"]
+    cloud: ["#1c527f", "#286a9d", "#367faf", "#468fbc", "#5a9ec8", "#346f9d"],
+    swarm: ["#174d7a", "#23679c", "#327eb1", "#438fc0", "#579dca", "#3a75a4"],
+    mega: ["#174d7a", "#205c8e", "#2a6fa3", "#347faf", "#438fc0", "#5a98c1"]
   };
 
   function colorFrom(palette, index) {
@@ -94,19 +95,6 @@
     announce("Gravity rain", "thirty-two balls fall, collide and settle");
   }
 
-  function particleStorm() {
-    resetWorld({ verticalGravity: false, mutualGravity: false, collisions: true, drawingMode: false, boundaries: true, energyDissipation: 0, G: 10 });
-    var index = 0;
-    for (var row = 0; row < 5; row += 1) {
-      for (var col = 0; col < 7; col += 1) {
-        var angle = Math.random() * Math.PI * 2;
-        var speed = 5 + Math.random() * 7;
-        addBall(85 + col * 105, 75 + row * 105, 8 + (index % 4), 1 + (index % 3) * 0.5, Math.cos(angle) * speed, Math.sin(angle) * speed, colorFrom(palettes.storm, index++));
-      }
-    }
-    announce("Particle storm", "thirty-five elastic particles ricochet around the box");
-  }
-
   function orbitTrails() {
     resetWorld({ verticalGravity: false, mutualGravity: true, collisions: false, drawingMode: true, boundaries: false, energyDissipation: 0, G: 14 });
     var cx = width / 2;
@@ -140,30 +128,53 @@
     }
   }
 
-  function thousandBallSwarm() {
-    resetWorld({ verticalGravity: false, mutualGravity: true, collisions: true, drawingMode: false, boundaries: true, energyDissipation: 7, G: 10 });
-    var columns = 40;
-    var rows = 25;
-    var marginX = 22;
-    var marginY = 22;
+  function gridCloud(columns, rows, radius, minSpeed, maxSpeed, palette) {
+    var marginX = Math.max(14, radius * 3);
+    var marginY = Math.max(14, radius * 3);
     var usableWidth = width - marginX * 2;
     var usableHeight = height - marginY * 2;
     var index = 0;
+
     for (var row = 0; row < rows; row += 1) {
       for (var col = 0; col < columns; col += 1) {
         var x = marginX + (col + 0.5) * usableWidth / columns;
         var y = marginY + (row + 0.5) * usableHeight / rows;
         var angle = Math.random() * Math.PI * 2;
-        var speed = 1.5 + Math.random() * 3.2;
-        addBall(x, y, 3.6, 1, Math.cos(angle) * speed, Math.sin(angle) * speed, colorFrom(palettes.swarm, index++));
+        var speed = minSpeed + Math.random() * (maxSpeed - minSpeed);
+        addBall(x, y, radius, 1, Math.cos(angle) * speed, Math.sin(angle) * speed, colorFrom(palette, index++));
       }
     }
     removeCenterOfMassDrift();
+  }
+
+  function threeHundredBallCloud() {
+    resetWorld({ verticalGravity: false, mutualGravity: true, collisions: true, drawingMode: false, boundaries: true, energyDissipation: 7, G: 10 });
+    gridCloud(20, 15, 5.2, 0.7, 2.8, palettes.cloud);
+    announce("300-ball gravity cloud", "exact mutual gravity, collisions and 7% dissipation are enabled");
+  }
+
+  function thousandBallSwarm() {
+    resetWorld({ verticalGravity: false, mutualGravity: true, collisions: true, drawingMode: false, boundaries: true, energyDissipation: 7, G: 10 });
+    gridCloud(40, 25, 3.6, 1.5, 4.7, palettes.swarm);
     announce("1,000-ball swarm", "mutual gravity and 7% dissipation are enabled; initial centre-of-mass drift is removed");
   }
 
+  function megaSwarm() {
+    resetWorld({ verticalGravity: false, mutualGravity: false, collisions: true, drawingMode: false, boundaries: true, energyDissipation: 3, G: 10 });
+    gridCloud(50, 50, 2.5, 0.8, 3.0, palettes.mega);
+    announce("2,500-ball mega swarm", "collisions, boundaries and 3% dissipation are enabled; mutual gravity is off by default for performance testing");
+  }
+
   window.loadBallsPreset = function (name) {
-    var presets = { solar: solarSystem, billiards: billiardBreak, rain: gravityRain, storm: particleStorm, trails: orbitTrails, swarm: thousandBallSwarm };
+    var presets = {
+      solar: solarSystem,
+      billiards: billiardBreak,
+      rain: gravityRain,
+      trails: orbitTrails,
+      cloud300: threeHundredBallCloud,
+      swarm: thousandBallSwarm,
+      mega2500: megaSwarm
+    };
     if (presets[name]) presets[name]();
   };
 })();
