@@ -30,6 +30,70 @@
   box-shadow: 0 8px 16px rgba(35, 82, 132, 0.18);
 }
 
+/* Homepage professional links: one coherent, skim-friendly action group. */
+.home-details-grid {
+  display: block;
+}
+
+.professional-panel {
+  padding-top: 32px;
+  border-top: 1px solid var(--line);
+}
+
+.professional-panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  margin-bottom: 14px;
+}
+
+.professional-panel-head h3 {
+  margin: 0;
+}
+
+.professional-panel .contact-action {
+  flex: 0 0 auto;
+  min-height: 42px;
+  margin: 0;
+  padding: 9px 15px;
+  border-radius: 8px;
+  box-shadow: 0 5px 14px rgba(18, 52, 91, 0.12);
+}
+
+.professional-panel .contact-action:after {
+  content: "→";
+  margin-left: 8px;
+  font-size: 0.96rem;
+}
+
+.professional-panel .profile-grid {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 9px;
+}
+
+.professional-panel .profile-link {
+  min-height: 52px;
+  padding: 11px 13px;
+  background: #fff;
+  border-color: #d4dee9;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(18, 52, 91, 0.035);
+  font-size: 0.86rem;
+  font-weight: 620;
+}
+
+.professional-panel .profile-link:after {
+  opacity: 0.72;
+}
+
+.professional-panel .profile-link:hover,
+.professional-panel .profile-link:focus-visible {
+  background: #f8fbfe;
+  border-color: #aebfd1;
+  box-shadow: 0 5px 14px rgba(18, 52, 91, 0.07);
+}
+
 .contact-page article {
   max-width: 860px;
 }
@@ -171,6 +235,27 @@
   color: #46576a;
 }
 
+@media (max-width: 900px) {
+  .professional-panel .profile-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  .professional-panel-head {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .professional-panel .contact-action {
+    align-self: flex-start;
+  }
+
+  .professional-panel .profile-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
 @media (max-width: 560px) {
   .contact-form {
     gap: 15px;
@@ -185,5 +270,11 @@
 
   .contact-submit {
     width: 100%;
+  }
+}
+
+@media (max-width: 420px) {
+  .professional-panel .profile-grid {
+    grid-template-columns: 1fr;
   }
 }
