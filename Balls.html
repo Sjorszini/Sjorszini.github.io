@@ -7,7 +7,6 @@
   <title>Balls - Sjors Heefer</title>
   <link rel="stylesheet" type="text/css" href="style.css">
   <link rel="stylesheet" type="text/css" href="menu-clean.css?v=4">
-  <link rel="stylesheet" type="text/css" href="balls-presets.css?v=2">
   <link rel="icon" href="icon.ico" type="image/vnd.microsoft.icon">
 </head>
 <body onload="OnLoad(); loadBallsPreset('swarm');">
@@ -20,7 +19,7 @@
 
   <article>
     <h1>Balls</h1>
-    <p>A small simulator of Newtonian mechanics, just for fun. Click inside the canvas to add balls, change the physics settings, or load a preset from the Tools panel below.</p>
+    <p>A small simulator of Newtonian mechanics, just for fun. Click inside the canvas to add balls, change the physics settings, or choose a preset under Simulation.</p>
   </article>
 
   <div class="BallsContainer">
@@ -38,6 +37,20 @@
       <form action="">
         <p class="control-note"><i>Change the properties below to control the simulation and each new ball.</i></p>
         <h3>Simulation</h3>
+
+        <p>
+          <label for="presetSelect">Preset:</label>
+          <select id="presetSelect" onchange="if (this.value) loadBallsPreset(this.value);">
+            <option value="solar">Mini solar system</option>
+            <option value="billiards">Billiard break</option>
+            <option value="rain">Gravity rain</option>
+            <option value="trails">Orbit trails</option>
+            <option value="cloud300">300-ball gravity cloud</option>
+            <option value="swarm" selected>1,000-ball swarm</option>
+          </select>
+        </p>
+        <p id="preset-status" role="status" aria-live="polite">1,000-ball swarm is the default preset.</p>
+        <p id="performance-status" aria-live="polite">Performance data will appear while the simulation runs.</p>
 
         <div class="checkboxdiv">
           <input type="checkbox" class="CheckboxGeneralSettings fancyCheckbox" id="chbPauseResume" name="chbPauseResume" onclick="handle_chbPauseResume_Click();">
@@ -92,14 +105,6 @@
       <form action="">
         <h3>Tools</h3>
         <a href="javascript:void(0)" class="btn" id="btnSaveCanvasAsImage" onclick="handle_btnSaveCanvasAsImage_click();">Save canvas as image</a>
-        <a href="javascript:void(0)" class="btn" onclick="loadBallsPreset('solar');">Mini solar system</a>
-        <a href="javascript:void(0)" class="btn" onclick="loadBallsPreset('billiards');">Billiard break</a>
-        <a href="javascript:void(0)" class="btn" onclick="loadBallsPreset('rain');">Gravity rain</a>
-        <a href="javascript:void(0)" class="btn" onclick="loadBallsPreset('trails');">Orbit trails</a>
-        <a href="javascript:void(0)" class="btn" onclick="loadBallsPreset('cloud300');">300-ball gravity cloud</a>
-        <a href="javascript:void(0)" class="btn" onclick="loadBallsPreset('swarm');">1,000-ball swarm</a>
-        <p id="preset-status" role="status" aria-live="polite">1,000-ball swarm is the default preset.</p>
-        <p id="performance-status" aria-live="polite">Performance data will appear while the simulation runs.</p>
       </form>
     </div>
   </div>
