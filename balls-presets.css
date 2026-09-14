@@ -1,0 +1,124 @@
+/* Presets for the experimental Balls page. */
+.BallsPresets {
+  margin: -10px 48px 28px;
+  padding: 22px;
+  background: linear-gradient(145deg, #f7fafe, #edf3f8);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+}
+
+.BallsPresetsHeader {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 20px;
+  margin-bottom: 15px;
+}
+
+.BallsPresetsHeader h2 {
+  margin: 0;
+  color: var(--navy-900);
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 1.35rem;
+  font-weight: 600;
+}
+
+.BallsPresetsHeader p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.86rem;
+}
+
+.BallsPresetGrid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.BallsPreset {
+  appearance: none;
+  min-height: 108px;
+  padding: 14px;
+  color: var(--navy-900);
+  background: linear-gradient(145deg, #ffffff, #eaf2f9);
+  border: 1px solid #c9d9e7;
+  border-radius: 11px;
+  box-shadow: 0 5px 14px rgba(13, 35, 60, 0.06);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: transform 150ms ease, border-color 150ms ease, box-shadow 150ms ease, background 150ms ease;
+}
+
+.BallsPreset:hover,
+.BallsPreset:focus-visible {
+  transform: translateY(-2px);
+  background: linear-gradient(145deg, #ffffff, #e0edf8);
+  border-color: #91aec9;
+  box-shadow: 0 9px 20px rgba(13, 35, 60, 0.11);
+}
+
+.BallsPreset strong,
+.BallsPreset span {
+  display: block;
+}
+
+.BallsPreset strong {
+  margin-bottom: 5px;
+  font-size: 0.92rem;
+}
+
+.BallsPreset span {
+  color: #526579;
+  font-size: 0.77rem;
+  line-height: 1.45;
+}
+
+#preset-status {
+  min-height: 1.4em;
+  margin: 13px 0 0;
+  color: #44617e;
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+@media (max-width: 960px) {
+  .BallsPresetGrid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 700px) {
+  .BallsPresets {
+    margin: -6px 28px 24px;
+    padding: 18px;
+  }
+
+  .BallsPresetsHeader {
+    display: block;
+  }
+
+  .BallsPresetsHeader p {
+    margin-top: 4px;
+  }
+
+  .BallsPresetGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 560px) {
+  .BallsPresets {
+    margin: -4px 18px 22px;
+    padding: 16px;
+    border-radius: 12px;
+  }
+
+  .BallsPresetGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .BallsPreset {
+    min-height: 0;
+  }
+}
