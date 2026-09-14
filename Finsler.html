@@ -8,6 +8,7 @@
   <link rel="stylesheet" type="text/css" href="style.css">
   <link rel="stylesheet" type="text/css" href="menu-clean.css?v=4">
   <link rel="stylesheet" type="text/css" href="finsler-calculator.css?v=1">
+  <link rel="stylesheet" type="text/css" href="finsler-progressive.css?v=1">
   <link rel="icon" href="icon.ico" type="image/vnd.microsoft.icon">
   <style>
     .construction-warning {
@@ -37,9 +38,7 @@
     };
   </script>
   <script defer src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
-  <script defer src="finsler-calculator.js?v=1"></script>
-  <script defer src="finsler-riemann-fast.js?v=1"></script>
-  <script defer src="finsler-randers-fast.js?v=1"></script>
+  <script defer src="finsler-progressive-ui.js?v=1"></script>
 </head>
 <body>
 <div class="container finsler-page">
@@ -97,7 +96,7 @@
       </div>
 
       <div id="status" class="calc-status" role="status" aria-live="polite">Ready.</div>
-      <p class="performance-note">Quadratic/Riemannian inputs use a dedicated fast path. Recognized two-dimensional Randers inputs use a separate optimized path. General non-quadratic Finsler expressions can still grow rapidly, especially in higher dimensions.</p>
+      <p class="performance-note">Calculations now run in a background worker. Finished tensor components are shown immediately, with timings for every component and a live elapsed timer for the component currently being computed.</p>
     </section>
 
     <section class="finsler-card conventions-card" aria-labelledby="conventions-title">
