@@ -8,6 +8,47 @@
   <link rel="stylesheet" type="text/css" href="style.css">
   <link rel="stylesheet" type="text/css" href="menu-clean.css?v=4">
   <link rel="icon" href="icon.ico" type="image/vnd.microsoft.icon">
+  <style>
+    .preset-row {
+      margin: 0 0 18px;
+    }
+
+    .preset-row label {
+      display: block;
+      margin: 0 0 6px;
+      color: var(--navy-900);
+      font-size: 0.9rem;
+      font-weight: 650;
+    }
+
+    #presetSelect {
+      width: 100%;
+      min-height: 46px;
+      padding: 9px 12px;
+      color: var(--navy-900);
+      background: linear-gradient(180deg, #ffffff 0%, #f7fafc 100%);
+      border: 1px solid #aebdcd;
+      border-radius: 10px;
+      box-shadow: 0 3px 10px rgba(18, 52, 91, 0.08);
+      font: inherit;
+      font-size: 0.95rem;
+      font-weight: 650;
+      cursor: pointer;
+      transition: border-color 160ms ease, box-shadow 160ms ease, background 160ms ease;
+    }
+
+    #presetSelect:hover {
+      background: #fff;
+      border-color: #7f9dbb;
+    }
+
+    #presetSelect:focus-visible {
+      outline: 3px solid rgba(60, 121, 191, 0.22);
+      outline-offset: 2px;
+      border-color: var(--blue-500);
+      box-shadow: 0 4px 14px rgba(18, 52, 91, 0.12);
+    }
+  </style>
 </head>
 <body onload="OnLoad(); loadBallsPreset('solar');">
 
@@ -38,7 +79,7 @@
         <p class="control-note"><i>Change the properties below to control the simulation and each new ball.</i></p>
         <h3>Simulation</h3>
 
-        <p>
+        <p class="preset-row">
           <label for="presetSelect">Preset:</label>
           <select id="presetSelect" onchange="if (this.value) loadBallsPreset(this.value);">
             <option value="solar" selected>Mini solar system</option>
