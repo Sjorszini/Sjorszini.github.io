@@ -17,13 +17,14 @@ on:
       - 'tests/finsler-christoffel-regression.cjs'
       - 'tests/finsler-ricci-consistency.cjs'
       - 'tests/finsler-cross-invariants.cjs'
+      - 'tests/finsler-general-invariants.cjs'
       - '.github/workflows/finsler-worker-regression.yml'
   workflow_dispatch:
 
 jobs:
   schwarzschild-regression:
     runs-on: ubuntu-latest
-    timeout-minutes: 8
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -41,3 +42,5 @@ jobs:
         run: node tests/finsler-ricci-consistency.cjs
       - name: Audit cross-geometry invariants
         run: node tests/finsler-cross-invariants.cjs
+      - name: Audit genuine Finsler invariants
+        run: node tests/finsler-general-invariants.cjs
