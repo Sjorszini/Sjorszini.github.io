@@ -26,7 +26,7 @@ jobs:
         run: npm install --no-save --ignore-scripts mathjs@11.11.2 nerdamer-prime@1.5.0
       - name: Verify original geometry engine
         run: node tests/finsler-worker-v3-baseline.cjs
-      - name: Verify rebuilt worker
-        run: node tests/finsler-worker-regression.cjs
       - name: Verify canonical Schwarzschild Christoffels
         run: node tests/finsler-christoffel-regression.cjs
+      - name: Verify rebuilt worker
+        run: node tests/finsler-worker-regression.cjs
