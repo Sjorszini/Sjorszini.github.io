@@ -42,8 +42,18 @@ const probes = [
 for (const p of probes) {
   const c = context.finslerNerdamerCandidate(p, true);
   const f = c ? context.finslerFractionForm(c) : null;
+  const names = c ? context.finslerSymbols(`(${p})+(${c})`) : [];
+  const scope = context.finslerScope(names, 0);
   console.log('PROBE input=', p);
   console.log('PROBE candidate=', c);
+  console.log('PROBE names=', names, 'scope=', scope);
+  try {
+    const av=math.evaluate(p,scope), bv=math.evaluate(c,scope);
+    console.log('PROBE values=', av, bv, 'delta=', math.subtract(av,bv), 'abs=', math.abs(math.subtract(av,bv)));
+  } catch (e) { console.log('PROBE eval-error=', e && e.message); }
+  try {
+    console.log('PROBE fixed-scope=', math.evaluate(p,{rs:2,x2:7}), math.evaluate(c,{rs:2,x2:7}));
+  } catch (e) { console.log('PROBE fixed-eval-error=', e && e.message); }
   console.log('PROBE candidate-equiv=', c && context.finslerEquivalentNumerically(p, c));
   console.log('PROBE fraction=', f);
   console.log('PROBE fraction-equiv=', f && context.finslerEquivalentNumerically(p, f));
