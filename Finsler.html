@@ -15,9 +15,9 @@
     window.MathJax={tex:{inlineMath:[['\\(','\\)']],displayMath:[['\\[','\\]']]},options:{skipHtmlTags:['script','noscript','style','textarea','pre','code']}};
   </script>
   <script defer src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
-  <script defer src="finsler-metric-catalogue.js?v=4"></script>
+  <script defer src="finsler-metric-catalogue.js?v=5"></script>
   <script defer src="finsler-minusplus-v1.js?v=3"></script>
-  <script defer src="finsler-ui-v6.js?v=4"></script>
+  <script defer src="finsler-ui-v6.js?v=5"></script>
   <script defer src="finsler-ui-v6-fixes.js?v=2"></script>
   <script>
     /* Mobile browsers can restore form controls after load/pageshow. Keep the
@@ -60,7 +60,7 @@
         var g00=document.querySelector('.metric-entry[data-i="0"][data-j="0"]');
         var g11=document.querySelector('.metric-entry[data-i="1"][data-j="1"]');
         var a=normalizedValue(g00),b=normalizedValue(g11);
-        return a.indexOf("rs")!==-1&&a.indexOf("r")!==-1&&b.indexOf("rs")!==-1&&b.indexOf("r")!==-1;
+        return a.indexOf("r_s")!==-1&&a.indexOf("r")!==-1&&b.indexOf("r_s")!==-1&&b.indexOf("r")!==-1;
       }
 
       function enforceSchwarzschild(){
@@ -146,7 +146,7 @@
           </div>
           <label class="notation-field">
             <span>Constants</span>
-            <input id="constantsInput" type="text" placeholder="M, rs, k, Lambda">
+            <input id="constantsInput" type="text" placeholder="M, r_s, k, Lambda">
             <small>Bare symbols are constants. Presets populate this automatically.</small>
           </label>
           <label class="notation-field">

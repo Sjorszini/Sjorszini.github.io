@@ -74,8 +74,6 @@
 
   function prettyResultTex(text){
   var s=String(text);
-  s=s.replace(/\\mathrm\{rs\}/g,"r_{s}").replace(/\\operatorname\{rs\}/g,"r_{s}");
-  s=s.replace(/(^|[^A-Za-z])rs(?=$|[^A-Za-z])/g,function(all,prefix){return prefix+"r_{s}";});
   var fn="\\\\(?:sin|cos|tan|sinh|cosh|tanh)";
   var arg="(?:\\\\[A-Za-z]+|[A-Za-z](?:_\\{[A-Za-z0-9]+\\})?)";
   s=s.replace(new RegExp("\\{("+fn+")\\\\left\\(\\s*("+arg+")\\s*\\\\right\\)\\}\\s*\\^\\s*\\{([^{}]+)\\}","g"),"$1^{$3} $2");

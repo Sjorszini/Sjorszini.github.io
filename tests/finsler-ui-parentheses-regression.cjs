@@ -42,24 +42,27 @@ if (start < 0 || end <= start) {
   const squareSin = render('sin(theta)^2');
   const cubeCos = render('cos(theta)^3');
   const composite = render('sin(theta+phi)^2');
-  const schwarzschild = render('rs/r');
+  const bareRs = render('rs/r');
+  const subscriptRs = render('r_s/r');
 
   console.log('sin(theta) =>', singleSin);
   console.log('cos(theta) =>', singleCos);
   console.log('sin(theta)^2 =>', squareSin);
   console.log('cos(theta)^3 =>', cubeCos);
   console.log('sin(theta+phi)^2 =>', composite);
-  console.log('rs/r =>', schwarzschild);
+  console.log('rs/r =>', bareRs);
+  console.log('r_s/r =>', subscriptRs);
 
   if (/\\sin\s*\\left\(/.test(singleSin)) fail(`single-symbol sine still has parentheses: ${singleSin}`);
   if (/\\cos\s*\\left\(/.test(singleCos)) fail(`single-symbol cosine still has parentheses: ${singleCos}`);
   if (!/\\sin\^\{2\}/.test(squareSin) || /\\sin\s*\\left\(/.test(squareSin)) fail(`sine square is not written as sin^2 theta: ${squareSin}`);
   if (!/\\cos\^\{3\}/.test(cubeCos) || /\\cos\s*\\left\(/.test(cubeCos)) fail(`cosine cube is not written as cos^3 theta: ${cubeCos}`);
   if (!/\\left\(/.test(composite)) fail(`composite trig argument lost necessary parentheses: ${composite}`);
-  if (!/r_\{s\}/.test(schwarzschild)) fail(`Schwarzschild radius is not displayed as r_s: ${schwarzschild}`);
-  if (/(^|[^A-Za-z])rs(?=$|[^A-Za-z])/.test(schwarzschild)) fail(`bare rs remains in displayed TeX: ${schwarzschild}`);
+  if (/r_\{s\}/.test(bareRs)) fail(`bare rs was rewritten as r_s: ${bareRs}`);
+  if (!/_/.test(subscriptRs)) fail(`entered r_s lost its subscript notation: ${subscriptRs}`);
+  if (bareRs === subscriptRs) fail(`rs and r_s rendered identically: ${bareRs}`);
 }
 
 if (!process.exitCode) {
-  console.log('PASS: compact trig notation, trig powers, minimal grouping, and r_s display');
+  console.log('PASS: compact trig notation, minimal grouping, and symbol-preserving rs/r_s display');
 }

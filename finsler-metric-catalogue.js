@@ -35,8 +35,8 @@
     },
     {
       id:"schwarzschild", group:"Catalogue · Black holes", title:"Schwarzschild", dim:4,
-      coords:["t","r","theta","phi"], matrix:diag("-(1-rs/r)","1/(1-rs/r)","r^2","r^2*sin(theta)^2"),
-      description:"Standard Schwarzschild coordinates; rs is the Schwarzschild radius.", source:"Catalogue §2.2", validation:"Ric = 0", status:"verified"
+      coords:["t","r","theta","phi"], matrix:diag("-(1-r_s/r)","1/(1-r_s/r)","r^2","r^2*sin(theta)^2"),
+      description:"Standard Schwarzschild coordinates; r_s is the Schwarzschild radius.", source:"Catalogue §2.2", validation:"Ric = 0", status:"verified"
     },
     {
       id:"alcubierre", group:"Catalogue · Exotic / waves", title:"Alcubierre warp metric", dim:4,
