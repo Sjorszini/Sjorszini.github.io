@@ -1,6 +1,6 @@
 (function(){
   "use strict";
-  var modules=["finsler-enhancement-01-validation.js","finsler-enhancement-02-dependencies.js","finsler-enhancement-03-result-tools.js","finsler-enhancement-04-cancel.js"];
+  var modules=["finsler-enhancement-01-validation.js","finsler-enhancement-02-dependencies.js","finsler-enhancement-03-result-tools.js","finsler-enhancement-04-cancel.js","finsler-enhancement-05-share-state.js"];
   var stamp=Date.now().toString(36),i=0;
   function next(){
     if(i>=modules.length)return;
