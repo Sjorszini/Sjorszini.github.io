@@ -35,6 +35,21 @@ context.importScripts = (...specs) => specs.forEach(loadScript);
 
 loadScript('finsler-worker-v4.js');
 
+const probes = [
+  '(rs^2-x2*rs)/2/x2^4',
+  '(rs-rs^2/x2)/2/(1-rs/x2)/x2+(x2-rs)/x2-1',
+];
+for (const p of probes) {
+  const c = context.finslerNerdamerCandidate(p, true);
+  const f = c ? context.finslerFractionForm(c) : null;
+  console.log('PROBE input=', p);
+  console.log('PROBE candidate=', c);
+  console.log('PROBE candidate-equiv=', c && context.finslerEquivalentNumerically(p, c));
+  console.log('PROBE fraction=', f);
+  console.log('PROBE fraction-equiv=', f && context.finslerEquivalentNumerically(p, f));
+  console.log('PROBE PS=', context.PS(p));
+}
+
 function compact(s) { return String(s).replace(/\s+/g, ''); }
 function getComponent(section, label) {
   const m = messages.find(x => x.type === 'component' && x.section === section && x.label === label);
