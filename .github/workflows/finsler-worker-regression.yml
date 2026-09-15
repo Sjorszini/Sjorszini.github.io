@@ -15,6 +15,7 @@ on:
       - 'tests/finsler-worker-v3-baseline.cjs'
       - 'tests/finsler-worker-regression.cjs'
       - 'tests/finsler-christoffel-regression.cjs'
+      - 'tests/finsler-spray-simplification.cjs'
       - 'tests/finsler-ricci-consistency.cjs'
       - 'tests/finsler-cross-invariants.cjs'
       - 'tests/finsler-general-invariants.cjs'
@@ -40,6 +41,8 @@ jobs:
         run: node tests/finsler-worker-v3-baseline.cjs
       - name: Verify canonical Schwarzschild Christoffels
         run: node tests/finsler-christoffel-regression.cjs
+      - name: Verify canonical Schwarzschild spray
+        run: node tests/finsler-spray-simplification.cjs
       - name: Verify rebuilt worker
         run: node tests/finsler-worker-regression.cjs
       - name: Verify affine/Finsler Ricci consistency
