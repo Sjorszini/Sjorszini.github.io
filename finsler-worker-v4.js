@@ -61,10 +61,6 @@ function finslerScope(names,k){
   });
   return scope;
 }
-/* Do not pass a scope object across JS realms. The CI harness intentionally
- * injects the same host math.js object into a Worker-like VM, and math.js's
- * typed dispatcher rejects VM-created plain objects. Numeric substitution is
- * realm-independent and exercises exactly the same parser/evaluator. */
 function finslerNumericText(text,scope){
   return String(text).replace(/\b[A-Za-z_]\w*\b/g,function(name){
     return Object.prototype.hasOwnProperty.call(scope,name)?"("+scope[name]+")":name;
@@ -93,12 +89,12 @@ function finslerNerdamerCandidate(text,relaxed){
   if(typeof nerdamer!=="function")return null;
   text=String(text);
   var length=finslerCompactLength(text),ops=finslerOpCount(text);
-  var maxLength=relaxed?360:220,maxOps=relaxed?48:28;
+  var maxLength=relaxed?380:220,maxOps=relaxed?52:28;
   if(length>maxLength||ops>maxOps)return null;
   try{
     var candidate=nerdamer("simplify("+text+")").toString();
     if(!candidate)return null;
-    if(finslerCompactLength(candidate)<=200&&finslerOpCount(candidate)<=24){
+    if(finslerCompactLength(candidate)<=220&&finslerOpCount(candidate)<=26){
       try{
         var factored=nerdamer("factor("+candidate+")").toString();
         if(factored&&finslerCompactLength(factored)<=finslerCompactLength(candidate)+10)candidate=factored;
@@ -134,9 +130,6 @@ function finslerFactorRelation(a,b){
   return 0;
 }
 
-/* Convert a multiplicative expression with reciprocal/negative-power factors
- * into a single fraction without expanding additive factors. This is what
- * turns Nerdamer's rs*(rs-r)*r^-4/2 into rs*(rs-r)/(2*r^4). */
 function finslerFractionForm(text){
   var root;try{root=math.parse(String(text));}catch(e){return String(text);}
   var num=[],den=[],sign=1;
@@ -211,7 +204,6 @@ function finslerSimplifyNode(node,depth){
   try{return math.parse(best);}catch(e4){return mapped;}
 }
 
-/* Computational state: verified v3 simplification only. */
 S=function(expr){
   var original=raw(expr);
   if(finslerComputeCache[original]!==undefined)return finslerComputeCache[original];
@@ -221,26 +213,48 @@ S=function(expr){
   return best;
 };
 
-/* Keep the global PS used internally by v3 cheap. Strong output CAS is applied
- * only by the postMessage boundary below, after section timing has finished. */
 PS=function(expr){return finslerBasePS(expr);};
 function finslerStrongPS(expr){
   var original=raw(expr);
   if(finslerPresentCache[original]!==undefined)return finslerPresentCache[original];
-  var base=S(original);
+  var base=S(original),best=base;
   if(base==="0"||base==="1"||finslerCompactLength(base)<7){finslerPresentCache[original]=base;return base;}
-  var direct=finslerNerdamerCandidate(base,true);
-  var best=finslerPrefer(base,direct,true);
-  best=finslerFractionForm(best);
+
+  /* Nerdamer sometimes needs two algebraic passes: the first cancels a large
+   * rational expression and the second factors its now-small numerator. Never
+   * mark an intermediate result as a fixed point. */
+  for(var pass=0;pass<3;pass++){
+    var before=best;
+    var candidate=finslerNerdamerCandidate(before,true);
+    var next=finslerPrefer(before,candidate,true);
+    next=finslerFractionForm(next);
+    if(!finslerEquivalentNumerically(base,next))next=before;
+    best=next;
+    if(best===before)break;
+  }
+
   if(best===base||finslerCompactLength(best)>=finslerCompactLength(base)-2){
-    if(/sin\(|cos\(|tan\(/.test(base)&&finslerCompactLength(base)<=300){
-      try{var node=math.parse(base);var recursive=finslerSimplifyNode(node,0).toString({parenthesis:"auto"});best=finslerPrefer(best,recursive,true);}catch(e){}
+    if(finslerCompactLength(base)<=340){
+      try{
+        var node=math.parse(base);
+        var recursive=finslerSimplifyNode(node,0).toString({parenthesis:"auto"});
+        recursive=finslerFractionForm(recursive);
+        if(finslerEquivalentNumerically(base,recursive)&&finslerCompactLength(recursive)<finslerCompactLength(best))best=recursive;
+      }catch(e){}
     }
   }
-  best=finslerFractionForm(best);
+
+  /* One final small-expression factor pass catches forms produced by recursive
+   * cancellation without re-expanding them. */
+  if(finslerCompactLength(best)<=220){
+    var finalCandidate=finslerNerdamerCandidate(best,true);
+    var finalBest=finslerPrefer(best,finalCandidate,true);
+    finalBest=finslerFractionForm(finalBest);
+    if(finslerEquivalentNumerically(base,finalBest)&&finslerCompactLength(finalBest)<=finslerCompactLength(best)+8)best=finalBest;
+  }
+
   if(!finslerEquivalentNumerically(base,best))best=base;
   finslerPresentCache[original]=best;
-  finslerPresentCache[best]=best;
   return best;
 }
 
@@ -273,8 +287,6 @@ self.postMessage=function(message,transfer){
   return finslerNativePostMessage(outgoing);
 };
 
-/* Custom coordinate-dependent functions. When none are present, use v3's
- * original D verbatim so ordinary metric calculations retain baseline speed. */
 function finslerSymbolNode(variable){
   var symbol=math.parse(String(variable));
   if(!symbol||!symbol.isSymbolNode)throw new Error("Invalid differentiation variable: "+variable);
