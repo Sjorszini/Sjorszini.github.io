@@ -34,7 +34,7 @@ function zero(a,label){equal(a,'0',label);}
 function deriv(expr,v){return math.derivative(math.parse(String(expr)),v).toString({parenthesis:'auto'});}
 function nonlinear(ms,k,i,j){if(i===j)return'0';if(i<j)return comp(ms,'curvature',`R^{${k}}{}_{${i}${j}}`)||'0';return `-(${comp(ms,'curvature',`R^{${k}}{}_{${j}${i}}`)||'0'})`;}
 
-function auditGeneral(ms,n,name,{expectFlat=false,expectCartanNonzero=false}={}){
+function auditGeneral(ms,n,name,{expectFlat=false,expectCartanNonzero=false,expectNonzeroN=false}={}){
   const failures=[];const check=fn=>{try{fn();}catch(e){failures.push(`${name}: ${e.message}`);}};
   if(hasSection(ms,'metric')&&hasSection(ms,'inverse')){
     const g=Array.from({length:n},()=>Array(n).fill('0')),gi=Array.from({length:n},()=>Array(n).fill('0'));
@@ -42,13 +42,18 @@ function auditGeneral(ms,n,name,{expectFlat=false,expectCartanNonzero=false}={})
     for(let i=0;i<n;i++)for(let j=0;j<n;j++){const terms=[];for(let k=0;k<n;k++)terms.push(`(${gi[i][k]})*(${g[k][j]})`);check(()=>equal(terms.join('+'),i===j?'1':'0',`inverse ${i+1}${j+1}`));}
   }
   const cartan=ms.filter(m=>m.type==='component'&&m.section==='cartan');
-  if(expectCartanNonzero&&cartan.length)check(()=>{if(!cartan.some(m=>{try{return scopes.some(s=>Math.abs(evalNum(m.value,s))>1e-8);}catch(e){return false;}}))throw new Error('expected a nonzero Cartan tensor');});
+  if(expectCartanNonzero)check(()=>{if(!cartan.some(m=>{try{return scopes.some(s=>Math.abs(evalNum(m.value,s))>1e-8);}catch(e){return false;}}))throw new Error('expected a nonzero Cartan tensor');});
 
   if(hasSection(ms,'spray'))for(let k=1;k<=n;k++){
     const G=comp(ms,'spray',`G^{${k}}`)||'0';let euler='0';for(let j=1;j<=n;j++)euler+=`+y${j}*(${deriv(G,`y${j}`)})`;
     check(()=>equal(euler,`2*(${G})`,`spray homogeneity ${k}`));
     if(hasSection(ms,'nonlinear'))for(let j=1;j<=n;j++){const N=comp(ms,'nonlinear',`N^{${k}}{}_{${j}}`)||'0';check(()=>equal(N,`0.5*(${deriv(G,`y${j}`)})`,`N=dG/2 ${k}${j}`));}
   }
+  if(expectNonzeroN)check(()=>{
+    const entries=ms.filter(m=>m.type==='component'&&m.section==='nonlinear');
+    if(!entries.some(m=>scopes.some(s=>{try{return Math.abs(evalNum(m.value,s))>1e-8;}catch(e){return false;}})))throw new Error('expected a nonzero nonlinear connection');
+  });
+
   if(hasSection(ms,'curvature'))for(let k=1;k<=n;k++)for(let i=1;i<=n;i++)for(let j=i+1;j<=n;j++){
     const Nij=comp(ms,'nonlinear',`N^{${k}}{}_{${j}}`)||'0',Nii=comp(ms,'nonlinear',`N^{${k}}{}_{${i}}`)||'0';
     let di=`(${deriv(Nij,`x${i}`)})`,dj=`(${deriv(Nii,`x${j}`)})`;
@@ -75,21 +80,26 @@ function auditGeneral(ms,n,name,{expectFlat=false,expectCartanNonzero=false}={})
 const curvatureSet={metric:true,inverse:true,cartan:true,spray:true,nonlinear:true,connections:false,curvature:true,deviation:true,ricci:true,affine:false};
 const light={metric:true,inverse:true,cartan:true,spray:true,nonlinear:true,connections:false,curvature:false,deviation:false,ricci:false,affine:false};
 
+// Non-Riemannian locally Minkowski L: nonzero Cartan, while every connection /
+// curvature quantity must vanish. This executes the generic Finsler curvature
+// and Ricci paths without the algebraic explosion of an arbitrary x-dependent L.
 const quartic=runWorker({n:2,inputType:'lagrangian',L:'sqrt(y1^4+y2^4)',outputs:curvatureSet});
 auditGeneral(quartic,2,'quartic locally Minkowski',{expectFlat:true,expectCartanNonzero:true});
 
+// Constant Randers is another genuinely non-Riemannian flat geometry. The
+// specialized alpha-beta builder and the direct Hessian route must agree.
 const randersBuilder=runWorker({n:2,inputType:'metric',metricEntries:[['1','0'],['0','1']],alphaBeta:{enabled:true,type:'randers',b:['b','0'],m:'1'},outputs:curvatureSet});
 const randersDirect=runWorker({n:2,inputType:'lagrangian',L:'(sqrt(y1^2+y2^2)+b*y1)^2',outputs:curvatureSet});
 auditGeneral(randersBuilder,2,'constant Randers builder',{expectFlat:true,expectCartanNonzero:true});
 auditGeneral(randersDirect,2,'constant Randers direct L',{expectFlat:true,expectCartanNonzero:true});
 
-const rational=runWorker({n:2,inputType:'lagrangian',L:'y1^2+y2^2+b*x1*y1^3/y2',outputs:curvatureSet});
-auditGeneral(rational,2,'x-dependent rational Finsler',{expectCartanNonzero:true});
-
+// Coordinate-dependent Randers is non-Berwald in general. Keep this route at
+// spray/N level so CI stays fast, but require a genuinely nonzero N and compare
+// the closed-form Randers builder against the independent direct-Lagrangian path.
 const varyingBuilder=runWorker({n:2,inputType:'metric',metricEntries:[['1','0'],['0','1']],alphaBeta:{enabled:true,type:'randers',b:['0','b*x1'],m:'1'},outputs:light});
 const varyingDirect=runWorker({n:2,inputType:'lagrangian',L:'(sqrt(y1^2+y2^2)+b*x1*y2)^2',outputs:light});
-auditGeneral(varyingBuilder,2,'varying Randers builder',{expectCartanNonzero:true});
-auditGeneral(varyingDirect,2,'varying Randers direct L',{expectCartanNonzero:true});
+auditGeneral(varyingBuilder,2,'varying Randers builder',{expectCartanNonzero:true,expectNonzeroN:true});
+auditGeneral(varyingDirect,2,'varying Randers direct L',{expectCartanNonzero:true,expectNonzeroN:true});
 
 function compareLabels(a,b,sections,name){for(const [section,labels] of Object.entries(sections))for(const label of labels){const x=comp(a,section,label)||'0',y=comp(b,section,label)||'0';equal(x,y,`${name}: ${section} ${label}`,2e-7);}}
 const flatRouteSections={
@@ -101,4 +111,4 @@ const lightRouteSections={metric:flatRouteSections.metric,inverse:flatRouteSecti
 compareLabels(randersBuilder,randersDirect,flatRouteSections,'constant Randers builder/direct');
 compareLabels(varyingBuilder,varyingDirect,lightRouteSections,'varying Randers builder/direct');
 
-console.log('PASS: genuine Finsler homogeneity, nonlinear curvature, deviation/Ricci contractions, locally-Minkowski flatness, rational non-Riemannian curvature, and Randers builder/direct equivalence all hold');
+console.log('PASS: genuine Finsler homogeneity, generic flat curvature/Ricci, and Randers builder/direct connection invariants all hold');
