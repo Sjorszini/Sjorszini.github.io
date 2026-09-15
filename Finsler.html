@@ -16,7 +16,7 @@
   </script>
   <script defer src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
   <script defer src="finsler-metric-catalogue.js?v=4"></script>
-  <script defer src="finsler-minusplus-v1.js?v=2"></script>
+  <script defer src="finsler-minusplus-v1.js?v=3"></script>
   <script defer src="finsler-ui-v6.js?v=2"></script>
   <script defer src="finsler-ui-v6-fixes.js?v=2"></script>
 </head>
@@ -88,13 +88,13 @@
 
       <details id="metricCatalogueDrawer" class="metric-catalogue-drawer">
         <summary>
-          <span><strong>Examples &amp; metric catalogue</strong><small>Reference geometries, ansätze and Catalogue of Spacetimes entries</small></span>
+          <span><strong>Examples &amp; metric catalogue</strong><small>Finsler examples, reference geometries, ansätze and spacetime metrics</small></span>
           <span class="catalogue-summary-action">Browse</span>
         </summary>
         <div class="catalogue-body">
-          <p class="catalogue-intro">Search reference geometries, useful pre-solution ansätze, and the principal metric families in Müller &amp; Grave, <em>Catalogue of Spacetimes</em> (arXiv:0904.4184). All Lorentzian entries are loaded in the (-+++) convention.</p>
+          <p class="catalogue-intro">Search Finsler examples, reference geometries, useful pre-solution ansätze, and the principal metric families in Müller &amp; Grave, <em>Catalogue of Spacetimes</em> (arXiv:0904.4184). All Lorentzian entries are loaded in the (-+++) convention.</p>
           <div class="catalogue-controls">
-            <input id="catalogueSearch" type="search" placeholder="Search Schwarzschild, FLRW, wave, sphere…">
+            <input id="catalogueSearch" type="search" placeholder="Search Randers, Schwarzschild, FLRW, wave, sphere…">
             <select id="catalogueGroup"><option value="">All groups</option></select>
           </div>
           <p class="catalogue-count" id="catalogueCount">Loading catalogue…</p>
@@ -160,7 +160,7 @@
             </div>
           </div>
 
-          <div class="quick-example-row">
+          <div class="quick-example-row" hidden aria-hidden="true">
             <label for="exampleSelect">Quick example</label>
             <select id="exampleSelect">
               <option value="randerspp" selected>Randers pp-wave, β = du</option>
@@ -191,7 +191,7 @@
           </div>
           <div class="output-groups">
             <div class="output-group"><p class="output-group-title">Metric data</p>
-              <label class="output-check"><input type="checkbox" data-output="metric" checked><span><strong id="metricOutputLabel">Metric / fundamental tensor</strong><span>g<sub>ij</sub></span></span></label>
+              <label class="output-check" hidden><input type="checkbox" data-output="metric" checked><span><strong id="metricOutputLabel">Metric / fundamental tensor</strong><span>g<sub>ij</sub></span></span></label>
               <label class="output-check"><input type="checkbox" data-output="inverse" checked><span><strong>Inverse &amp; determinant</strong><span>g<sup>ij</sup>, det(g)</span></span></label>
               <label class="output-check"><input type="checkbox" data-output="cartan"><span><strong>Cartan tensor</strong><span>C<sub>ijk</sub></span></span></label>
             </div>
