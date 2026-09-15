@@ -12,6 +12,7 @@ on:
       - 'finsler-worker-v4-square.js'
       - 'finsler-worker-v4-core.js'
       - 'finsler-worker-v4.js'
+      - 'finsler-ui-v6.js'
       - 'tests/finsler-worker-v3-baseline.cjs'
       - 'tests/finsler-worker-regression.cjs'
       - 'tests/finsler-christoffel-regression.cjs'
@@ -19,6 +20,7 @@ on:
       - 'tests/finsler-ricci-consistency.cjs'
       - 'tests/finsler-cross-invariants.cjs'
       - 'tests/finsler-general-invariants.cjs'
+      - 'tests/finsler-ui-parentheses-regression.cjs'
       - '.github/workflows/finsler-worker-regression.yml'
   workflow_dispatch:
 
@@ -37,6 +39,8 @@ jobs:
           node-version: '22'
       - name: Install exact browser symbolic engines
         run: npm install --no-save --ignore-scripts mathjs@11.11.2 nerdamer-prime@1.5.0
+      - name: Verify UI parenthesis cleanup
+        run: node tests/finsler-ui-parentheses-regression.cjs
       - name: Verify original geometry engine
         run: node tests/finsler-worker-v3-baseline.cjs
       - name: Verify canonical Schwarzschild Christoffels
