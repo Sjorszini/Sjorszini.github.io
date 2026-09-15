@@ -12,9 +12,6 @@ let context;
 function loadScript(spec) {
   const clean = String(spec).split('?')[0];
   if (/^https?:/.test(clean)) {
-    // finsler-worker-v3.js imports the browser math.js bundle.  The VM already
-    // exposes the exact same npm version as global `math`, so no second load is
-    // required here.
     if (clean.includes('mathjs')) return;
     throw new Error(`Unexpected external importScripts URL: ${spec}`);
   }
@@ -67,28 +64,21 @@ const payload = {
 context.onmessage({ data: payload });
 
 setImmediate(() => {
+  const failures = [];
+  function check(condition, message) { if (!condition) failures.push(message); }
+
   const error = messages.find(m => m.type === 'error');
-  if (error) throw new Error(error.message || 'worker error');
-  assert(messages.some(m => m.type === 'done'), 'worker did not emit done');
+  check(!error, `worker error: ${error && error.message}`);
+  check(messages.some(m => m.type === 'done'), 'worker did not emit done');
 
-  // Exact regression for the component in the user screenshot:
-  // R^phi_{t t phi} = -rs (r-rs) / (2 r^4).
   const target = getComponent('affineCurvature', '\\bar R^{4}{}_{114}');
-  assert(target, 'missing Schwarzschild R^4_114 component');
-  assert(
-    math.symbolicEqual(target, '-rs*(x2-rs)/(2*x2^4)'),
-    `R^4_114 is mathematically wrong: ${target}`,
-  );
-  assert(
-    !context.finslerV6HasFactorableSum(target),
-    `R^4_114 still contains an extractable common factor: ${target}`,
-  );
-  assert(
-    !/rs\s*\^\s*2\s*[-+]\s*x2\s*\*\s*rs|x2\s*\*\s*rs\s*[-+]\s*rs\s*\^\s*2/.test(target),
-    `R^4_114 regressed to the expanded numerator from the screenshot: ${target}`,
-  );
+  check(!!target, 'missing Schwarzschild R^4_114 component');
+  if (target) {
+    check(math.symbolicEqual(target, '-rs*(x2-rs)/(2*x2^4)'), `R^4_114 mathematically wrong: ${target}`);
+    check(!context.finslerV7HasFactorableSum(target), `R^4_114 still contains an extractable common factor: ${target}`);
+    check(!/rs\s*\^\s*2\s*[-+]\s*x2\s*\*\s*rs|x2\s*\*\s*rs\s*[-+]\s*rs\s*\^\s*2/.test(target), `R^4_114 regressed to expanded numerator: ${target}`);
+  }
 
-  // Independent Schwarzschild reference components.
   const expected = {
     '\\bar R^{2}{}_{112}': 'rs*(x2-rs)/x2^4',
     '\\bar R^{2}{}_{323}': '-rs/(2*x2)',
@@ -102,36 +92,45 @@ setImmediate(() => {
   };
   for (const [label, want] of Object.entries(expected)) {
     const actual = getComponent('affineCurvature', label);
-    assert(actual, `missing ${label}`);
-    assert(math.symbolicEqual(actual, want), `${label}: ${actual} != ${want}`);
-    assert(!context.finslerV6HasFactorableSum(actual), `${label} still factorable: ${actual}`);
+    check(!!actual, `missing ${label}`);
+    if (!actual) continue;
+    check(math.symbolicEqual(actual, want), `${label}: ${actual} != ${want}`);
+    check(!context.finslerV7HasFactorableSum(actual), `${label} still has an extractable additive factor: ${actual}`);
   }
 
-  // The worker boundary must be a fixed point: emitted expressions are already
-  // in the canonical form that PS would choose, and no emitted Schwarzschild
-  // component/summary may contain a nontrivially factorable additive subtree.
   const outgoing = [];
   for (const m of messages) {
-    if (m.type === 'component') outgoing.push(String(m.value));
-    if (m.type === 'sectionComplete' && m.summary) collectStrings(m.summary, outgoing);
+    if (m.type === 'component') outgoing.push({where: `${m.section}:${m.label}`, value: String(m.value)});
+    if (m.type === 'sectionComplete' && m.summary) {
+      for (const value of collectStrings(m.summary)) outgoing.push({where: `${m.section}:summary`, value});
+    }
   }
-  for (const value of outgoing) {
-    const again = String(context.PS(value));
-    assert.strictEqual(compact(again), compact(value), `output is not a PS fixed point: ${value} -> ${again}`);
-    assert(!context.finslerV6HasFactorableSum(value), `emitted expression still has a common additive factor: ${value}`);
+  for (const item of outgoing) {
+    const again = String(context.PS(item.value));
+    check(compact(again) === compact(item.value), `${item.where} not a PS fixed point: ${item.value} -> ${again}`);
+    check(!context.finslerV7HasFactorableSum(item.value), `${item.where} still has a common additive factor: ${item.value}`);
   }
 
-  // Schwarzschild is vacuum; all emitted affine Ricci components must be zero.
   const ricci = messages.filter(m => m.type === 'component' && m.section === 'affineRicci');
-  assert.strictEqual(ricci.length, 16, `expected 16 Ricci components, got ${ricci.length}`);
-  for (const m of ricci) assert.strictEqual(compact(m.value), '0', `${m.label} = ${m.value}`);
+  check(ricci.length === 16, `expected 16 Ricci components, got ${ricci.length}`);
+  for (const m of ricci) check(compact(m.value) === '0', `${m.label} = ${m.value}`);
 
   const timings = Object.fromEntries(
     messages.filter(m => m.type === 'sectionComplete').map(m => [m.section, Number(m.elapsedMs || 0)]),
   );
   const done = messages.find(m => m.type === 'done');
-  console.log('PASS: Schwarzschild worker outputs are factored canonical forms');
+
   console.log('R^phi_ttphi:', target);
+  console.log('selected Schwarzschild curvature components:');
+  for (const label of Object.keys(expected)) console.log(`  ${label} = ${getComponent('affineCurvature', label)}`);
   console.log('section timings ms:', timings);
-  console.log('worker total ms:', Number(done.totalMs || 0));
+  console.log('worker total ms:', Number(done && done.totalMs || 0));
+
+  if (failures.length) {
+    console.error(`FAIL: ${failures.length} regression issue(s)`);
+    failures.forEach((f, i) => console.error(`${i + 1}. ${f}`));
+    process.exitCode = 1;
+  } else {
+    console.log('PASS: all Schwarzschild worker outputs are canonical and fully reduced under the regression rules');
+  }
 });
