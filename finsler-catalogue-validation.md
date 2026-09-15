@@ -10,7 +10,7 @@ The calculator's affine curvature is interpreted as
 
 `R^k{}_{l i j} = ∂_i Γ^k{}_{j l} - ∂_j Γ^k{}_{i l} + Γ^k{}_{i m}Γ^m{}_{j l} - Γ^k{}_{j m}Γ^m{}_{i l}`,
 
-which agrees with the catalogue after matching the index names `(k,l,i,j) ↔ (μ,ν,ρ,σ)`. Hence no overall Riemann/Ricci sign flip is applied. Individual metric signatures are preserved; in particular the Sultana–Dyer entry uses the catalogue's `(+---)` form.
+which agrees with the catalogue after matching the index names `(k,l,i,j) ↔ (μ,ν,ρ,σ)`. Hence no overall Riemann/Ricci sign flip is applied. All Lorentzian presets and catalogue entries shown by the page are normalized to the `(-+++)` metric-signature convention. Where a source entry uses the opposite global sign, the metric is multiplied by `-1`; the Levi-Civita connection and `(1,3)` Riemann tensor are unchanged by this global rescaling, while scalar contractions involving the inverse metric change sign accordingly.
 
 ## Checks performed
 
@@ -46,7 +46,7 @@ The metric matrices were independently evaluated with the same Levi-Civita/Ricci
 | Reissner–Nordström | Ricci scalar = 0 |
 | de Sitter (flat slicing) | `Ric = 3 H^2 g`, `R = 12 H^2` |
 | Straight spinning string | Ricci = 0 away from the axis |
-| Sultana–Dyer | catalogue Ricci scalar formula with the catalogue's `(+---)` signature |
+| Sultana–Dyer | catalogue metric globally sign-flipped to `(-+++)`; curvature comparison adjusted consistently |
 | Taub–NUT | Ricci = 0 |
 
 Additional reference checks:
