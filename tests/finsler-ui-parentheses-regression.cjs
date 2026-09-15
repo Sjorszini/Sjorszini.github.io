@@ -33,6 +33,10 @@ for (const expr of samples) {
   }
 }
 
+for (const expr of ['sin(theta)', 'sin(theta)^2', 'cos(theta)^3', 'sin(theta+phi)^2', 'rs']) {
+  console.log(`TEX ${expr} => ${math.parse(expr).toTex({ parenthesis: 'auto' })}`);
+}
+
 if (!process.exitCode) {
   console.log('PASS: UI math serialization removes redundant grouping while preserving mathematical structure');
 }
