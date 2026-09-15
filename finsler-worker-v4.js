@@ -1,281 +1,161 @@
 "use strict";
 
 /*
- * Finsler worker v4 — verified tensor engine + guarded canonical algebra.
- *
- * finsler-worker-v4-base.js supplies the verified v3 geometry formulas,
- * symbolic-function differentiation, and diagonal inversion.
- *
- * S(expr) performs only cheap exact common-factor extraction.  Its result is
- * the computational state reused by later Christoffel/spray/curvature work.
- *
- * PS(expr) deliberately stays cheap because the geometry engine calls PS while
- * timing each emitted component.  A separate strong final-output reducer is
- * applied in the postMessage gateway, after the component value has been
- * computed, so output quality does not make every intermediate calculation CAS
- * bound.  Every nontrivial rewrite is numerically checked before it is emitted.
+ * Thin canonicalization layer over the last worker revision that passed the
+ * complete Schwarzschild curvature/Ricci regression.  Keep that verified
+ * geometry/presentation implementation intact and only strengthen S(expr) for
+ * short rational expressions, so compact forms are reused downstream.
  */
-importScripts("finsler-worker-v4-base.js?v=2");
-try{importScripts("https://cdn.jsdelivr.net/npm/nerdamer-prime@1.5.0/all.min.js");}catch(e){}
+importScripts("finsler-worker-v4-stable.js?v=1");
 
-var finslerV4BaseOnMessage=onmessage;
-var finslerV4NativePost=finslerNativePostMessage;
-var finslerV4SubtreeCache=Object.create(null);
-var FINSLER_V4_STANDARD={
-  sin:1,cos:1,tan:1,asin:1,acos:1,atan:1,atan2:1,
-  sinh:1,cosh:1,tanh:1,exp:1,log:1,ln:1,sqrt:1,abs:1,
-  min:1,max:1,sign:1,pi:1,e:1,i:1,Infinity:1
-};
+var finslerStableS=S;
+var finslerStableOnMessage=onmessage;
+var finslerShortComputeCache=Object.create(null);
 
-function finslerV4Compact(text){return String(text).replace(/\s+/g,"");}
-function finslerV4Length(text){return finslerV4Compact(text).length;}
-function finslerV4Ops(text){var m=String(text).match(/[+\-*/^]/g);return m?m.length:0;}
-function finslerV4Adds(text){var m=String(text).match(/[+\-]/g);return m?m.length:0;}
-function finslerV4FactoredAdds(text){
-  var node,count=0;
-  try{node=math.parse(String(text));}catch(e){return 0;}
-  node.traverse(function(child){
-    if(!child||!child.isOperatorNode||child.op!=="*")return;
-    for(var i=0;i<child.args.length;i++){
-      var a=child.args[i];while(a&&a.isParenthesisNode)a=a.content;
-      if(a&&a.isOperatorNode&&(a.op==="+"||(a.op==="-"&&a.args.length===2))){count++;break;}
-    }
-  });
-  return count;
-}
-function finslerV4Symbols(text){
-  var out=[],seen=Object.create(null),node;
-  try{node=math.parse(String(text));}catch(e){return out;}
-  node.traverse(function(child){
-    if(!child||!child.isSymbolNode)return;
-    var name=child.name;if(FINSLER_V4_STANDARD[name]||seen[name])return;
-    seen[name]=1;out.push(name);
-  });
-  return out.sort();
-}
-function finslerV4Scope(names,k){
-  var scope={};
-  names.forEach(function(name,index){
-    var value=1.17+0.19*index+0.13*k,m=/^x(\d+)$/.exec(name);
-    if(m){var n=Number(m[1]);value=n===1?0.31+0.11*k:n===2?7+2*k:n===3?0.73+0.17*k:0.43+0.09*k+0.2*n;}
-    else if(/^y\d+$/.test(name))value=0.83+0.21*index+0.08*k;
-    else if(name==="rs")value=2+0.25*k;
-    else if(name==="M")value=1+0.15*k;
-    else if(/^__uf/.test(name))value=1.4+0.16*index+0.07*k;
-    scope[name]=value;
-  });
-  return scope;
-}
-function finslerV4Magnitude(v){try{return Number(math.abs(v));}catch(e){return NaN;}}
-function finslerV4Equivalent(a,b){
-  if(String(a)===String(b))return true;
-  var names=finslerV4Symbols("("+a+")+("+b+")"),success=0;
-  for(var k=0;k<5;k++){
-    var av,bv,delta,scale,scope=finslerV4Scope(names,k);
-    try{av=math.evaluate(String(a),scope);bv=math.evaluate(String(b),scope);delta=finslerV4Magnitude(math.subtract(av,bv));scale=Math.max(1,finslerV4Magnitude(av),finslerV4Magnitude(bv));}catch(e){continue;}
-    if(!Number.isFinite(delta)||!Number.isFinite(scale))continue;
-    success++;if(delta>2e-9*scale)return false;
-  }
-  return success>=3;
-}
-function finslerV4Prefer(base,candidate,allowFactor){
-  if(!candidate||!finslerV4Equivalent(base,candidate))return base;
-  var a=finslerV4Length(base),b=finslerV4Length(candidate);
-  if(b<a)return candidate;
-  if(allowFactor&&a<=52&&b<=a+14&&finslerV4FactoredAdds(candidate)>finslerV4FactoredAdds(base))return candidate;
-  if(allowFactor&&a<=52&&b<=a+10&&finslerV4Adds(candidate)<finslerV4Adds(base))return candidate;
-  return base;
-}
-
-/* ---------- cheap exact computational factoring ---------- */
-function finslerV4TermBag(node){
-  var out={sign:1,atoms:[]};
-  function walk(n){
-    while(n&&n.isParenthesisNode)n=n.content;if(!n)return;
-    if(n.isOperatorNode&&n.op==="-"&&n.args.length===1){out.sign*=-1;walk(n.args[0]);return;}
-    if(n.isOperatorNode&&n.op==="*"){n.args.forEach(walk);return;}
-    if(n.isOperatorNode&&n.op==="^"&&n.args.length===2&&n.args[0].isSymbolNode&&n.args[1].isConstantNode){
-      var p=Number(n.args[1].value);if(Number.isInteger(p)&&p>0&&p<=6){for(var i=0;i<p;i++)out.atoms.push(n.args[0].toString());return;}
-    }
-    out.atoms.push(n.toString({parenthesis:"auto"}));
-  }
-  walk(node);return out;
-}
-function finslerV4RemoveOne(list,value){var i=list.indexOf(value);if(i<0)return false;list.splice(i,1);return true;}
-function finslerV4AtomText(atom){return /^[A-Za-z_]\w*$/.test(atom)?atom:"("+atom+")";}
-function finslerV4ProductText(atoms){return atoms.length?atoms.map(finslerV4AtomText).join("*"):"1";}
-function finslerV4FactorAddNode(node){
-  var n=node;while(n&&n.isParenthesisNode)n=n.content;
-  if(!n||!n.isOperatorNode||!(n.op==="+"||n.op==="-")||n.args.length!==2)return node;
-  var left=finslerV4TermBag(n.args[0]),right=finslerV4TermBag(n.args[1]);
-  if(n.op==="-")right.sign*=-1;
-  var l=left.atoms.slice(),r=right.atoms.slice(),common=[];
-  for(var i=l.length-1;i>=0;i--){
-    var atom=l[i];
-    if(/^[0-9.]+$/.test(atom))continue;
-    if(finslerV4RemoveOne(r,atom)){common.push(atom);l.splice(i,1);}
-  }
-  if(!common.length)return node;
-  var lb=finslerV4ProductText(l),rb=finslerV4ProductText(r),inside;
-  try{inside=math.simplify((left.sign<0?"-("+lb+")":lb)+"+"+(right.sign<0?"-("+rb+")":rb)).toString({parenthesis:"auto"});}
-  catch(e){inside=(left.sign<0?"-("+lb+")":lb)+"+"+(right.sign<0?"-("+rb+")":rb);}
-  var candidate=finslerV4ProductText(common)+"*("+inside+")",original=n.toString({parenthesis:"auto"});
-  if(!finslerV4Equivalent(original,candidate))return node;
-  try{return math.parse(candidate);}catch(e2){return node;}
-}
-function finslerV4CheapFactor(text){
-  var root;try{root=math.parse(String(text));}catch(e){return String(text);}
-  function visit(node){
-    var mapped=node;
-    if(node&&typeof node.map==="function")try{mapped=node.map(function(child){return visit(child);});}catch(e2){}
-    return finslerV4FactorAddNode(mapped);
-  }
-  var result;try{result=visit(root).toString({parenthesis:"auto"});}catch(e3){return String(text);}
-  return finslerV4Equivalent(text,result)?result:String(text);
-}
-
-S=function(expr){
-  var original=raw(expr);if(finslerComputeCache[original]!==undefined)return finslerComputeCache[original];
-  var base=finslerBaseS(original),factored=finslerV4CheapFactor(base),best=finslerV4Prefer(base,factored,true);
-  if(!finslerV4Equivalent(base,best))best=base;
-  finslerComputeCache[original]=best;finslerComputeCache[best]=best;return best;
-};
-
-/* Keep the ordinary presentation pass cheap; strong output reduction happens
- * in the postMessage gateway below. */
-PS=function(expr){
-  var text=S(expr);if(presentCache[text]!==undefined)return presentCache[text];
-  var best=text,current=text;
-  for(var i=0;i<3;i++){
-    try{var next=math.simplify(current).toString({parenthesis:"auto"});if(next.length<best.length)best=next;if(next===current)break;current=next;}catch(e){break;}
-  }
-  var cheap=finslerV4CheapFactor(best);best=finslerV4Prefer(best,cheap,true);
-  presentCache[text]=best;return best;
-};
-
-/* ---------- stronger final-output reducer ---------- */
-function finslerV4NerdamerCandidate(text,relaxed){
-  if(typeof nerdamer!=="function")return null;
-  text=String(text);var length=finslerV4Length(text),ops=finslerV4Ops(text),maxLength=relaxed?380:220,maxOps=relaxed?52:28;
-  if(length>maxLength||ops>maxOps)return null;
-  try{
-    var candidate=nerdamer("simplify("+text+")").toString();if(!candidate)return null;
-    if(finslerV4Length(candidate)<=220&&finslerV4Ops(candidate)<=26){
-      try{var factored=nerdamer("factor("+candidate+")").toString();if(factored&&finslerV4Length(factored)<=finslerV4Length(candidate)+10)candidate=factored;}catch(e2){}
-    }
-    return candidate;
-  }catch(e){return null;}
-}
-function finslerV4IntegerExponent(node){
-  while(node&&node.isParenthesisNode)node=node.content;
+function finslerShortUnwrap(node){while(node&&node.isParenthesisNode)node=node.content;return node;}
+function finslerShortInteger(node){
+  node=finslerShortUnwrap(node);
   if(node&&node.isConstantNode){var n=Number(node.value);return Number.isInteger(n)?n:null;}
-  if(node&&node.isOperatorNode&&node.op==="-"&&node.args.length===1){var a=node.args[0];while(a&&a.isParenthesisNode)a=a.content;if(a&&a.isConstantNode){var m=-Number(a.value);return Number.isInteger(m)?m:null;}}
+  if(node&&node.isOperatorNode&&node.op==="-"&&node.args.length===1){
+    var a=finslerShortUnwrap(node.args[0]);
+    if(a&&a.isConstantNode){var m=-Number(a.value);return Number.isInteger(m)?m:null;}
+  }
   return null;
 }
-function finslerV4FactorRelation(a,b){
-  try{
-    var same=math.simplify("("+a+")-("+b+")").toString({parenthesis:"auto"}).replace(/\s+/g,"");if(same==="0")return 1;
-    var opposite=math.simplify("("+a+")+("+b+")").toString({parenthesis:"auto"}).replace(/\s+/g,"");if(opposite==="0")return -1;
-  }catch(e){}
-  return 0;
-}
-function finslerV4FractionForm(text){
-  var root;try{root=math.parse(String(text));}catch(e){return String(text);}
-  var num=[],den=[],sign=1;
-  function put(node,toDen){
-    while(node&&node.isParenthesisNode)node=node.content;if(!node)return;
-    if(node.isOperatorNode&&node.op==="-"&&node.args.length===1){sign*=-1;put(node.args[0],toDen);return;}
-    if(node.isOperatorNode&&node.op==="*"&&node.args.length>=2){node.args.forEach(function(a){put(a,toDen);});return;}
-    if(node.isOperatorNode&&node.op==="/"&&node.args.length===2){put(node.args[0],toDen);put(node.args[1],!toDen);return;}
-    if(node.isOperatorNode&&node.op==="^"&&node.args.length===2){var p=finslerV4IntegerExponent(node.args[1]);if(p!==null&&p<0){var q=-p,base=node.args[0].toString({parenthesis:"auto"});(toDen?num:den).push(q===1?base:"("+base+")^"+q);return;}}
-    var atom=node.toString({parenthesis:"auto"});if(atom==="1")return;if(atom==="-1"){sign*=-1;return;}(toDen?den:num).push(atom);
+
+/* Convert a bounded algebraic expression into one numerator/denominator pair.
+ * This is deliberately not a general CAS: it handles only arithmetic and
+ * integer powers, treating functions/other nodes as indivisible atoms. */
+function finslerShortPair(node){
+  node=finslerShortUnwrap(node);
+  if(!node)return null;
+  if(node.isOperatorNode){
+    if(node.op==="-"&&node.args.length===1){
+      var u=finslerShortPair(node.args[0]);
+      return u?{num:"-("+u.num+")",den:u.den}:null;
+    }
+    if((node.op==="+"||node.op==="-")&&node.args.length===2){
+      var a=finslerShortPair(node.args[0]),b=finslerShortPair(node.args[1]);
+      if(!a||!b)return null;
+      return {num:"("+a.num+")*("+b.den+")"+node.op+"("+b.num+")*("+a.den+")",den:"("+a.den+")*("+b.den+")"};
+    }
+    if(node.op==="*"&&node.args.length===2){
+      var m1=finslerShortPair(node.args[0]),m2=finslerShortPair(node.args[1]);
+      if(!m1||!m2)return null;
+      return {num:"("+m1.num+")*("+m2.num+")",den:"("+m1.den+")*("+m2.den+")"};
+    }
+    if(node.op==="/"&&node.args.length===2){
+      var d1=finslerShortPair(node.args[0]),d2=finslerShortPair(node.args[1]);
+      if(!d1||!d2)return null;
+      return {num:"("+d1.num+")*("+d2.den+")",den:"("+d1.den+")*("+d2.num+")"};
+    }
+    if(node.op==="^"&&node.args.length===2){
+      var p=finslerShortInteger(node.args[1]);
+      if(p!==null&&Math.abs(p)<=8){
+        var q=finslerShortPair(node.args[0]);if(!q)return null;
+        var e=Math.abs(p),num="("+q.num+")^"+e,den="("+q.den+")^"+e;
+        return p>=0?{num:num,den:den}:{num:den,den:num};
+      }
+    }
   }
-  put(root,false);if(!den.length)return String(text);
-  for(var ni=num.length-1;ni>=0;ni--)for(var di=den.length-1;di>=0;di--){var rel=finslerV4FactorRelation(num[ni],den[di]);if(!rel)continue;num.splice(ni,1);den.splice(di,1);if(rel<0)sign*=-1;break;}
-  function rank(atom){if(/^[0-9.]+$/.test(atom))return -1;if(/^[A-Za-z_]\w*$/.test(atom))return 0;if(/^[A-Za-z_]\w*\s*\^/.test(atom))return 1;if(/^[A-Za-z_]\w*\s*\(/.test(atom))return 2;if(/[+\-]/.test(atom.replace(/^[-+]/,"")))return 4;return 3;}
-  num.sort(function(a,b){return rank(a)-rank(b)||a.localeCompare(b);});den.sort(function(a,b){return rank(a)-rank(b)||a.localeCompare(b);});
-  function factor(atom){var node;try{node=math.parse(atom);}catch(e){return "("+atom+")";}while(node&&node.isParenthesisNode)node=node.content;if(node&&(node.isSymbolNode||node.isConstantNode||node.isFunctionNode))return atom;if(node&&node.isOperatorNode&&node.op==="^"&&node.args.length===2)return atom;return "("+atom+")";}
-  var ntext=num.length?num.map(factor).join("*"):"1",dtext=den.map(factor).join("*");if(sign<0)ntext="-"+ntext;return dtext?ntext+"/("+dtext+")":ntext;
-}
-function finslerV4TopFractionParts(text){
-  var normalized=finslerV4FractionForm(text),node,sign=1;try{node=math.parse(normalized);}catch(e){return null;}while(node&&node.isParenthesisNode)node=node.content;
-  if(node&&node.isOperatorNode&&node.op==="-"&&node.args.length===1){sign=-1;node=node.args[0];while(node&&node.isParenthesisNode)node=node.content;}
-  if(node&&node.isOperatorNode&&node.op==="/"&&node.args.length===2){var n=node.args[0].toString({parenthesis:"auto"});if(sign<0)n="-("+n+")";return {num:n,den:node.args[1].toString({parenthesis:"auto"})};}
-  return {num:sign<0?"-("+node.toString({parenthesis:"auto"})+")":node.toString({parenthesis:"auto"}),den:"1"};
-}
-function finslerV4CombineAlignedFractionNode(node){
-  var n=node;while(n&&n.isParenthesisNode)n=n.content;
-  if(!n||!n.isOperatorNode||!(n.op==="+"||(n.op==="-"&&n.args.length===2))||n.args.length!==2)return null;
-  var left=finslerV4TopFractionParts(n.args[0].toString({parenthesis:"auto"})),right=finslerV4TopFractionParts(n.args[1].toString({parenthesis:"auto"}));
-  if(!left||!right||left.den==="1"||right.den==="1")return null;
-  var rel=finslerV4FactorRelation(left.den,right.den);if(!rel)return null;
-  var second=(n.op==="-"?-1:1)*rel,numerator;
-  try{numerator=math.simplify("("+left.num+")+"+second+"*("+right.num+")").toString({parenthesis:"auto"});}catch(e){return null;}
-  if(numerator.replace(/\s+/g,"")==="0")return "0";
-  var candidate;try{candidate=math.simplify("("+numerator+")/("+left.den+")").toString({parenthesis:"auto"});}catch(e2){candidate="("+numerator+")/("+left.den+")";}
-  candidate=finslerV4FractionForm(candidate);var original=n.toString({parenthesis:"auto"});
-  if(!finslerV4Equivalent(original,candidate))return null;return finslerV4Length(candidate)<finslerV4Length(original)?candidate:null;
-}
-function finslerV4SimplifyNode(node,depth){
-  if(!node)return node;var mapped=node;
-  if(typeof node.map==="function")try{mapped=node.map(function(child){return finslerV4SimplifyNode(child,depth+1);});}catch(e){}
-  var aligned=finslerV4CombineAlignedFractionNode(mapped);if(aligned!==null)try{mapped=math.parse(aligned);}catch(e0){}
-  var text;try{text=mapped.toString({parenthesis:"auto"});}catch(e2){return mapped;}
-  var key=(depth<2?"R":"S")+"\u0000"+text;if(finslerV4SubtreeCache[key]!==undefined)try{return math.parse(finslerV4SubtreeCache[key]);}catch(e3){return mapped;}
-  var candidate=finslerV4NerdamerCandidate(text,depth<2);if(candidate)candidate=finslerV4FractionForm(candidate);
-  var best=finslerV4Prefer(text,candidate,true);best=finslerV4FractionForm(best);if(!finslerV4Equivalent(text,best))best=text;
-  finslerV4SubtreeCache[key]=best;try{return math.parse(best);}catch(e4){return mapped;}
-}
-function finslerV4LocalProductStep(current,reference){
-  var node;try{node=math.parse(current);}catch(e){return current;}while(node&&node.isParenthesisNode)node=node.content;
-  if(!node||!node.isOperatorNode||node.op!=="*"||node.args.length<2)return current;
-  var parts=[],changed=false;
-  for(var i=0;i<node.args.length;i++){
-    var text=node.args[i].toString({parenthesis:"auto"}),candidate=finslerV4NerdamerCandidate(text,true);if(candidate)candidate=finslerV4FractionForm(candidate);
-    var best=finslerV4Prefer(text,candidate,true);
-    if(best===text&&finslerV4Length(text)>18&&finslerV4Length(text)<=300)try{var rec=finslerV4SimplifyNode(node.args[i],0).toString({parenthesis:"auto"});rec=finslerV4FractionForm(rec);best=finslerV4Prefer(text,rec,true);}catch(e2){}
-    if(best!==text)changed=true;parts.push("("+best+")");
-  }
-  if(!changed)return current;var rebuilt=finslerV4FractionForm(parts.join("*"));if(!finslerV4Equivalent(reference,rebuilt))return current;return finslerV4Length(rebuilt)<finslerV4Length(current)?rebuilt:current;
-}
-function finslerV4OneStrongStep(current,reference){
-  var local=finslerV4LocalProductStep(current,reference);if(local!==current)return local;
-  var candidate=finslerV4NerdamerCandidate(current,true);if(candidate)candidate=finslerV4FractionForm(candidate);
-  var best=finslerV4Prefer(current,candidate,true);best=finslerV4FractionForm(best);if(!finslerV4Equivalent(reference,best))best=current;if(best!==current)return best;
-  var len=finslerV4Length(current);
-  if(len>45&&len<=380)try{var node=math.parse(current),recursive=finslerV4SimplifyNode(node,0).toString({parenthesis:"auto"});recursive=finslerV4FractionForm(recursive);if(finslerV4Equivalent(reference,recursive))best=finslerV4Prefer(current,recursive,true);}catch(e){}
-  return best;
-}
-function finslerV4StrongPS(expr){
-  var original=raw(expr),key="strong\u0000"+original;
-  if(finslerPresentCache[key]!==undefined)return finslerPresentCache[key];
-  var base=S(original),best=base;
-  if(base!=="0"&&base!=="1"&&finslerV4Length(base)>=7){
-    for(var round=0;round<5;round++){var next=finslerV4OneStrongStep(best,base);if(next===best)break;best=next;}
-  }
-  if(!finslerV4Equivalent(base,best))best=base;
-  finslerPresentCache[key]=best;return best;
-}
-function finslerV4FinalTree(value){
-  if(typeof value==="string")return finslerV4StrongPS(value);
-  if(Array.isArray(value))return value.map(finslerV4FinalTree);
-  if(value&&typeof value==="object"){var out={};Object.keys(value).forEach(function(k){out[k]=finslerV4FinalTree(value[k]);});return out;}
-  return value;
+  return {num:node.toString({parenthesis:"auto"}),den:"1"};
 }
 
-/* Strong simplification at the final transport boundary for every tensor
- * section. This does not alter elapsedMs for the component calculation itself,
- * while the computational S() above still supplies factored expressions to all
- * downstream geometry. */
-self.postMessage=function(message,transfer){
-  var outgoing=message;
-  if(message&&message.type==="component"&&typeof message.value==="string")outgoing=Object.assign({},message,{value:finslerV4StrongPS(message.value)});
-  else if(message&&message.type==="sectionComplete"&&message.summary)outgoing=Object.assign({},message,{summary:finslerV4FinalTree(message.summary)});
-  if(transfer!==undefined)return finslerV4NativePost(outgoing,transfer);
-  return finslerV4NativePost(outgoing);
+function finslerShortCollectTerms(node,sign,out){
+  node=finslerShortUnwrap(node);
+  if(node&&node.isOperatorNode){
+    if(node.op==="+"&&node.args.length===2){finslerShortCollectTerms(node.args[0],sign,out);finslerShortCollectTerms(node.args[1],sign,out);return;}
+    if(node.op==="-"&&node.args.length===2){finslerShortCollectTerms(node.args[0],sign,out);finslerShortCollectTerms(node.args[1],-sign,out);return;}
+    if(node.op==="-"&&node.args.length===1){finslerShortCollectTerms(node.args[0],-sign,out);return;}
+  }
+  out.push({node:node,sign:sign});
+}
+function finslerShortTerm(node,sign){
+  var symbols=Object.create(null),others=[],coefficient=sign;
+  function walk(n){
+    n=finslerShortUnwrap(n);if(!n)return;
+    if(n.isOperatorNode&&n.op==="-"&&n.args.length===1){coefficient*=-1;walk(n.args[0]);return;}
+    if(n.isOperatorNode&&n.op==="*"){n.args.forEach(walk);return;}
+    if(n.isConstantNode){var v=Number(n.value);if(Number.isFinite(v)){coefficient*=v;return;}}
+    if(n.isSymbolNode){symbols[n.name]=(symbols[n.name]||0)+1;return;}
+    if(n.isOperatorNode&&n.op==="^"&&n.args.length===2){
+      var p=finslerShortInteger(n.args[1]),base=finslerShortUnwrap(n.args[0]);
+      if(p!==null&&p>0&&base&&base.isSymbolNode){symbols[base.name]=(symbols[base.name]||0)+p;return;}
+    }
+    others.push(n.toString({parenthesis:"auto"}));
+  }
+  walk(node);return {coefficient:coefficient,symbols:symbols,others:others};
+}
+function finslerShortTermText(term,remove){
+  var parts=[],c=term.coefficient,abs=Math.abs(c);
+  if(abs!==1||(!Object.keys(term.symbols).length&&!term.others.length))parts.push(String(abs));
+  Object.keys(term.symbols).sort().forEach(function(name){
+    var p=term.symbols[name]-(remove[name]||0);if(p<=0)return;
+    parts.push(p===1?name:name+"^"+p);
+  });
+  term.others.forEach(function(x){parts.push("("+x+")");});
+  var body=parts.length?parts.join("*"):"1";
+  return (c<0?"-":"")+body;
+}
+function finslerShortFactorNumerator(text){
+  var node;try{node=math.parse(String(text));}catch(e){return String(text);}
+  var rawTerms=[];finslerShortCollectTerms(node,1,rawTerms);
+  if(rawTerms.length<2)return String(text);
+  var terms=rawTerms.map(function(t){return finslerShortTerm(t.node,t.sign);});
+  var common=Object.create(null),names=Object.keys(terms[0].symbols);
+  names.forEach(function(name){
+    var p=terms[0].symbols[name]||0;
+    for(var i=1;i<terms.length;i++)p=Math.min(p,terms[i].symbols[name]||0);
+    if(p>0)common[name]=p;
+  });
+  if(!Object.keys(common).length)return String(text);
+  var residual="";
+  terms.forEach(function(term,index){
+    var t=finslerShortTermText(term,common);
+    if(index===0)residual=t;
+    else residual+=(t.charAt(0)==="-"?t:"+"+t);
+  });
+  try{residual=math.simplify(residual).toString({parenthesis:"auto"});}catch(e2){}
+  var factors=[];Object.keys(common).sort().forEach(function(name){var p=common[name];factors.push(p===1?name:name+"^"+p);});
+  var factored=factors.join("*")+"*("+residual+")";
+  return finslerEquivalentNumerically(text,factored)?factored:String(text);
+}
+
+function finslerShortCanonical(text){
+  text=String(text);
+  if(finslerCompactLength(text)>82||finslerOpCount(text)>13)return text;
+  if(!/[+\-]/.test(text.replace(/^[-+]/,"")))return text;
+  var node,pair;try{node=math.parse(text);pair=finslerShortPair(node);}catch(e){return text;}
+  if(!pair)return text;
+  var num=pair.num,den=pair.den;
+  try{num=math.simplify(num).toString({parenthesis:"auto"});den=math.simplify(den).toString({parenthesis:"auto"});}catch(e2){return text;}
+  /* If common-denominator construction still contains division, this is beyond
+     the deliberately small rational subset; leave the verified base form. */
+  if(num.indexOf("/")!==-1||den.indexOf("/")!==-1)return text;
+  num=finslerShortFactorNumerator(num);
+  var candidate=den.replace(/\s+/g,"")==="1"?num:"("+num+")/("+den+")";
+  candidate=finslerFractionForm(candidate);
+  if(!finslerEquivalentNumerically(text,candidate))return text;
+  return finslerPrefer(text,candidate,true);
+}
+
+/* Computational canonicalization: this exact returned string is subsequently
+ * differentiated/contracted by the verified geometry engine. */
+S=function(expr){
+  var original=raw(expr);
+  if(finslerShortComputeCache[original]!==undefined)return finslerShortComputeCache[original];
+  var base=finslerStableS(original),best=finslerShortCanonical(base);
+  finslerShortComputeCache[original]=best;
+  finslerShortComputeCache[best]=best;
+  return best;
 };
 
+/* The stable worker previously used its strong final reducer only for inverse
+ * and affine-curvature sections. Use the same already-regression-tested reducer
+ * for every output section now. */
+finslerStrongOutputSection=function(section){return !!section;};
+
 onmessage=function(event){
-  finslerV4SubtreeCache=Object.create(null);
-  finslerV4BaseOnMessage(event);
+  finslerShortComputeCache=Object.create(null);
+  finslerStableOnMessage(event);
 };
