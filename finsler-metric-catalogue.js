@@ -190,8 +190,8 @@
     {
       id:"sultana-dyer", group:"Catalogue · Black holes", title:"Sultana–Dyer", dim:4,
       coords:["t","r","theta","phi"],
-      matrix:[["t^4*(1-2*M/r)","-2*M*t^4/r","0","0"],["-2*M*t^4/r","-t^4*(1+2*M/r)","0","0"],["0","0","-t^4*r^2","0"],["0","0","0","-t^4*r^2*sin(theta)^2"]],
-      description:"Black hole in an Einstein–de Sitter universe. The catalogue uses the opposite (+---) signature here; it is preserved.", source:"Catalogue §2.23", validation:"Catalogue Ricci scalar/components checked with +--- signature", status:"verified"
+      matrix:[["-t^4*(1-2*M/r)","2*M*t^4/r","0","0"],["2*M*t^4/r","t^4*(1+2*M/r)","0","0"],["0","0","t^4*r^2","0"],["0","0","0","t^4*r^2*sin(theta)^2"]],
+      description:"Black hole in an Einstein–de Sitter universe, globally sign-flipped from the catalogue's (+---) presentation to the page-wide (-+++) convention.", source:"Catalogue §2.23", validation:"Catalogue curvature check after global metric sign conversion to (-+++)", status:"verified"
     },
     {
       id:"taub-nut", group:"Catalogue · Black holes", title:"Taub–NUT", dim:4,
