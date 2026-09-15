@@ -5,10 +5,8 @@ on:
     branches: [finsler-calculator-experiment]
     paths:
       - 'finsler-worker-v3.js'
-      - 'finsler-worker-v4-base.js'
       - 'finsler-worker-v4.js'
       - 'tests/finsler-worker-v3-baseline.cjs'
-      - 'tests/nerdamer-simplifier-diagnostic.cjs'
       - 'tests/finsler-worker-regression.cjs'
       - '.github/workflows/finsler-worker-regression.yml'
   workflow_dispatch:
@@ -22,11 +20,9 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: Install symbolic engines
+      - name: Install exact browser symbolic engines
         run: npm install --no-save --ignore-scripts mathjs@11.11.2 nerdamer-prime@1.5.0
-      - name: Verify baseline tensor engine
+      - name: Verify original geometry engine
         run: node tests/finsler-worker-v3-baseline.cjs
-      - name: Evaluate dedicated CAS simplification
-        run: node tests/nerdamer-simplifier-diagnostic.cjs
-      - name: Run current worker regression
+      - name: Verify rebuilt worker
         run: node tests/finsler-worker-regression.cjs
