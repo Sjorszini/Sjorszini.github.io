@@ -4,9 +4,9 @@
  * Finsler worker v4 — conservative symbolic layer.
  *
  * Geometry/tensor assembly comes directly from the independently checked v3
- * engine.  Stronger simplification is delegated to Nerdamer Prime only for
+ * engine. Stronger simplification is delegated to Nerdamer Prime only for
  * bounded expressions, and a rewrite is accepted only after numerical
- * equivalence checks at several generic points.  The accepted S(expr) value is
+ * equivalence checks at several generic points. The accepted S(expr) value is
  * the value stored and reused by all subsequent tensor calculations.
  */
 importScripts("finsler-worker-v3.js?v=1");
@@ -80,15 +80,10 @@ function finslerEquivalentNumerically(a,b){
 function finslerNerdamerCandidate(text){
   if(typeof nerdamer!=="function")return null;
   var length=finslerCompactLength(text),ops=finslerOpCount(text);
-  /* Nerdamer is excellent on the small rational expressions that cause the
-     visible output problems, but deliberately avoid sending expression-swollen
-     tensors into its expensive general simplifier. */
   if(length>240||ops>26)return null;
   try{
     var candidate=nerdamer("simplify("+text+")").toString();
     if(!candidate)return null;
-    /* Factor only already-small results. This is what preserves expressions
-       such as rs*(rs-r) instead of expanding them back to rs^2-r*rs. */
     if(finslerCompactLength(candidate)<=180&&finslerOpCount(candidate)<=18){
       try{
         var factored=nerdamer("factor("+candidate+")").toString();
@@ -102,9 +97,6 @@ function finslerPrefer(base,candidate){
   if(!candidate||!finslerEquivalentNumerically(base,candidate))return base;
   var a=finslerCompactLength(base),b=finslerCompactLength(candidate);
   if(b<a)return candidate;
-  /* A slightly longer factored form is preferable to an expanded numerator;
-     cap the allowance so Nerdamer cannot replace a clear expression with a
-     verbose identity. */
   if(b<=a+12&&finslerAddCount(candidate)<finslerAddCount(base))return candidate;
   if(b<=a+8&&candidate.indexOf("*(")!==-1&&base.indexOf("+")!==-1)return candidate;
   return base;
@@ -124,8 +116,6 @@ S=function(expr){
   return best;
 };
 
-/* The output pass uses the same guarded canonicalizer, with no unverified
- * string rewrites. */
 PS=function(expr){
   var original=raw(expr);
   if(finslerPresentCache[original]!==undefined)return finslerPresentCache[original];
@@ -136,9 +126,7 @@ PS=function(expr){
   return best;
 };
 
-/* Safe fast path: a diagonal metric never needs a symbolic adjugate/cofactor
- * inversion. Its reciprocal diagonal is exact and, crucially, is the form used
- * downstream by Christoffel and spray calculations. */
+/* Safe fast path for diagonal metrics. */
 inverseMatrix=function(matrix){
   var n=matrix.length,diagonal=true,i,j;
   for(i=0;i<n&&diagonal;i++)for(j=0;j<n;j++){
@@ -156,8 +144,7 @@ inverseMatrix=function(matrix){
 };
 
 /* Custom coordinate-dependent function differentiation retained from the
- * experiment branch. Unknown functions are represented by __uf tokens in the
- * worker, so both math.js and Nerdamer can treat their derivatives as symbols. */
+ * experiment branch. */
 function finslerSymbolNode(variable){
   var symbol=math.parse(String(variable));
   if(!symbol||!symbol.isSymbolNode)throw new Error("Invalid differentiation variable: "+variable);
@@ -214,8 +201,8 @@ D=function(expr,variable){
   var symbols=finslerCollectFunctionSymbols(node);
   for(var s=0;s<symbols.length;s++){
     var token=symbols[s],partial;
-    try{partial=finslerDerivative(node,token,{simplify:false}).toString({parenthesis:"auto"}));}
-    catch(e2){partial=finslerDerivative(node,token).toString({parenthesis:"auto"}));}
+    try{partial=finslerDerivative(node,token,{simplify:false}).toString({parenthesis:"auto"});}
+    catch(e2){partial=finslerDerivative(node,token).toString({parenthesis:"auto"});}
     if(isZero(partial))continue;
     var dt=finslerTokenDerivative(finslerFunctionInfo[token],variable);if(isZero(dt))continue;
     pieces.push(mul(partial,dt));
