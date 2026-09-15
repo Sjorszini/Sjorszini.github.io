@@ -58,8 +58,9 @@ if (start < 0 || end <= start) {
   if (!/\\sin\^\{2\}/.test(squareSin) || /\\sin\s*\\left\(/.test(squareSin)) fail(`sine square is not written as sin^2 theta: ${squareSin}`);
   if (!/\\cos\^\{3\}/.test(cubeCos) || /\\cos\s*\\left\(/.test(cubeCos)) fail(`cosine cube is not written as cos^3 theta: ${cubeCos}`);
   if (!/\\left\(/.test(composite)) fail(`composite trig argument lost necessary parentheses: ${composite}`);
-  if (/r_\{s\}/.test(bareRs)) fail(`bare rs was rewritten as r_s: ${bareRs}`);
-  if (!/_/.test(subscriptRs)) fail(`entered r_s lost its subscript notation: ${subscriptRs}`);
+  if (!/(^|[^A-Za-z])rs(?=$|[^A-Za-z])/.test(bareRs)) fail(`bare rs is not preserved as rs: ${bareRs}`);
+  if (/\\_/.test(subscriptRs)) fail(`entered r_s is being rendered as a literal underscore instead of a subscript: ${subscriptRs}`);
+  if (!/r_(?:\{s\}|s)/.test(subscriptRs)) fail(`entered r_s is not rendered as a true subscript: ${subscriptRs}`);
   if (bareRs === subscriptRs) fail(`rs and r_s rendered identically: ${bareRs}`);
 }
 
