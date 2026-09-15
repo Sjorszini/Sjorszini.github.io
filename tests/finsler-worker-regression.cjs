@@ -42,23 +42,19 @@ const probes = [
 for (const p of probes) {
   const c = context.finslerNerdamerCandidate(p, true);
   const f = c ? context.finslerFractionForm(c) : null;
-  const names = c ? context.finslerSymbols(`(${p})+(${c})`) : [];
-  const scope = context.finslerScope(names, 0);
   console.log('PROBE input=', p);
   console.log('PROBE candidate=', c);
-  console.log('PROBE names=', names, 'scope=', scope);
-  try {
-    const av=math.evaluate(p,scope), bv=math.evaluate(c,scope);
-    console.log('PROBE values=', av, bv, 'delta=', math.subtract(av,bv), 'abs=', math.abs(math.subtract(av,bv)));
-  } catch (e) { console.log('PROBE eval-error=', e && e.message); }
-  try {
-    console.log('PROBE fixed-scope=', math.evaluate(p,{rs:2,x2:7}), math.evaluate(c,{rs:2,x2:7}));
-  } catch (e) { console.log('PROBE fixed-eval-error=', e && e.message); }
   console.log('PROBE candidate-equiv=', c && context.finslerEquivalentNumerically(p, c));
   console.log('PROBE fraction=', f);
-  console.log('PROBE fraction-equiv=', f && context.finslerEquivalentNumerically(p, f));
-  console.log('PROBE PS=', context.PS(p));
+  console.log('PROBE strong=', context.finslerStrongPS(p));
 }
+const ricci22Probe='(rs ^ 2 * (-(1 / (rs / x2 - 1)) ^ 2 / 4 + 1 / (4 * (1 - rs / x2) * (rs / x2 - 1))) / x2 - rs / (1 - rs / x2)) / x2 ^ 3 + (-rs ^ 2 / 2 + x2 * rs) / (x2 ^ 4 * (rs / x2 - 1) ^ 2)';
+console.log('R22 PROBE length/ops=', context.finslerCompactLength(ricci22Probe), context.finslerOpCount(ricci22Probe));
+console.log('R22 PROBE candidate=', context.finslerNerdamerCandidate(ricci22Probe,true));
+try{console.log('R22 PROBE direct=', nerdamer(`simplify(${ricci22Probe})`).toString());}catch(e){console.log('R22 PROBE direct-error=',e&&e.message);}
+console.log('R22 PROBE strong=', context.finslerStrongPS(ricci22Probe));
+context.finslerPresentCache=vm.runInContext('Object.create(null)',context);
+context.finslerSubtreeCache=vm.runInContext('Object.create(null)',context);
 
 function compact(s) { return String(s).replace(/\s+/g, ''); }
 function getComponent(section, label) {
