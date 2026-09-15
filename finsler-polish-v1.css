@@ -48,8 +48,8 @@
   .catalogue-grid{max-height:72vh}
   .catalogue-card{padding:11px}
   .catalogue-load{width:100%;justify-self:stretch}
-  .metric-editor-wrap{overscroll-behavior-x:contain}
-  .matrix-editor-wrap{scrollbar-width:thin}
+  .matrix-editor-wrap{overscroll-behavior-x:contain;scrollbar-width:thin}
+  .matrix-editor-wrap:after{content:"Swipe horizontally for all matrix columns";display:block;position:sticky;left:0;width:max-content;margin:7px 0 0;color:#8292a1;font-size:.65rem;font-family:system-ui,-apple-system,"Segoe UI",sans-serif}
   .quick-example-row select,.catalogue-controls select,.catalogue-controls input,.notation-field input,.coordinate-item input{font-size:16px}
 }
 @media(max-width:420px){
