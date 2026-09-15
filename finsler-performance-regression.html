@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Finsler performance regression</title>
+<style>
+body{font-family:system-ui,sans-serif;max-width:900px;margin:30px auto;padding:0 18px;color:#14283d}h1{font-family:Georgia,serif}.row{border:1px solid #d7e0e8;border-radius:10px;padding:14px;margin:12px 0}.ok{color:#176b42}.warn{color:#9b5b00}.bad{color:#a02d37}pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#f5f7f9;padding:12px;border-radius:8px}button{padding:9px 14px}
+</style>
+</head>
+<body>
+<h1>Schwarzschild worker benchmark</h1>
+<p>This developer-only page runs the actual <code>finsler-worker-v4.js</code> with the Schwarzschild metric and records worker section timings. It also checks that the inverse angular components are already compact before later calculations use them.</p>
+<button id="run">Run benchmark</button>
+<div id="status" class="row">Not run.</div><div id="details"></div>
+<script>
+(function(){
+"use strict";
+var button=document.getElementById("run"),status=document.getElementById("status"),details=document.getElementById("details");
+function compact(s){return String(s||"").replace(/\s+/g,"");}
+function run(){
+ button.disabled=true;status.className="row";status.textContent="Running…";details.innerHTML="";
+ var w=new Worker("finsler-worker-v4.js?v=5"),started=performance.now(),sections={},components={},error=null;
+ var timer=setTimeout(function(){error="Timed out after 15 s";w.terminate();finish();},15000);
+ w.onmessage=function(e){var m=e.data||{};
+   if(m.type==="component")components[m.section+"|"+m.label]=String(m.value);
+   if(m.type==="sectionComplete")sections[m.section]=Number(m.elapsedMs||0);
+   if(m.type==="error"){error=m.message||"worker error";clearTimeout(timer);w.terminate();finish();}
+   if(m.type==="done"){clearTimeout(timer);w.terminate();finish(Number(m.totalMs||0));}
+ };
+ w.onerror=function(e){error=e.message||"worker exception";clearTimeout(timer);w.terminate();finish();};
+ w.postMessage({type:"calculate",n:4,inputType:"metric",metricEntries:[
+   ["-(1-rs/x2)","0","0","0"],
+   ["0","1/(1-rs/x2)","0","0"],
+   ["0","0","x2^2","0"],
+   ["0","0","0","x2^2*sin(x3)^2"]
+ ],alphaBeta:{enabled:false},outputs:{inverse:true,spray:true},symbolicFunctions:[]});
+ function finish(workerTotal){
+   button.disabled=false;var wall=performance.now()-started;
+   if(error){status.className="row bad";status.textContent="FAIL: "+error;return;}
+   var g33=components["inverse|g^{33}"]||"",g44=components["inverse|g^{44}"]||"",spray=sections.spray;
+   var compactInverse=compact(g33).length<=10&&compact(g44).length<=28&&g33.indexOf("rs")<0&&g44.indexOf("rs")<0;
+   var timingClass=spray<250?"ok":spray<750?"warn":"bad";
+   status.className="row "+(compactInverse&&spray<750?timingClass:"bad");
+   status.textContent="spray: "+spray.toFixed(1)+" ms · worker total: "+workerTotal.toFixed(1)+" ms · wall: "+wall.toFixed(1)+" ms";
+   details.innerHTML='<div class="row"><strong>Internal inverse expressions reused downstream</strong><pre>g^33 = '+g33+'\ng^44 = '+g44+'</pre></div>'+
+     '<div class="row"><strong>Section timings</strong><pre>'+JSON.stringify(sections,null,2)+'</pre></div>';
+ }
+}
+button.addEventListener("click",run);window.addEventListener("load",function(){setTimeout(run,100);});
+})();
+</script>
+</body></html>
