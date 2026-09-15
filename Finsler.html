@@ -20,22 +20,25 @@
   <script defer src="finsler-ui-v6.js?v=2"></script>
   <script defer src="finsler-ui-v6-fixes.js?v=2"></script>
   <script>
-    /* Start from a familiar, nontrivial reference geometry rather than an
-       implementation-oriented Finsler demo.  Clicking the rendered catalogue
-       card deliberately reuses the normal catalogue-loading path, including
-       notation inference and the page-wide (-+++) normalization hooks. */
-    document.addEventListener("DOMContentLoaded",function(){
-      setTimeout(function(){
+    /* The legacy calculator initializes its hidden quick-example preset during
+       startup. Wait until the whole page (including deferred calculator code)
+       has finished loading, then use the normal rendered catalogue Load action
+       exactly once. This avoids racing the calculator's own initialization. */
+    window.addEventListener("load",function(){
+      var attempts=0;
+      function loadSchwarzschild(){
         var cards=document.querySelectorAll(".catalogue-card");
         for(var i=0;i<cards.length;i++){
           var title=cards[i].querySelector("h4");
           if(title&&title.textContent.trim()==="Schwarzschild"){
             var load=cards[i].querySelector(".catalogue-load");
-            if(load)load.click();
-            break;
+            if(load){load.click();window.FINSLER_DEFAULT_EXAMPLE="Schwarzschild";}
+            return;
           }
         }
-      },0);
+        if(++attempts<20)setTimeout(loadSchwarzschild,50);
+      }
+      loadSchwarzschild();
     });
   </script>
 </head>
