@@ -7,6 +7,7 @@ on:
       - 'finsler-worker-v3.js'
       - 'finsler-worker-v4-base.js'
       - 'finsler-worker-v4.js'
+      - 'tests/finsler-worker-v3-baseline.cjs'
       - 'tests/finsler-worker-regression.cjs'
       - '.github/workflows/finsler-worker-regression.yml'
   workflow_dispatch:
@@ -22,5 +23,7 @@ jobs:
           node-version: '22'
       - name: Install exact symbolic engine version
         run: npm install --no-save --ignore-scripts mathjs@11.11.2
-      - name: Run real worker regression
+      - name: Verify baseline tensor engine
+        run: node tests/finsler-worker-v3-baseline.cjs
+      - name: Run current worker regression
         run: node tests/finsler-worker-regression.cjs
