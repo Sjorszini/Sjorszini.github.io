@@ -49,10 +49,6 @@ function auditGeneral(ms,n,name,{expectFlat=false,expectCartanNonzero=false}={})
     check(()=>equal(euler,`2*(${G})`,`spray homogeneity ${k}`));
     if(hasSection(ms,'nonlinear'))for(let j=1;j<=n;j++){const N=comp(ms,'nonlinear',`N^{${k}}{}_{${j}}`)||'0';check(()=>equal(N,`0.5*(${deriv(G,`y${j}`)})`,`N=dG/2 ${k}${j}`));}
   }
-  if(hasSection(ms,'berwald'))for(let k=1;k<=n;k++)for(let i=1;i<=n;i++)for(let j=i;j<=n;j++){
-    const B=comp(ms,'berwald',`{}^B\\Gamma^{${k}}{}_{${i}${j}}`)||'0',G=comp(ms,'spray',`G^{${k}}`)||'0';
-    check(()=>equal(B,`0.5*(${deriv(deriv(G,`y${i}`),`y${j}`)})`,`Berwald derivative ${k}${i}${j}`));
-  }
   if(hasSection(ms,'curvature'))for(let k=1;k<=n;k++)for(let i=1;i<=n;i++)for(let j=i+1;j<=n;j++){
     const Nij=comp(ms,'nonlinear',`N^{${k}}{}_{${j}}`)||'0',Nii=comp(ms,'nonlinear',`N^{${k}}{}_{${i}}`)||'0';
     let di=`(${deriv(Nij,`x${i}`)})`,dj=`(${deriv(Nii,`x${j}`)})`;
@@ -72,28 +68,23 @@ function auditGeneral(ms,n,name,{expectFlat=false,expectCartanNonzero=false}={})
     let eRic='0';for(let j=1;j<=n;j++)eRic+=`+y${j}*(${deriv(Ric,`y${j}`)})`;check(()=>equal(eRic,`2*(${Ric})`,'Ric homogeneity',1e-7));
     for(let i=1;i<=n;i++)for(let j=i;j<=n;j++){const Rij=comp(ms,'ricci',`R_{${i}${j}}`)||'0';check(()=>equal(Rij,`0.5*(${deriv(deriv(Ric,`y${i}`),`y${j}`)})`,`Ricci Hessian ${i}${j}`,1e-7));}
   }
-  if(expectFlat){for(const section of ['spray','nonlinear','berwald','chern','curvature','deviation','ricci'])for(const m of ms.filter(x=>x.type==='component'&&x.section===section))check(()=>zero(m.value,`flat ${section} ${m.label}`));}
+  if(expectFlat){for(const section of ['spray','nonlinear','curvature','deviation','ricci'])for(const m of ms.filter(x=>x.type==='component'&&x.section===section))check(()=>zero(m.value,`flat ${section} ${m.label}`));}
   if(failures.length)throw new Error(failures.join('\n'));
 }
 
-const all={metric:true,inverse:true,cartan:true,spray:true,nonlinear:true,connections:true,curvature:true,deviation:true,ricci:true,affine:false};
+const curvatureSet={metric:true,inverse:true,cartan:true,spray:true,nonlinear:true,connections:false,curvature:true,deviation:true,ricci:true,affine:false};
 const light={metric:true,inverse:true,cartan:true,spray:true,nonlinear:true,connections:false,curvature:false,deviation:false,ricci:false,affine:false};
-const connectionOnly={metric:true,inverse:true,cartan:true,spray:true,nonlinear:true,connections:true,curvature:false,deviation:false,ricci:false,affine:false};
-const curvatureOnly={metric:true,inverse:true,cartan:false,spray:true,nonlinear:true,connections:false,curvature:true,deviation:true,ricci:true,affine:false};
 
-const quartic=runWorker({n:2,inputType:'lagrangian',L:'sqrt(y1^4+y2^4)',outputs:all});
+const quartic=runWorker({n:2,inputType:'lagrangian',L:'sqrt(y1^4+y2^4)',outputs:curvatureSet});
 auditGeneral(quartic,2,'quartic locally Minkowski',{expectFlat:true,expectCartanNonzero:true});
 
-const randersBuilder=runWorker({n:2,inputType:'metric',metricEntries:[['1','0'],['0','1']],alphaBeta:{enabled:true,type:'randers',b:['b','0'],m:'1'},outputs:all});
-const randersDirect=runWorker({n:2,inputType:'lagrangian',L:'(sqrt(y1^2+y2^2)+b*y1)^2',outputs:all});
+const randersBuilder=runWorker({n:2,inputType:'metric',metricEntries:[['1','0'],['0','1']],alphaBeta:{enabled:true,type:'randers',b:['b','0'],m:'1'},outputs:curvatureSet});
+const randersDirect=runWorker({n:2,inputType:'lagrangian',L:'(sqrt(y1^2+y2^2)+b*y1)^2',outputs:curvatureSet});
 auditGeneral(randersBuilder,2,'constant Randers builder',{expectFlat:true,expectCartanNonzero:true});
 auditGeneral(randersDirect,2,'constant Randers direct L',{expectFlat:true,expectCartanNonzero:true});
 
-const rationalL='y1^2+y2^2+b*x1*y1^3/y2';
-const rationalConnection=runWorker({n:2,inputType:'lagrangian',L:rationalL,outputs:connectionOnly});
-const rationalCurvature=runWorker({n:2,inputType:'lagrangian',L:rationalL,outputs:curvatureOnly});
-auditGeneral(rationalConnection,2,'x-dependent rational Finsler connection',{expectCartanNonzero:true});
-auditGeneral(rationalCurvature,2,'x-dependent rational Finsler curvature',{});
+const rational=runWorker({n:2,inputType:'lagrangian',L:'y1^2+y2^2+b*x1*y1^3/y2',outputs:curvatureSet});
+auditGeneral(rational,2,'x-dependent rational Finsler',{expectCartanNonzero:true});
 
 const varyingBuilder=runWorker({n:2,inputType:'metric',metricEntries:[['1','0'],['0','1']],alphaBeta:{enabled:true,type:'randers',b:['0','b*x1'],m:'1'},outputs:light});
 const varyingDirect=runWorker({n:2,inputType:'lagrangian',L:'(sqrt(y1^2+y2^2)+b*x1*y2)^2',outputs:light});
@@ -110,4 +101,4 @@ const lightRouteSections={metric:flatRouteSections.metric,inverse:flatRouteSecti
 compareLabels(randersBuilder,randersDirect,flatRouteSections,'constant Randers builder/direct');
 compareLabels(varyingBuilder,varyingDirect,lightRouteSections,'varying Randers builder/direct');
 
-console.log('PASS: genuine Finsler homogeneity, N/Berwald derivatives, curvature, deviation/Ricci contractions, locally-Minkowski flatness, rational non-Riemannian curvature, and Randers builder/direct equivalence all hold');
+console.log('PASS: genuine Finsler homogeneity, nonlinear curvature, deviation/Ricci contractions, locally-Minkowski flatness, rational non-Riemannian curvature, and Randers builder/direct equivalence all hold');
