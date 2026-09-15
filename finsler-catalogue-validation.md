@@ -54,6 +54,12 @@ Additional reference checks:
 - unit round `S^2`: `Ric = g`, `R = 2`;
 - unit round `S^3`: `Ric = 2g`, `R = 6`.
 
+## Signature regression harness
+
+`finsler-signature-regression.html` is a developer-only browser smoke test. It loads the same catalogue and signature-normalization script as the calculator, evaluates every Lorentzian matrix at a regular numerical sample point, checks symmetry, and uses a Jacobi eigenvalue calculation to require inertia `(1 negative, 3 positive, 0 zero)` for every entry. It also checks the Brinkmann/Randers pp-wave preset convention and uniqueness of catalogue source IDs.
+
+The harness is intentionally not linked from the public site navigation. It is meant to catch accidental reintroduction of `(+---)` data or metadata during catalogue edits.
+
 ## Important scope limitation
 
 These checks validate the catalogue transcription and the curvature convention independently. They do **not** constitute a browser-runtime benchmark of every large symbolic calculation. Kerr, Taub–NUT, Petrov C, Bessel and Halilsoy calculations can be expensive in the client-side CAS. The work-under-construction warning on the calculator therefore remains intentional.
