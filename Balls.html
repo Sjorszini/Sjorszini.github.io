@@ -50,7 +50,7 @@
     }
   </style>
 </head>
-<body onload="OnLoad(); loadBallsPreset('solar');">
+<body onload="OnLoad(); loadBallsPreset('swarm');">
 
 <div class="container">
   <header>
@@ -82,11 +82,11 @@
         <p class="preset-row">
           <label for="presetSelect">Preset:</label>
           <select id="presetSelect" onchange="if (this.value) loadBallsPreset(this.value);">
-            <option value="solar" selected>Mini solar system</option>
+            <option value="solar">Mini solar system</option>
             <option value="billiards">Billiard break</option>
             <option value="rain">Gravity rain</option>
             <option value="cloud300">300-ball gravity cloud</option>
-            <option value="swarm">1,000-ball gravity cloud</option>
+            <option value="swarm" selected>1,000-ball gravity cloud</option>
           </select>
         </p>
 
