@@ -1,4 +1,4 @@
-const nerdamer = require('nerdamer-prime/all.min');
+const nerdamer = require('nerdamer-prime/all');
 
 const expressions = [
   '((rs^2-rs^3/x2)/x2^4+(rs/x2-(1/x2)^2*rs^2)*(rs^2-x2*rs)/(x2^3*rs-x2^4))/4/(1-rs/x2)+(x2*rs-rs^2)*3/2/x2^4+rs*(-1)/2/x2^3',
