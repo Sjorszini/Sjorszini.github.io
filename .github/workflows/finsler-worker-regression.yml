@@ -43,33 +43,33 @@ jobs:
           ref: finsler-calculator-experiment
           fetch-depth: 0
       - name: Apply symbol-preserving notation patch
-        if: github.event.head_commit.message == 'Apply symbol-preserving notation patch'
+        if: github.event.head_commit.message == 'Retry symbol-preserving notation patch'
         run: |
           python - <<'PY'
           from pathlib import Path
 
           ui_path = Path('finsler-ui-v6.js')
           ui = ui_path.read_text()
-          old = '''  s=s.replace(/\\\\mathrm\\{rs\\}/g,"r_{s}").replace(/\\\\operatorname\\{rs\\}/g,"r_{s}");
-  s=s.replace(/(^|[^A-Za-z])rs(?=$|[^A-Za-z])/g,function(all,prefix){return prefix+"r_{s}";});
-'''
-          if old not in ui:
+          line1 = '  s=s.replace(/\\\\mathrm\\{rs\\}/g,"r_{s}").replace(/\\\\operatorname\\{rs\\}/g,"r_{s}");\n'
+          line2 = '  s=s.replace(/(^|[^A-Za-z])rs(?=$|[^A-Za-z])/g,function(all,prefix){return prefix+"r_{s}";});\n'
+          if line1 not in ui or line2 not in ui:
               raise SystemExit('Expected forced rs -> r_s formatter mapping not found')
-          ui_path.write_text(ui.replace(old, '', 1))
+          ui = ui.replace(line1, '', 1).replace(line2, '', 1)
+          ui_path.write_text(ui)
 
           cat_path = Path('finsler-metric-catalogue.js')
           cat = cat_path.read_text()
-          old_block = '''      id:"schwarzschild", group:"Catalogue · Black holes", title:"Schwarzschild", dim:4,
-      coords:["t","r","theta","phi"], matrix:diag("-(1-rs/r)","1/(1-rs/r)","r^2","r^2*sin(theta)^2"),
-      description:"Standard Schwarzschild coordinates; rs is the Schwarzschild radius.", source:"Catalogue §2.2", validation:"Ric = 0", status:"verified"
-'''
-          new_block = '''      id:"schwarzschild", group:"Catalogue · Black holes", title:"Schwarzschild", dim:4,
-      coords:["t","r","theta","phi"], matrix:diag("-(1-r_s/r)","1/(1-r_s/r)","r^2","r^2*sin(theta)^2"),
-      description:"Standard Schwarzschild coordinates; r_s is the Schwarzschild radius.", source:"Catalogue §2.2", validation:"Ric = 0", status:"verified"
-'''
-          if old_block not in cat:
-              raise SystemExit('Expected Schwarzschild catalogue block not found')
-          cat_path.write_text(cat.replace(old_block, new_block, 1))
+          marker = 'id:"schwarzschild", group:"Catalogue · Black holes", title:"Schwarzschild", dim:4,'
+          start = cat.index(marker)
+          end = cat.index('\n    },', start)
+          block = cat[start:end]
+          old_block = block
+          block = block.replace('-(1-rs/r)', '-(1-r_s/r)')
+          block = block.replace('1/(1-rs/r)', '1/(1-r_s/r)')
+          block = block.replace('Standard Schwarzschild coordinates; rs is the Schwarzschild radius.', 'Standard Schwarzschild coordinates; r_s is the Schwarzschild radius.')
+          if block == old_block:
+              raise SystemExit('Schwarzschild preset did not change')
+          cat_path.write_text(cat[:start] + block + cat[end:])
 
           html_path = Path('Finsler.html')
           html = html_path.read_text()
@@ -85,20 +85,14 @@ jobs:
 
           test_path = Path('tests/finsler-ui-parentheses-regression.cjs')
           test = test_path.read_text()
-          if "  const schwarzschild = render('rs/r');\n" not in test:
+          old = "  const schwarzschild = render('rs/r');\n"
+          new = "  const bareRs = render('rs/r');\n  const subscriptRs = render('r_s/r');\n"
+          if old not in test:
               raise SystemExit('Expected old rs render case not found')
-          test = test.replace("  const schwarzschild = render('rs/r');\n", "  const bareRs = render('rs/r');\n  const subscriptRs = render('r_s/r');\n", 1)
+          test = test.replace(old, new, 1)
           test = test.replace("  console.log('rs/r =>', schwarzschild);\n", "  console.log('rs/r =>', bareRs);\n  console.log('r_s/r =>', subscriptRs);\n", 1)
-          old_assert = '''  if (!/r_\\{s\\}/.test(schwarzschild)) fail(`Schwarzschild radius is not displayed as r_s: ${schwarzschild}`);
-  if (/(^|[^A-Za-z])rs(?=$|[^A-Za-z])/.test(schwarzschild)) fail(`bare rs remains in displayed TeX: ${schwarzschild}`);
-'''
-          new_assert = '''  if (/r_\\{s\\}/.test(bareRs)) fail(`bare rs was rewritten as r_s: ${bareRs}`);
-  if (!/_/.test(subscriptRs)) fail(`entered r_s lost its subscript notation: ${subscriptRs}`);
-  if (bareRs === subscriptRs) fail(`rs and r_s rendered identically: ${bareRs}`);
-'''
-          if old_assert not in test:
-              raise SystemExit('Expected old rs assertions not found')
-          test = test.replace(old_assert, new_assert, 1)
+          test = test.replace("  if (!/r_\\{s\\}/.test(schwarzschild)) fail(`Schwarzschild radius is not displayed as r_s: ${schwarzschild}`);\n", "  if (/r_\\{s\\}/.test(bareRs)) fail(`bare rs was rewritten as r_s: ${bareRs}`);\n", 1)
+          test = test.replace("  if (/(^|[^A-Za-z])rs(?=$|[^A-Za-z])/.test(schwarzschild)) fail(`bare rs remains in displayed TeX: ${schwarzschild}`);\n", "  if (!/_/.test(subscriptRs)) fail(`entered r_s lost its subscript notation: ${subscriptRs}`);\n  if (bareRs === subscriptRs) fail(`rs and r_s rendered identically: ${bareRs}`);\n", 1)
           test = test.replace('PASS: compact trig notation, trig powers, minimal grouping, and r_s display', 'PASS: compact trig notation, minimal grouping, and symbol-preserving rs/r_s display', 1)
           test_path.write_text(test)
           PY
