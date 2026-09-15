@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Finsler signature regression</title>
+  <style>
+    :root{font-family:system-ui,-apple-system,"Segoe UI",sans-serif;color:#10243d;background:#f4f7fa}
+    body{max-width:1100px;margin:0 auto;padding:28px 18px 60px}
+    h1{margin:.2rem 0}.lede{color:#5d7083;max-width:80ch;line-height:1.55}
+    .summary{display:flex;gap:10px;flex-wrap:wrap;margin:20px 0}.pill{padding:7px 10px;border-radius:999px;background:#fff;border:1px solid #d6e0ea;font-weight:700;font-size:.85rem}.pass{color:#236342;background:#edf8f1}.fail{color:#8b313b;background:#fff0f1}
+    table{width:100%;border-collapse:collapse;background:#fff;border:1px solid #d6e0ea;border-radius:12px;overflow:hidden;font-size:.84rem}th,td{padding:9px 10px;border-bottom:1px solid #e7edf3;text-align:left;vertical-align:top}th{background:#edf3f8;color:#294c69}code{font-size:.8rem}.ok{color:#236342;font-weight:800}.bad{color:#8b313b;font-weight:800}.note{margin-top:18px;padding:12px 14px;background:#fff;border:1px solid #d6e0ea;border-radius:10px;color:#5d7083;line-height:1.5}
+  </style>
+  <script defer src="https://cdn.jsdelivr.net/npm/mathjs@11.11.2/lib/browser/math.js"></script>
+  <script defer src="finsler-metric-catalogue.js?v=4"></script>
+  <script defer src="finsler-minusplus-v1.js?v=2"></script>
+</head>
+<body>
+  <h1>Finsler signature regression</h1>
+  <p class="lede">Developer-only smoke test for the Finsler calculator branch. It evaluates every Lorentzian catalogue/ansatz matrix at a regular numerical sample point and verifies one negative and three positive eigenvalues, i.e. the page-wide <strong>(-+++)</strong> convention.</p>
+  <div id="summary" class="summary"><span class="pill">Waiting for scripts…</span></div>
+  <table>
+    <thead><tr><th>Entry</th><th>Expected</th><th>Eigenvalues</th><th>Result</th></tr></thead>
+    <tbody id="rows"></tbody>
+  </table>
+  <div class="note">This is a signature/transcription regression check, not a proof of the field equations. Curvature reference checks remain documented in <code>finsler-catalogue-validation.md</code>.</div>
+<script>
+(function(){
+  "use strict";
+
+  function j0(x){var s=0,term=1;for(var k=0;k<24;k++){if(k){term*=-(x*x/4)/(k*k);}s+=term;}return s;}
+  function j1(x){var s=0,term=x/2;for(var k=0;k<24;k++){if(k){term*=-(x*x/4)/(k*(k+1));}s+=term;}return s;}
+
+  function baseScope(){
+    return {
+      t:1.2,x:1.1,y:.4,z:5,r:6,theta:1.0,phi:.3,rho:1.4,tau:.4,R:6,l:1.5,
+      M:1,rs:2,k:.8,Lambda:.04,sigma:.7,v:.15,beta:.9,C:.12,alpha:.25,gamma:.8,
+      p1:2/3,p2:2/3,p3:-1/3,aK:.35,b0:1.1,b:2,aC:.7,bC:1.3,H:.2,rhoQ:1,Q:.4,
+      aG:2,Bmag:.08,lN:.3,aS:.2,
+      J0:j0,J1:j1,
+      a:function(t){return 1+.15*t*t;},
+      p:function(s){return Math.exp(.08*s);},
+      q:function(s){return Math.exp(-.08*s);},
+      Phi:function(r){return .03*r;},
+      LambdaF:function(r){return .02*r;},
+      A:function(t,r){return 1+.05*t+.02*r;},
+      B:function(t,r){return 1+.03*t+.04*r;}
+    };
+  }
+
+  function expandedScope(item){
+    var scope=baseScope(),defs=item.definitions||{};
+    for(var pass=0;pass<8;pass++){
+      var changed=false;
+      Object.keys(defs).forEach(function(name){
+        try{var value=math.evaluate(defs[name],scope);if(Number.isFinite(Number(value))){scope[name]=Number(value);changed=true;}}catch(e){}
+      });
+      if(!changed)break;
+    }
+    return scope;
+  }
+
+  function numericMatrix(item){
+    var scope=expandedScope(item);
+    return item.matrix.map(function(row){return row.map(function(expr){var v=math.evaluate(String(expr),scope);v=Number(v);if(!Number.isFinite(v))throw new Error("non-finite component: "+expr);return v;});});
+  }
+
+  function assertSymmetric(a){
+    for(var i=0;i<a.length;i++)for(var j=i+1;j<a.length;j++)if(Math.abs(a[i][j]-a[j][i])>1e-8)throw new Error("matrix is not symmetric");
+  }
+
+  function jacobiEigenvalues(input){
+    var n=input.length,a=input.map(function(r){return r.slice();});
+    for(var sweep=0;sweep<80;sweep++){
+      var p=0,q=1,max=0;
+      for(var i=0;i<n;i++)for(var j=i+1;j<n;j++){var z=Math.abs(a[i][j]);if(z>max){max=z;p=i;q=j;}}
+      if(max<1e-11)break;
+      var app=a[p][p],aqq=a[q][q],apq=a[p][q];
+      var angle=.5*Math.atan2(2*apq,aqq-app),c=Math.cos(angle),s=Math.sin(angle);
+      for(var k=0;k<n;k++)if(k!==p&&k!==q){var akp=a[k][p],akq=a[k][q];a[k][p]=a[p][k]=c*akp-s*akq;a[k][q]=a[q][k]=s*akp+c*akq;}
+      a[p][p]=c*c*app-2*s*c*apq+s*s*aqq;
+      a[q][q]=s*s*app+2*s*c*apq+c*c*aqq;
+      a[p][q]=a[q][p]=0;
+    }
+    return a.map(function(r,i){return r[i];}).sort(function(a,b){return a-b;});
+  }
+
+  function inertia(values){
+    var neg=0,pos=0,zero=0;
+    values.forEach(function(v){if(v < -1e-8)neg++;else if(v > 1e-8)pos++;else zero++;});
+    return {neg:neg,pos:pos,zero:zero};
+  }
+
+  function sourceIdentity(item){return item._sourceId||item.id;}
+  function isLorentz(item){return item._minusPlusLorentz===true || item.group==="Ansätze / pre-solutions" || String(item.group||"").indexOf("Catalogue ·")===0;}
+  function fmt(values){return values.map(function(v){return Math.abs(v)<1e-7?v.toExponential(2):v.toFixed(4);}).join(", ");}
+
+  function addRow(name,expected,values,ok,message){
+    var tr=document.createElement("tr");
+    tr.innerHTML="<td>"+name+"</td><td><code>"+expected+"</code></td><td><code>"+(values?fmt(values):message)+"</code></td><td class=\""+(ok?"ok":"bad")+"\">"+(ok?"PASS":"FAIL")+"</td>";
+    document.getElementById("rows").appendChild(tr);
+  }
+
+  function run(){
+    var catalogue=window.FINSLER_METRIC_CATALOGUE||[],tested=0,failed=0;
+    catalogue.filter(isLorentz).forEach(function(item){
+      tested++;
+      try{
+        if(item.signature!=="-+++")throw new Error("signature metadata is "+String(item.signature));
+        var matrix=numericMatrix(item);assertSymmetric(matrix);
+        var eig=jacobiEigenvalues(matrix),sig=inertia(eig),ok=sig.neg===1&&sig.pos===3&&sig.zero===0;
+        if(!ok)failed++;
+        addRow(item.title,"-+++",eig,ok,ok?"":"wrong inertia");
+      }catch(err){failed++;addRow(item.title,"-+++",null,false,err.message||String(err));}
+    });
+
+    var pp=[[1.1*1.1-.4*.4,-1,0,0],[-1,0,0,0],[0,0,1,0],[0,0,0,1]],ppEig=jacobiEigenvalues(pp),ppSig=inertia(ppEig),ppOk=ppSig.neg===1&&ppSig.pos===3;
+    tested++;if(!ppOk)failed++;addRow("Brinkmann/Randers pp-wave preset","-+++",ppEig,ppOk,"wrong inertia");
+
+    var sourceIds=catalogue.filter(isLorentz).map(sourceIdentity),unique=new Set(sourceIds),uniqueOk=unique.size===sourceIds.length;
+    tested++;if(!uniqueOk)failed++;addRow("Catalogue source IDs","unique",null,uniqueOk,uniqueOk?"all unique":"duplicate source ID");
+
+    var summary=document.getElementById("summary");
+    summary.innerHTML='<span class="pill '+(failed?"fail":"pass")+'">'+(failed?failed+" failed":"All passed")+'</span><span class="pill">'+tested+' checks</span><span class="pill">'+catalogue.filter(isLorentz).length+' Lorentzian entries</span><span class="pill">Convention: '+String(window.FINSLER_SIGNATURE_CONVENTION||"missing")+'</span>';
+    document.title=(failed?"FAIL":"PASS")+" · Finsler signature regression";
+  }
+
+  window.addEventListener("load",function(){setTimeout(function(){try{run();}catch(err){document.getElementById("summary").innerHTML='<span class="pill fail">Harness error: '+String(err.message||err)+'</span>';}},0);});
+})();
+</script>
+</body>
+</html>
