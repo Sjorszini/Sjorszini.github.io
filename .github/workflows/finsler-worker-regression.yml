@@ -24,6 +24,9 @@ on:
       - '.github/workflows/finsler-worker-regression.yml'
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 concurrency:
   group: finsler-worker-regression-${{ github.ref }}
   cancel-in-progress: true
@@ -34,6 +37,33 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v7
+        with:
+          ref: finsler-calculator-experiment
+          fetch-depth: 0
+      - name: Render entered underscore symbols as subscripts
+        if: github.event.head_commit.message == 'Apply underscore subscript renderer'
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('finsler-ui-v6.js')
+          s=p.read_text()
+          old='  var s=String(text);\n'
+          new='  var s=String(text);\n  s=s.replace(/([A-Za-z][A-Za-z0-9]*)\\\\_([A-Za-z0-9]+)/g,"$1_{$2}");\n'
+          start=s.index('function prettyResultTex(text)')
+          end=s.index('function tex(expr)',start)
+          block=s[start:end]
+          if new.strip() in block:
+              raise SystemExit('subscript renderer already present')
+          if old not in block:
+              raise SystemExit('prettyResultTex insertion point missing')
+          block=block.replace(old,new,1)
+          p.write_text(s[:start]+block+s[end:])
+          PY
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add finsler-ui-v6.js
+          git commit -m 'Render entered underscore symbols as subscripts'
+          git push origin HEAD:finsler-calculator-experiment
       - uses: actions/setup-node@v7
         with:
           node-version: '22'
