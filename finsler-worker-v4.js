@@ -3,9 +3,24 @@
 importScripts("finsler-worker-v3.js?v=1");
 
 var finslerBaseOnMessage = onmessage;
-var finslerNativeD = D;
 var finslerFunctionInfo = Object.create(null);
 var finslerBaseByKey = Object.create(null);
+
+function finslerSymbolNode(variable){
+  var symbol = math.parse(String(variable));
+  if(!symbol || !symbol.isSymbolNode) throw new Error("Invalid differentiation variable: "+variable);
+  return symbol;
+}
+
+function finslerNativeD(expr,variable){
+  var text=raw(expr);
+  return S(math.derivative(math.parse(text),finslerSymbolNode(variable)));
+}
+
+function finslerDerivative(node,variable,options){
+  var symbol=finslerSymbolNode(variable);
+  return options ? math.derivative(node,symbol,options) : math.derivative(node,symbol);
+}
 
 function finslerResetFunctions(defs){
   finslerFunctionInfo = Object.create(null);
@@ -89,18 +104,18 @@ D=function(expr,variable){
   var node=math.parse(text);
   var pieces=[];
   try{
-    pieces.push(math.derivative(node,variable,{simplify:false}).toString({parenthesis:"auto"}));
+    pieces.push(finslerDerivative(node,variable,{simplify:false}).toString({parenthesis:"auto"}));
   }catch(e){
-    pieces.push(math.derivative(node,variable).toString({parenthesis:"auto"}));
+    pieces.push(finslerDerivative(node,variable).toString({parenthesis:"auto"}));
   }
 
   var symbols=finslerCollectSymbols(node);
   for(var s=0;s<symbols.length;s++){
     var token=symbols[s], partial;
     try{
-      partial=math.derivative(node,token,{simplify:false}).toString({parenthesis:"auto"});
+      partial=finslerDerivative(node,token,{simplify:false}).toString({parenthesis:"auto"});
     }catch(e2){
-      partial=math.derivative(node,token).toString({parenthesis:"auto"});
+      partial=finslerDerivative(node,token).toString({parenthesis:"auto"});
     }
     if(isZero(partial)) continue;
     var dt=finslerTokenDerivative(finslerFunctionInfo[token],variable);
