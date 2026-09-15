@@ -1,4 +1,7 @@
 /* Final calculator polish: compact symbolic output and touch-friendly mobile layout. */
+.quick-example-row[hidden],.output-check[hidden]{
+  display:none !important;
+}
 .finsler-page mjx-container[display="true"]{
   margin:.38em 0 !important;
 }
