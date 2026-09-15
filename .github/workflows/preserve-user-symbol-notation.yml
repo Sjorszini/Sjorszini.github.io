@@ -1,0 +1,84 @@
+name: Preserve user symbol notation
+
+on:
+  push:
+    branches: [finsler-calculator-experiment]
+    paths:
+      - '.github/workflows/preserve-user-symbol-notation.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: finsler-calculator-experiment
+          fetch-depth: 0
+      - name: Preserve entered symbols and use r_s in Schwarzschild preset
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          ui_path = Path('finsler-ui-v6.js')
+          ui = ui_path.read_text()
+          old = '''  s=s.replace(/\\\\mathrm\\{rs\\}/g,"r_{s}").replace(/\\\\operatorname\\{rs\\}/g,"r_{s}");
+  s=s.replace(/(^|[^A-Za-z])rs(?=$|[^A-Za-z])/g,function(all,prefix){return prefix+"r_{s}";});
+'''
+          if old not in ui:
+              raise SystemExit('Expected forced rs -> r_s formatter mapping not found')
+          ui = ui.replace(old, '', 1)
+          ui_path.write_text(ui)
+
+          cat_path = Path('finsler-metric-catalogue.js')
+          cat = cat_path.read_text()
+          old_block = '''      id:"schwarzschild", group:"Catalogue · Black holes", title:"Schwarzschild", dim:4,
+      coords:["t","r","theta","phi"], matrix:diag("-(1-rs/r)","1/(1-rs/r)","r^2","r^2*sin(theta)^2"),
+      description:"Standard Schwarzschild coordinates; rs is the Schwarzschild radius.", source:"Catalogue §2.2", validation:"Ric = 0", status:"verified"
+'''
+          new_block = '''      id:"schwarzschild", group:"Catalogue · Black holes", title:"Schwarzschild", dim:4,
+      coords:["t","r","theta","phi"], matrix:diag("-(1-r_s/r)","1/(1-r_s/r)","r^2","r^2*sin(theta)^2"),
+      description:"Standard Schwarzschild coordinates; r_s is the Schwarzschild radius.", source:"Catalogue §2.2", validation:"Ric = 0", status:"verified"
+'''
+          if old_block not in cat:
+              raise SystemExit('Expected Schwarzschild catalogue block not found')
+          cat_path.write_text(cat.replace(old_block, new_block, 1))
+
+          html_path = Path('Finsler.html')
+          html = html_path.read_text()
+          old_detect = 'return a.indexOf("rs")!==-1&&a.indexOf("r")!==-1&&b.indexOf("rs")!==-1&&b.indexOf("r")!==-1;'
+          new_detect = 'return a.indexOf("r_s")!==-1&&a.indexOf("r")!==-1&&b.indexOf("r_s")!==-1&&b.indexOf("r")!==-1;'
+          if old_detect not in html:
+              raise SystemExit('Expected Schwarzschild startup detector not found')
+          html = html.replace(old_detect, new_detect, 1)
+          html = html.replace('placeholder="M, rs, k, Lambda"', 'placeholder="M, r_s, k, Lambda"', 1)
+          html = html.replace('finsler-metric-catalogue.js?v=4', 'finsler-metric-catalogue.js?v=5', 1)
+          html = html.replace('finsler-ui-v6.js?v=4', 'finsler-ui-v6.js?v=5', 1)
+          html_path.write_text(html)
+
+          test_path = Path('tests/finsler-ui-parentheses-regression.cjs')
+          test = test_path.read_text()
+          test = test.replace("  const schwarzschild = render('rs/r');\n", "  const bareRs = render('rs/r');\n  const subscriptRs = render('r_s/r');\n", 1)
+          test = test.replace("  console.log('rs/r =>', schwarzschild);\n", "  console.log('rs/r =>', bareRs);\n  console.log('r_s/r =>', subscriptRs);\n", 1)
+          old_assert = '''  if (!/r_\\{s\\}/.test(schwarzschild)) fail(`Schwarzschild radius is not displayed as r_s: ${schwarzschild}`);
+  if (/(^|[^A-Za-z])rs(?=$|[^A-Za-z])/.test(schwarzschild)) fail(`bare rs remains in displayed TeX: ${schwarzschild}`);
+'''
+          new_assert = '''  if (/r_\\{s\\}/.test(bareRs)) fail(`bare rs was rewritten as r_s: ${bareRs}`);
+  if (!/_/.test(subscriptRs)) fail(`entered r_s lost its subscript notation: ${subscriptRs}`);
+  if (bareRs === subscriptRs) fail(`rs and r_s rendered identically: ${bareRs}`);
+'''
+          if old_assert not in test:
+              raise SystemExit('Expected old rs display assertions not found')
+          test = test.replace(old_assert, new_assert, 1)
+          test = test.replace("PASS: compact trig notation, trig powers, minimal grouping, and r_s display", "PASS: compact trig notation, minimal grouping, and symbol-preserving rs/r_s display", 1)
+          test_path.write_text(test)
+          PY
+      - name: Commit notation patch
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add finsler-ui-v6.js finsler-metric-catalogue.js Finsler.html tests/finsler-ui-parentheses-regression.cjs
+          git commit -m 'Preserve user symbol notation'
+          git push origin HEAD:finsler-calculator-experiment
