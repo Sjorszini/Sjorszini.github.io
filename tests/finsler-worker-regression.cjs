@@ -35,35 +35,25 @@ context.importScripts = (...specs) => specs.forEach(loadScript);
 
 loadScript('finsler-worker-v4.js');
 
-const probes = [
-  '(rs^2-x2*rs)/2/x2^4',
-  '(rs-rs^2/x2)/2/(1-rs/x2)/x2+(x2-rs)/x2-1',
-];
-for (const p of probes) {
-  const c = context.finslerNerdamerCandidate(p, true);
-  const f = c ? context.finslerFractionForm(c) : null;
-  console.log('PROBE input=', p);
-  console.log('PROBE candidate=', c);
-  console.log('PROBE candidate-equiv=', c && context.finslerEquivalentNumerically(p, c));
-  console.log('PROBE fraction=', f);
-  console.log('PROBE strong=', context.finslerStrongPS(p));
-}
-const ricci22Probe='(rs ^ 2 * (-(1 / (rs / x2 - 1)) ^ 2 / 4 + 1 / (4 * (1 - rs / x2) * (rs / x2 - 1))) / x2 - rs / (1 - rs / x2)) / x2 ^ 3 + (-rs ^ 2 / 2 + x2 * rs) / (x2 ^ 4 * (rs / x2 - 1) ^ 2)';
-console.log('R22 PROBE length/ops=', context.finslerCompactLength(ricci22Probe), context.finslerOpCount(ricci22Probe));
-console.log('R22 PROBE candidate=', context.finslerNerdamerCandidate(ricci22Probe,true));
-try{console.log('R22 PROBE direct=', nerdamer(`simplify(${ricci22Probe})`).toString());}catch(e){console.log('R22 PROBE direct-error=',e&&e.message);}
-console.log('R22 PROBE strong=', context.finslerStrongPS(ricci22Probe));
-context.finslerPresentCache=vm.runInContext('Object.create(null)',context);
-context.finslerSubtreeCache=vm.runInContext('Object.create(null)',context);
-
 function compact(s) { return String(s).replace(/\s+/g, ''); }
 function getComponent(section, label) {
   const m = messages.find(x => x.type === 'component' && x.section === section && x.label === label);
   return m && String(m.value);
 }
-const samples=[{x1:.2,x2:8,x3:1.1,x4:.4,rs:2},{x1:.7,x2:11,x3:.7,x4:.2,rs:3},{x1:.3,x2:5,x3:1.3,x4:.9,rs:1}];
-function numericEqual(a,b){
-  try{return samples.every(s=>{const av=math.evaluate(a,s),bv=math.evaluate(b,s);const d=Number(math.abs(math.subtract(av,bv)));const scale=Math.max(1,Number(math.abs(av)),Number(math.abs(bv)));return Number.isFinite(d)&&d<=1e-9*scale;});}catch(e){return false;}
+const samples = [
+  {x1:.2,x2:8,x3:1.1,x4:.4,rs:2},
+  {x1:.7,x2:11,x3:.7,x4:.2,rs:3},
+  {x1:.3,x2:5,x3:1.3,x4:.9,rs:1},
+];
+function numericEqual(a,b) {
+  try {
+    return samples.every(s => {
+      const av=math.evaluate(a,s), bv=math.evaluate(b,s);
+      const d=Number(math.abs(math.subtract(av,bv)));
+      const scale=Math.max(1,Number(math.abs(av)),Number(math.abs(bv)));
+      return Number.isFinite(d) && d<=1e-9*scale;
+    });
+  } catch(e) { return false; }
 }
 
 const payload = {
@@ -91,6 +81,7 @@ setImmediate(() => {
   check(!error, `worker error: ${error && error.message}`);
   check(messages.some(m => m.type === 'done'), 'worker did not emit done');
 
+  // Independent Schwarzschild references (verified separately with SymPy).
   const expected = {
     '\\bar R^{2}{}_{112}': 'rs*(x2-rs)/x2^4',
     '\\bar R^{2}{}_{323}': '-rs/(2*x2)',
@@ -111,11 +102,28 @@ setImmediate(() => {
     check(compact(actual).length <= compact(want).length + 16, `${label} still too verbose: ${actual}`);
   }
 
+  // Regression for the exact component reported by the user.
   const target = getComponent('affineCurvature', '\\bar R^{4}{}_{114}');
   if (target) {
     check(!/rs\s*\^\s*2\s*[-+]\s*x2\s*\*\s*rs|x2\s*\*\s*rs\s*[-+]\s*rs\s*\^\s*2/.test(target), `screenshot regression remains: ${target}`);
     check(compact(target).length <= 38, `R^phi_ttphi is not compact enough: ${target}`);
   }
+
+  // Audit every emitted Schwarzschild affine-curvature component, not only the
+  // reference sample above. Nonzero components should all be short canonical
+  // expressions; this prevents another isolated unsimplified component from
+  // slipping through the regression suite.
+  const curvature = messages.filter(m => m.type === 'component' && m.section === 'affineCurvature');
+  const nonzeroCurvature = curvature.filter(m => compact(m.value) !== '0');
+  let maxCurvatureLength = 0;
+  let longestCurvature = null;
+  for (const m of nonzeroCurvature) {
+    const len = compact(m.value).length;
+    if (len > maxCurvatureLength) { maxCurvatureLength = len; longestCurvature = m; }
+    check(len <= 55, `${m.label} remains non-canonical/verbose (${len} chars): ${m.value}`);
+    check(!/rs\s*\^\s*2\s*[-+]\s*x2\s*\*\s*rs|x2\s*\*\s*rs\s*[-+]\s*rs\s*\^\s*2/.test(String(m.value)), `${m.label} contains the expanded Schwarzschild numerator: ${m.value}`);
+  }
+  check(nonzeroCurvature.length > 0, 'no nonzero Schwarzschild curvature components were emitted');
 
   const inverseExpected = {
     'g^{11}':'-1/(1-rs/x2)',
@@ -123,10 +131,17 @@ setImmediate(() => {
     'g^{33}':'1/x2^2',
     'g^{44}':'1/(x2^2*sin(x3)^2)'
   };
-  for(const [label,want] of Object.entries(inverseExpected)){
-    const actual=getComponent('inverse',label);check(!!actual,`missing ${label}`);if(actual){check(numericEqual(actual,want),`${label} wrong: ${actual}`);check(compact(actual).length<=compact(want).length+12,`${label} verbose: ${actual}`);}
+  for (const [label,want] of Object.entries(inverseExpected)) {
+    const actual=getComponent('inverse',label);
+    check(!!actual,`missing ${label}`);
+    if(actual){
+      check(numericEqual(actual,want),`${label} wrong: ${actual}`);
+      check(compact(actual).length<=compact(want).length+12,`${label} verbose: ${actual}`);
+    }
   }
 
+  // Schwarzschild is vacuum. The presentation boundary must reduce every
+  // affine Ricci component all the way to literal zero.
   const ricci = messages.filter(m => m.type === 'component' && m.section === 'affineRicci');
   check(ricci.length === 16, `expected 16 Ricci components, got ${ricci.length}`);
   for (const m of ricci) check(compact(m.value) === '0', `${m.label} did not simplify to zero: ${m.value}`);
@@ -138,8 +153,9 @@ setImmediate(() => {
   check(Number(timings.spray||Infinity) < 1000, `Schwarzschild spray is still unacceptably slow: ${timings.spray} ms`);
 
   console.log('R^phi_ttphi:', target);
-  console.log('selected Schwarzschild curvature components:');
-  for (const label of Object.keys(expected)) console.log(`  ${label} = ${getComponent('affineCurvature', label)}`);
+  console.log('nonzero affine-curvature components:', nonzeroCurvature.length);
+  console.log('longest affine-curvature output:', longestCurvature && `${longestCurvature.label} = ${longestCurvature.value}`);
+  console.log('max affine-curvature compact length:', maxCurvatureLength);
   console.log('section timings ms:', timings);
   console.log('worker total ms:', Number(done && done.totalMs || 0));
 
@@ -148,6 +164,6 @@ setImmediate(() => {
     failures.forEach((f, i) => console.error(`${i + 1}. ${f}`));
     process.exitCode = 1;
   } else {
-    console.log('PASS: rebuilt worker is correct, compact, and uses canonical expressions downstream');
+    console.log('PASS: every Schwarzschild curvature output is compact; references, vacuum Ricci, inverse, and spray all pass');
   }
 });
