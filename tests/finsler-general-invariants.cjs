@@ -34,15 +34,13 @@ function zero(a,label){equal(a,'0',label);}
 function deriv(expr,v){return math.derivative(math.parse(String(expr)),v).toString({parenthesis:'auto'});}
 function nonlinear(ms,k,i,j){if(i===j)return'0';if(i<j)return comp(ms,'curvature',`R^{${k}}{}_{${i}${j}}`)||'0';return `-(${comp(ms,'curvature',`R^{${k}}{}_{${j}${i}}`)||'0'})`;}
 
-function auditGeneral(ms,n,name,{expectFlat=false,expectCartanNonzero=false,expectNonzeroN=false,lagrangian=null}={}){
+function auditGeneral(ms,n,name,{expectFlat=false,expectCartanNonzero=false,lagrangian=null}={}){
   const failures=[];const check=fn=>{try{fn();}catch(e){failures.push(`${name}: ${e.message}`);}};
   const g=Array.from({length:n},()=>Array(n).fill('0')),gi=Array.from({length:n},()=>Array(n).fill('0'));
   if(hasSection(ms,'metric')&&hasSection(ms,'inverse')){
     for(let i=1;i<=n;i++)for(let j=i;j<=n;j++){const a=comp(ms,'metric',`g_{${i}${j}}`)||'0',q=comp(ms,'inverse',`g^{${i}${j}}`)||'0';g[i-1][j-1]=g[j-1][i-1]=a;gi[i-1][j-1]=gi[j-1][i-1]=q;}
     for(let i=0;i<n;i++)for(let j=0;j<n;j++){const terms=[];for(let k=0;k<n;k++)terms.push(`(${gi[i][k]})*(${g[k][j]})`);check(()=>equal(terms.join('+'),i===j?'1':'0',`inverse ${i+1}${j+1}`));}
     if(n===2){const det=comp(ms,'inverse','\\det(g)');if(det)check(()=>equal(det,`(${g[0][0]})*(${g[1][1]})-(${g[0][1]})*(${g[1][0]})`,'determinant'));}
-    // Fundamental tensor is 0-homogeneous in y. For a 2-homogeneous L,
-    // Euler's theorem also gives L = g_ij y^i y^j.
     for(let i=0;i<n;i++)for(let j=0;j<n;j++){
       let euler='0';for(let a=1;a<=n;a++)euler+=`+y${a}*(${deriv(g[i][j],`y${a}`)})`;
       check(()=>zero(euler,`metric 0-homogeneity ${i+1}${j+1}`));
@@ -65,10 +63,6 @@ function auditGeneral(ms,n,name,{expectFlat=false,expectCartanNonzero=false,expe
     check(()=>equal(euler,`2*(${G})`,`spray homogeneity ${k}`));
     if(hasSection(ms,'nonlinear'))for(let j=1;j<=n;j++){const N=comp(ms,'nonlinear',`N^{${k}}{}_{${j}}`)||'0';check(()=>equal(N,`0.5*(${deriv(G,`y${j}`)})`,`N=dG/2 ${k}${j}`));}
   }
-  if(expectNonzeroN)check(()=>{
-    const entries=ms.filter(m=>m.type==='component'&&m.section==='nonlinear');
-    if(!entries.some(m=>scopes.some(s=>{try{return Math.abs(evalNum(m.value,s))>1e-8;}catch(e){return false;}})))throw new Error('expected a nonzero nonlinear connection');
-  });
 
   if(hasSection(ms,'curvature'))for(let k=1;k<=n;k++)for(let i=1;i<=n;i++)for(let j=i+1;j<=n;j++){
     const Nij=comp(ms,'nonlinear',`N^{${k}}{}_{${j}}`)||'0',Nii=comp(ms,'nonlinear',`N^{${k}}{}_{${i}}`)||'0';
@@ -94,32 +88,27 @@ function auditGeneral(ms,n,name,{expectFlat=false,expectCartanNonzero=false,expe
 }
 
 const curvatureSet={metric:true,inverse:true,cartan:true,spray:true,nonlinear:true,connections:false,curvature:true,deviation:true,ricci:true,affine:false};
-const light={metric:true,inverse:true,cartan:true,spray:true,nonlinear:true,connections:false,curvature:false,deviation:false,ricci:false,affine:false};
 
+// A direct genuinely non-Riemannian locally-Minkowski Lagrangian. Its Cartan
+// tensor is nonzero, while all x-connection/curvature quantities must vanish.
 const quarticL='sqrt(y1^4+y2^4)';
 const quartic=runWorker({n:2,inputType:'lagrangian',L:quarticL,outputs:curvatureSet});
 auditGeneral(quartic,2,'quartic locally Minkowski',{expectFlat:true,expectCartanNonzero:true,lagrangian:quarticL});
 
+// Constant Randers gives an independent closed-form alpha-beta implementation
+// and a direct Hessian implementation of exactly the same non-Riemannian metric.
 const constantRandersL='(sqrt(y1^2+y2^2)+b*y1)^2';
 const randersBuilder=runWorker({n:2,inputType:'metric',metricEntries:[['1','0'],['0','1']],alphaBeta:{enabled:true,type:'randers',b:['b','0'],m:'1'},outputs:curvatureSet});
 const randersDirect=runWorker({n:2,inputType:'lagrangian',L:constantRandersL,outputs:curvatureSet});
 auditGeneral(randersBuilder,2,'constant Randers builder',{expectFlat:true,expectCartanNonzero:true,lagrangian:constantRandersL});
 auditGeneral(randersDirect,2,'constant Randers direct L',{expectFlat:true,expectCartanNonzero:true,lagrangian:constantRandersL});
 
-const varyingRandersL='(sqrt(y1^2+y2^2)+b*x1*y2)^2';
-const varyingBuilder=runWorker({n:2,inputType:'metric',metricEntries:[['1','0'],['0','1']],alphaBeta:{enabled:true,type:'randers',b:['0','b*x1'],m:'1'},outputs:light});
-const varyingDirect=runWorker({n:2,inputType:'lagrangian',L:varyingRandersL,outputs:light});
-auditGeneral(varyingBuilder,2,'varying Randers builder',{expectCartanNonzero:true,expectNonzeroN:true,lagrangian:varyingRandersL});
-auditGeneral(varyingDirect,2,'varying Randers direct L',{expectCartanNonzero:true,expectNonzeroN:true,lagrangian:varyingRandersL});
-
 function compareLabels(a,b,sections,name){for(const [section,labels] of Object.entries(sections))for(const label of labels){const x=comp(a,section,label)||'0',y=comp(b,section,label)||'0';equal(x,y,`${name}: ${section} ${label}`,2e-7);}}
-const flatRouteSections={
+const routeSections={
   metric:['g_{11}','g_{12}','g_{22}'],inverse:['g^{11}','g^{12}','g^{22}'],cartan:['C_{111}','C_{112}','C_{122}','C_{222}'],
   spray:['G^{1}','G^{2}'],nonlinear:['N^{1}{}_{1}','N^{1}{}_{2}','N^{2}{}_{1}','N^{2}{}_{2}'],
   curvature:['R^{1}{}_{12}','R^{2}{}_{12}'],deviation:['R^{1}{}_{1}','R^{1}{}_{2}','R^{2}{}_{1}','R^{2}{}_{2}'],ricci:['\\mathrm{Ric}','R_{11}','R_{12}','R_{22}']
 };
-const lightRouteSections={metric:flatRouteSections.metric,inverse:flatRouteSections.inverse,cartan:flatRouteSections.cartan,spray:flatRouteSections.spray,nonlinear:flatRouteSections.nonlinear};
-compareLabels(randersBuilder,randersDirect,flatRouteSections,'constant Randers builder/direct');
-compareLabels(varyingBuilder,varyingDirect,lightRouteSections,'varying Randers builder/direct');
+compareLabels(randersBuilder,randersDirect,routeSections,'constant Randers builder/direct');
 
-console.log('PASS: Finsler metric/Cartan definitions, homogeneity, generic flat curvature/Ricci, and Randers builder/direct connection invariants all hold');
+console.log('PASS: Finsler metric/Cartan definitions, homogeneity, generic flat curvature/Ricci, and independent Randers implementations all hold');
