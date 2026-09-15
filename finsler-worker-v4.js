@@ -3,16 +3,18 @@
 /*
  * Finsler worker v4 — verified geometry + conservative presentation CAS.
  *
- * The tensor engine is the independently checked v3 implementation. Its
- * computational simplifier stays on math.js so later derivatives/contractions
- * cannot be corrupted by heuristic rewrites. A separate bounded Nerdamer
- * pass is used only for emitted expressions; every CAS rewrite is numerically
- * checked at several generic points before it is accepted.
+ * Tensor assembly and differentiation stay on the independently checked v3
+ * math.js engine. Stronger CAS work is presentation-only: bounded Nerdamer
+ * rewrites are accepted only after independent numerical equivalence probes.
+ * This keeps later tensor calculations correct and prevents display algebra
+ * from slowing the spray/connection computation.
  */
 importScripts("finsler-worker-v3.js?v=1");
 try{importScripts("https://cdn.jsdelivr.net/npm/nerdamer-prime@1.5.0/all.min.js");}catch(e){}
 
 var finslerBaseS=S;
+var finslerBasePS=PS;
+var finslerBaseD=D;
 var finslerBaseInverseMatrix=inverseMatrix;
 var finslerBaseOnMessage=onmessage;
 var finslerNativePostMessage=self.postMessage.bind(self);
@@ -59,6 +61,15 @@ function finslerScope(names,k){
   });
   return scope;
 }
+/* Do not pass a scope object across JS realms. The CI harness intentionally
+ * injects the same host math.js object into a Worker-like VM, and math.js's
+ * typed dispatcher rejects VM-created plain objects. Numeric substitution is
+ * realm-independent and exercises exactly the same parser/evaluator. */
+function finslerNumericText(text,scope){
+  return String(text).replace(/\b[A-Za-z_]\w*\b/g,function(name){
+    return Object.prototype.hasOwnProperty.call(scope,name)?"("+scope[name]+")":name;
+  });
+}
 function finslerMagnitude(value){try{return Number(math.abs(value));}catch(e){return NaN;}}
 function finslerEquivalentNumerically(a,b){
   if(String(a)===String(b))return true;
@@ -66,7 +77,8 @@ function finslerEquivalentNumerically(a,b){
   for(var k=0;k<5;k++){
     var scope=finslerScope(names,k),av,bv,delta,scale;
     try{
-      av=math.evaluate(String(a),scope);bv=math.evaluate(String(b),scope);
+      av=math.evaluate(finslerNumericText(a,scope));
+      bv=math.evaluate(finslerNumericText(b,scope));
       delta=finslerMagnitude(math.subtract(av,bv));
       scale=Math.max(1,finslerMagnitude(av),finslerMagnitude(bv));
     }catch(e){continue;}
@@ -81,12 +93,12 @@ function finslerNerdamerCandidate(text,relaxed){
   if(typeof nerdamer!=="function")return null;
   text=String(text);
   var length=finslerCompactLength(text),ops=finslerOpCount(text);
-  var maxLength=relaxed?330:220,maxOps=relaxed?42:28;
+  var maxLength=relaxed?360:220,maxOps=relaxed?48:28;
   if(length>maxLength||ops>maxOps)return null;
   try{
     var candidate=nerdamer("simplify("+text+")").toString();
     if(!candidate)return null;
-    if(finslerCompactLength(candidate)<=190&&finslerOpCount(candidate)<=22){
+    if(finslerCompactLength(candidate)<=200&&finslerOpCount(candidate)<=24){
       try{
         var factored=nerdamer("factor("+candidate+")").toString();
         if(factored&&finslerCompactLength(factored)<=finslerCompactLength(candidate)+10)candidate=factored;
@@ -104,8 +116,12 @@ function finslerPrefer(base,candidate,allowTie){
 }
 
 function finslerIntegerExponent(node){
+  while(node&&node.isParenthesisNode)node=node.content;
   if(node&&node.isConstantNode){var n=Number(node.value);return Number.isInteger(n)?n:null;}
-  if(node&&node.isOperatorNode&&node.op==="-"&&node.args.length===1&&node.args[0].isConstantNode){var m=-Number(node.args[0].value);return Number.isInteger(m)?m:null;}
+  if(node&&node.isOperatorNode&&node.op==="-"&&node.args.length===1){
+    var arg=node.args[0];while(arg&&arg.isParenthesisNode)arg=arg.content;
+    if(arg&&arg.isConstantNode){var m=-Number(arg.value);return Number.isInteger(m)?m:null;}
+  }
   return null;
 }
 function finslerFactorRelation(a,b){
@@ -118,6 +134,9 @@ function finslerFactorRelation(a,b){
   return 0;
 }
 
+/* Convert a multiplicative expression with reciprocal/negative-power factors
+ * into a single fraction without expanding additive factors. This is what
+ * turns Nerdamer's rs*(rs-r)*r^-4/2 into rs*(rs-r)/(2*r^4). */
 function finslerFractionForm(text){
   var root;try{root=math.parse(String(text));}catch(e){return String(text);}
   var num=[],den=[],sign=1;
@@ -149,6 +168,7 @@ function finslerFractionForm(text){
     }
   }
   function rank(atom){
+    if(/^[0-9.]+$/.test(atom))return -1;
     if(/^[A-Za-z_]\w*$/.test(atom))return 0;
     if(/^[A-Za-z_]\w*\s*\^/.test(atom))return 1;
     if(/^[A-Za-z_]\w*\s*\(/.test(atom))return 2;
@@ -156,11 +176,7 @@ function finslerFractionForm(text){
     return 3;
   }
   num.sort(function(a,b){return rank(a)-rank(b)||a.localeCompare(b);});
-  den.sort(function(a,b){
-    var an=/^[0-9.]+$/.test(a),bn=/^[0-9.]+$/.test(b);
-    if(an!==bn)return an?-1:1;
-    return rank(a)-rank(b)||a.localeCompare(b);
-  });
+  den.sort(function(a,b){return rank(a)-rank(b)||a.localeCompare(b);});
   function factor(atom){
     var node;try{node=math.parse(atom);}catch(e){return "("+atom+")";}
     while(node&&node.isParenthesisNode)node=node.content;
@@ -195,6 +211,7 @@ function finslerSimplifyNode(node,depth){
   try{return math.parse(best);}catch(e4){return mapped;}
 }
 
+/* Computational state: verified v3 simplification only. */
 S=function(expr){
   var original=raw(expr);
   if(finslerComputeCache[original]!==undefined)return finslerComputeCache[original];
@@ -204,7 +221,10 @@ S=function(expr){
   return best;
 };
 
-PS=function(expr){
+/* Keep the global PS used internally by v3 cheap. Strong output CAS is applied
+ * only by the postMessage boundary below, after section timing has finished. */
+PS=function(expr){return finslerBasePS(expr);};
+function finslerStrongPS(expr){
   var original=raw(expr);
   if(finslerPresentCache[original]!==undefined)return finslerPresentCache[original];
   var base=S(original);
@@ -213,7 +233,7 @@ PS=function(expr){
   var best=finslerPrefer(base,direct,true);
   best=finslerFractionForm(best);
   if(best===base||finslerCompactLength(best)>=finslerCompactLength(base)-2){
-    if(/sin\(|cos\(|tan\(/.test(base)&&finslerCompactLength(base)<=280){
+    if(/sin\(|cos\(|tan\(/.test(base)&&finslerCompactLength(base)<=300){
       try{var node=math.parse(base);var recursive=finslerSimplifyNode(node,0).toString({parenthesis:"auto"});best=finslerPrefer(best,recursive,true);}catch(e){}
     }
   }
@@ -222,7 +242,7 @@ PS=function(expr){
   finslerPresentCache[original]=best;
   finslerPresentCache[best]=best;
   return best;
-};
+}
 
 inverseMatrix=function(matrix){
   var n=matrix.length,diagonal=true,i,j;
@@ -239,20 +259,22 @@ inverseMatrix=function(matrix){
 };
 
 function finslerFinalTree(value){
-  if(typeof value==="string")return PS(value);
+  if(typeof value==="string")return finslerStrongPS(value);
   if(Array.isArray(value))return value.map(finslerFinalTree);
   if(value&&typeof value==="object"){var out={};Object.keys(value).forEach(function(key){out[key]=finslerFinalTree(value[key]);});return out;}
   return value;
 }
-function finslerStrongOutputSection(section){return section==="inverse"||section==="christoffel"||section==="affineCurvature"||section==="affineRicci";}
+function finslerStrongOutputSection(section){return section==="inverse"||section==="affineCurvature"||section==="affineRicci";}
 self.postMessage=function(message,transfer){
   var outgoing=message,strong=message&&finslerStrongOutputSection(message.section);
-  if(strong&&message.type==="component"&&typeof message.value==="string")outgoing=Object.assign({},message,{value:PS(message.value)});
+  if(strong&&message.type==="component"&&typeof message.value==="string")outgoing=Object.assign({},message,{value:finslerStrongPS(message.value)});
   else if(strong&&message.type==="sectionComplete"&&message.summary)outgoing=Object.assign({},message,{summary:finslerFinalTree(message.summary)});
   if(transfer!==undefined)return finslerNativePostMessage(outgoing,transfer);
   return finslerNativePostMessage(outgoing);
 };
 
+/* Custom coordinate-dependent functions. When none are present, use v3's
+ * original D verbatim so ordinary metric calculations retain baseline speed. */
 function finslerSymbolNode(variable){
   var symbol=math.parse(String(variable));
   if(!symbol||!symbol.isSymbolNode)throw new Error("Invalid differentiation variable: "+variable);
@@ -294,9 +316,8 @@ function finslerTokenDerivative(info,variable){
   return terms.length?S(sum(terms)):"0";
 }
 D=function(expr,variable){
-  var text=raw(expr);
-  if(!Object.keys(finslerFunctionInfo).length)return finslerNativeD(text,variable);
-  var key="custom\u0000"+variable+"\u0000"+text;
+  if(!Object.keys(finslerFunctionInfo).length)return finslerBaseD(expr,variable);
+  var text=raw(expr),key="custom\u0000"+variable+"\u0000"+text;
   if(derivativeCache[key]!==undefined)return derivativeCache[key];
   var node=math.parse(text),pieces=[];
   try{pieces.push(finslerDerivative(node,variable,{simplify:false}).toString({parenthesis:"auto"}));}
