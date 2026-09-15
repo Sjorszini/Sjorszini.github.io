@@ -6,8 +6,6 @@
  * Tensor assembly and differentiation stay on the independently checked v3
  * math.js engine. Stronger CAS work is presentation-only: bounded Nerdamer
  * rewrites are accepted only after independent numerical equivalence probes.
- * This keeps later tensor calculations correct and prevents display algebra
- * from slowing the spray/connection computation.
  */
 importScripts("finsler-worker-v3.js?v=1");
 try{importScripts("https://cdn.jsdelivr.net/npm/nerdamer-prime@1.5.0/all.min.js");}catch(e){}
@@ -29,10 +27,21 @@ var FINSLER_STANDARD_NAMES={
   sinh:1,cosh:1,tanh:1,exp:1,log:1,ln:1,sqrt:1,abs:1,
   min:1,max:1,sign:1,pi:1,e:1,i:1,Infinity:1
 };
-
 function finslerCompactLength(text){return String(text).replace(/\s+/g,"").length;}
 function finslerOpCount(text){var m=String(text).match(/[+\-*/^]/g);return m?m.length:0;}
 function finslerAddCount(text){var m=String(text).match(/[+\-]/g);return m?m.length:0;}
+function finslerFactoredAdditiveCount(text){
+  var node,count=0;
+  try{node=math.parse(String(text));}catch(e){return 0;}
+  node.traverse(function(child){
+    if(!child||!child.isOperatorNode||child.op!=="*")return;
+    for(var i=0;i<child.args.length;i++){
+      var a=child.args[i];while(a&&a.isParenthesisNode)a=a.content;
+      if(a&&a.isOperatorNode&&(a.op==="+"||(a.op==="-"&&a.args.length===2))){count++;break;}
+    }
+  });
+  return count;
+}
 
 function finslerSymbols(text){
   var out=[],seen=Object.create(null),node;
@@ -103,11 +112,12 @@ function finslerNerdamerCandidate(text,relaxed){
     return candidate;
   }catch(e){return null;}
 }
-function finslerPrefer(base,candidate,allowTie){
+function finslerPrefer(base,candidate,allowFactor){
   if(!candidate||!finslerEquivalentNumerically(base,candidate))return base;
   var a=finslerCompactLength(base),b=finslerCompactLength(candidate);
   if(b<a)return candidate;
-  if(allowTie&&b<=a+12&&finslerAddCount(candidate)<finslerAddCount(base))return candidate;
+  if(allowFactor&&b<=a+18&&finslerFactoredAdditiveCount(candidate)>finslerFactoredAdditiveCount(base))return candidate;
+  if(allowFactor&&b<=a+12&&finslerAddCount(candidate)<finslerAddCount(base))return candidate;
   return base;
 }
 
@@ -129,7 +139,6 @@ function finslerFactorRelation(a,b){
   }catch(e){}
   return 0;
 }
-
 function finslerFractionForm(text){
   var root;try{root=math.parse(String(text));}catch(e){return String(text);}
   var num=[],den=[],sign=1;
@@ -196,8 +205,8 @@ function finslerSimplifyNode(node,depth){
     try{return math.parse(finslerSubtreeCache[key]);}catch(e3){return mapped;}
   }
   var candidate=finslerNerdamerCandidate(text,depth<2);
+  if(candidate)candidate=finslerFractionForm(candidate);
   var best=finslerPrefer(text,candidate,true);
-  if(candidate&&candidate!==best)best=text;
   best=finslerFractionForm(best);
   if(!finslerEquivalentNumerically(text,best))best=text;
   finslerSubtreeCache[key]=best;
@@ -212,47 +221,40 @@ S=function(expr){
   finslerComputeCache[best]=best;
   return best;
 };
-
 PS=function(expr){return finslerBasePS(expr);};
+
+function finslerOneStrongStep(current,reference){
+  var candidate=finslerNerdamerCandidate(current,true);
+  if(candidate)candidate=finslerFractionForm(candidate);
+  var best=finslerPrefer(current,candidate,true);
+  best=finslerFractionForm(best);
+  if(!finslerEquivalentNumerically(reference,best))best=current;
+  if(best!==current)return best;
+
+  /* Large rational identities sometimes make Nerdamer time out as a whole.
+   * Simplify their bounded subtrees first, then let the next outer round finish
+   * the now-small expression. */
+  var len=finslerCompactLength(current);
+  if(len>60&&len<=380){
+    try{
+      var node=math.parse(current);
+      var recursive=finslerSimplifyNode(node,0).toString({parenthesis:"auto"});
+      recursive=finslerFractionForm(recursive);
+      if(finslerEquivalentNumerically(reference,recursive))best=finslerPrefer(current,recursive,true);
+    }catch(e){}
+  }
+  return best;
+}
 function finslerStrongPS(expr){
   var original=raw(expr);
   if(finslerPresentCache[original]!==undefined)return finslerPresentCache[original];
   var base=S(original),best=base;
   if(base==="0"||base==="1"||finslerCompactLength(base)<7){finslerPresentCache[original]=base;return base;}
-
-  /* Nerdamer sometimes needs two algebraic passes: the first cancels a large
-   * rational expression and the second factors its now-small numerator. Never
-   * mark an intermediate result as a fixed point. */
-  for(var pass=0;pass<3;pass++){
-    var before=best;
-    var candidate=finslerNerdamerCandidate(before,true);
-    var next=finslerPrefer(before,candidate,true);
-    next=finslerFractionForm(next);
-    if(!finslerEquivalentNumerically(base,next))next=before;
+  for(var round=0;round<4;round++){
+    var next=finslerOneStrongStep(best,base);
+    if(next===best)break;
     best=next;
-    if(best===before)break;
   }
-
-  if(best===base||finslerCompactLength(best)>=finslerCompactLength(base)-2){
-    if(finslerCompactLength(base)<=340){
-      try{
-        var node=math.parse(base);
-        var recursive=finslerSimplifyNode(node,0).toString({parenthesis:"auto"});
-        recursive=finslerFractionForm(recursive);
-        if(finslerEquivalentNumerically(base,recursive)&&finslerCompactLength(recursive)<finslerCompactLength(best))best=recursive;
-      }catch(e){}
-    }
-  }
-
-  /* One final small-expression factor pass catches forms produced by recursive
-   * cancellation without re-expanding them. */
-  if(finslerCompactLength(best)<=220){
-    var finalCandidate=finslerNerdamerCandidate(best,true);
-    var finalBest=finslerPrefer(best,finalCandidate,true);
-    finalBest=finslerFractionForm(finalBest);
-    if(finslerEquivalentNumerically(base,finalBest)&&finslerCompactLength(finalBest)<=finslerCompactLength(best)+8)best=finalBest;
-  }
-
   if(!finslerEquivalentNumerically(base,best))best=base;
   finslerPresentCache[original]=best;
   return best;
@@ -340,7 +342,7 @@ D=function(expr,variable){
     try{partial=finslerDerivative(node,token,{simplify:false}).toString({parenthesis:"auto"});}
     catch(e2){partial=finslerDerivative(node,token).toString({parenthesis:"auto"});}
     if(isZero(partial))continue;
-    var dt=finslerTokenDerivative(finslerFunctionInfo[token],variable);if(isZero(dt))continue;
+    var dt=finslerDerivativeToken(finslerFunctionInfo[token],variable);if(isZero(dt))continue;
     pieces.push(mul(partial,dt));
   }
   var value=S(sum(pieces));derivativeCache[key]=value;return value;
