@@ -22,6 +22,39 @@
     math.__finslerUiSimplifyGuard=true;
   }
 
+  function el(id){return document.getElementById(id);}
+  function coords(){return Array.prototype.map.call(document.querySelectorAll(".coordinate-input"),function(n){return n.value.trim();});}
+  function regexEscape(s){return String(s).replace(/[.*+?^${}()|[\]\\]/g,"\\$&");}
+  function coordinateTex(name){
+    var greek={theta:"\\theta",phi:"\\phi",psi:"\\psi",eta:"\\eta",rho:"\\rho",tau:"\\tau",sigma:"\\sigma",lambda:"\\lambda",mu:"\\mu",nu:"\\nu"};
+    if(greek[name])return greek[name];
+    if(/^[A-Za-z]$/.test(name))return name;
+    return "\\mathrm{"+String(name).replace(/[^A-Za-z0-9]/g,"")+"}";
+  }
+
+  /* Turn display aliases such as y_theta into genuine indexed TeX before MathJax sees them. */
+  function normalizeFiberTex(root){
+    if(!root || !document.createTreeWalker) return;
+    var names=coords();
+    if(!names.length) return;
+    var walker=document.createTreeWalker(root,NodeFilter.SHOW_TEXT,null);
+    var node;
+    while((node=walker.nextNode())){
+      var text=node.nodeValue,changed=text;
+      names.forEach(function(name){
+        if(!name)return;
+        var sub=coordinateTex(name);
+        var escaped=regexEscape(name);
+        changed=changed
+          .replace(new RegExp("\\by_"+escaped+"\\b","g"),"y_{"+sub+"}")
+          .replace(new RegExp("\\by\\\\_"+escaped+"\\b","g"),"y_{"+sub+"}")
+          .replace(new RegExp("\\bv_"+escaped+"\\b","g"),"v_{"+sub+"}")
+          .replace(new RegExp("\\bv\\\\_"+escaped+"\\b","g"),"v_{"+sub+"}");
+      });
+      if(changed!==text)node.nodeValue=changed;
+    }
+  }
+
   /* Batch MathJax work instead of starting a render for every component. */
   function installMathJaxQueue(){
     if(!window.MathJax || !MathJax.typesetPromise || MathJax.__finslerQueued) return;
@@ -40,7 +73,7 @@
       scheduled=false;
       if(running || !queue.length) return;
       var batch=queue.splice(0,8).filter(function(n){return n&&n.isConnected!==false;});
-      batch.forEach(function(n){queued.delete(n);});
+      batch.forEach(function(n){queued.delete(n);normalizeFiberTex(n);});
       if(!batch.length){if(queue.length)schedule();return;}
       running=true;
       original(batch).catch(function(){}).then(function(){
@@ -118,8 +151,6 @@
     window.Worker=PacedWorker;
   }
 
-  function el(id){return document.getElementById(id);}
-  function coords(){return Array.prototype.map.call(document.querySelectorAll(".coordinate-input"),function(n){return n.value.trim();});}
   function replaceSymbols(expr,map){
     if(!expr||!window.math)return expr;
     try{return math.parse(expr).transform(function(child){if(child&&child.isSymbolNode&&map[child.name])return math.parse(map[child.name]);return child;}).toString({parenthesis:"auto"});}catch(e){return expr;}
@@ -154,7 +185,8 @@
   function tidyTensorSummaries(root){
     (root||document).querySelectorAll("#section-nonlinear,#section-deviation,#section-ricci,#section-affineRicci").forEach(function(sec){
       var summary=sec.querySelector(".section-summary");if(summary)summary.hidden=true;
-      var list=sec.querySelector(".component-list"),empty=sec.querySelector("[data-empty]");if(list&&empty&&list.children.length===0)empty.hidden=false;
+      var list=sec.querySelector(".component-list"),empty=sec.querySelector("[data-empty]");
+      if(list&&empty)empty.hidden=list.children.length!==0;
     });
   }
   function scheduleTidy(root){
