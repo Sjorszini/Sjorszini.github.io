@@ -4,9 +4,11 @@
   var currentDefinitions=null;
   var lastCoords=[];
   var tidyScheduled=false;
+  var auditScheduled=false;
 
   function el(id){return document.getElementById(id);}
-  function coords(){return Array.prototype.map.call(document.querySelectorAll(".coordinate-input"),function(n){return n.value.trim();});}
+  function qa(sel,root){return Array.prototype.slice.call((root||document).querySelectorAll(sel));}
+  function coords(){return qa(".coordinate-input").map(function(n){return n.value.trim();});}
   function regexEscape(s){return String(s).replace(/[.*+?^${}()|[\]\\]/g,"\\$&");}
 
   function installMainThreadSimplifyGuard(){
@@ -36,6 +38,12 @@
     if(greek[name])return greek[name];
     if(/^[A-Za-z]$/.test(name))return name;
     return "\\mathrm{"+String(name).replace(/[^A-Za-z0-9]/g,"")+"}";
+  }
+  function expressionTex(expr){
+    if(window.math){
+      try{return math.parse(String(expr)).toTex({parenthesis:"keep"});}catch(e){}
+    }
+    return String(expr).replace(/([{}])/g,"\\$1");
   }
 
   function splitTopLevel(text){
@@ -87,16 +95,32 @@
     }
     return parts.join("\\,");
   }
+  function primeMark(order){
+    if(order<=3){var p="";for(var i=0;i<order;i++)p+="\\prime";return "^{"+p+"}";}
+    return "^{("+order+")}";
+  }
   function prettyDerivativeSymbols(text){
-    var funcs=declaredFunctions();
+    var funcs=declaredFunctions(),coordinateNames=coords();
     funcs.forEach(function(fn){
       var name=regexEscape(fn.name);
       var re=new RegExp("(^|[^A-Za-z0-9\\\\])"+name+"((?:\\\\_[A-Za-z][A-Za-z0-9]*)+)","g");
       text=text.replace(re,function(all,prefix,suffix){
         var labels=suffix.split("\\_").filter(Boolean);
         if(!labels.length)return all;
-        var allowed=coords();
-        if(labels.some(function(label){return allowed.indexOf(label)===-1;}))return all;
+
+        /* A composite one-variable profile such as p(t-x) is differentiated
+           with respect to its own argument.  Display p_s_s as p''(t-x), not
+           as an implementation detail involving an artificial coordinate s. */
+        var anonymous=labels.every(function(label){return label==="s"||/^s\d+$/.test(label);});
+        if(anonymous){
+          var inds=labels.map(function(label){return label==="s"?1:Number(label.slice(1));});
+          if(fn.args.length===1&&inds.every(function(index){return index===1;})){
+            return prefix+functionTex(fn.name)+primeMark(labels.length)+"\\!\\left("+expressionTex(fn.args[0])+"\\right)";
+          }
+          return prefix+inds.map(function(index){return "\\partial_{"+index+"}";}).join("\\,")+functionTex(fn.name);
+        }
+
+        if(labels.some(function(label){return coordinateNames.indexOf(label)===-1;}))return all;
         return prefix+derivativeOperatorTex(labels)+functionTex(fn.name);
       });
     });
@@ -109,7 +133,6 @@
       .replace(/\^\{\(\s*([+-]?\d+)\s*\)\}/g,"^{$1}")
       .replace(/\^\{\\left\{\s*([+-]?\d+)\s*\\right\}\}/g,"^{$1}");
   }
-
   function stripMinusFractionWrappers(text){
     var needle="-\\left(",pos=0;
     while((pos=text.indexOf(needle,pos))!==-1){
@@ -130,7 +153,6 @@
     }
     return text;
   }
-
   function readBraceGroup(text,start){
     if(text.charAt(start)!=="{")return null;
     var depth=0;
@@ -170,7 +192,6 @@
     }
     return text;
   }
-
   function moveSimpleNegativePowerToDenominator(text){
     var pos=0;
     while((pos=text.indexOf("\\frac",pos))!==-1){
@@ -212,7 +233,7 @@
       batch.forEach(function(n){queued.delete(n);normalizeFiberTex(n);normalizePrettyTex(n);});
       if(!batch.length){if(queue.length)schedule();return;}
       running=true;
-      original(batch).catch(function(){}).then(function(){running=false;if(queue.length)setTimeout(schedule,20);});
+      original(batch).catch(function(){}).then(function(){running=false;scheduleAudit(document);if(queue.length)setTimeout(schedule,20);});
     }
     MathJax.typesetPromise=function(nodes){
       (nodes||[]).forEach(function(node){if(node&&node.isConnected!==false&&!queued.has(node)){queued.add(node);queue.push(node);}});
@@ -282,19 +303,69 @@
     currentDefinitions=found?Object.assign({},found.definitions||{}):null;
     setTimeout(function(){lastCoords=coords();},40);
   }
+
+  function mathMeta(raw){
+    var exact={
+      "g_{ij}(x)":"\\(g_{ij}(x)\\)",
+      "g^{ij} and det(g)":"\\(g^{ij}\\) and \\(\\det g\\)",
+      "C_{ijk}":"\\(C_{ijk}\\)",
+      "G^i":"\\(G^i\\)",
+      "N^i{}_j":"\\(N^i{}_j\\)",
+      "{}^B\\Gamma^k{}_{ij}":"\\({}^B\\Gamma^k{}_{ij}\\)",
+      "{}^C\\Gamma^k{}_{ij}":"\\({}^C\\Gamma^k{}_{ij}\\)",
+      "R^k{}_{ij}":"\\(R^k{}_{ij}\\)",
+      "R^k{}_i":"\\(R^k{}_i\\)",
+      "\\bar R^k{}_{lij}":"\\(\\bar R^k{}_{lij}\\)",
+      "\\bar R_{ij}":"\\(\\bar R_{ij}\\)",
+      "Ric and R_{ij}":"\\(\\mathrm{Ric}\\) and \\(R_{ij}\\)"
+    };
+    if(exact[raw])return exact[raw];
+    if(raw.indexOf("g_{ij} for ")===0)return "\\(g_{ij}\\) for "+raw.slice("g_{ij} for ".length);
+    return null;
+  }
+  function typesetResultMetadata(root){
+    qa(".result-heading p",root||document).forEach(function(p){
+      if(p.dataset.finslerMetaTypeset==="1")return;
+      var converted=mathMeta(p.textContent.trim());
+      if(!converted)return;
+      p.dataset.finslerMetaTypeset="1";
+      p.textContent=converted;
+      if(window.MathJax&&MathJax.typesetPromise)MathJax.typesetPromise([p]);
+    });
+  }
   function tidyTensorSummaries(root){
     (root||document).querySelectorAll("#section-nonlinear,#section-deviation,#section-ricci,#section-affineRicci").forEach(function(sec){
       var summary=sec.querySelector(".section-summary");if(summary)summary.hidden=true;
       var list=sec.querySelector(".component-list"),empty=sec.querySelector("[data-empty]");if(list&&empty)empty.hidden=list.children.length!==0;
     });
+    typesetResultMetadata(root);
   }
-  function scheduleTidy(root){if(tidyScheduled)return;tidyScheduled=true;requestAnimationFrame(function(){tidyScheduled=false;tidyTensorSummaries(root);});}
+
+  function auditRenderedResults(root){
+    var host=root||document,issues=[];
+    qa("mjx-merror",host).forEach(function(n){issues.push("MathJax error: "+n.textContent.trim());});
+    qa(".result-heading p",host).forEach(function(n){var t=n.textContent||"";if(/\\bar|\\Gamma/.test(t))issues.push("Unrendered result metadata: "+t.trim());});
+    qa(".component-main",host).forEach(function(n){var t=n.textContent||"";if(/__uf\d+/.test(t))issues.push("Internal function token leaked into output");if(/\b[\w]+_s(?:_s)+\b/.test(t))issues.push("Internal profile-derivative label leaked into output");});
+    window.FINSLER_RENDER_AUDIT={ok:issues.length===0,issues:issues,checkedAt:Date.now()};
+    if(issues.length&&window.console&&console.warn)console.warn("Finsler render audit:",issues);
+  }
+  function scheduleAudit(root){
+    if(auditScheduled)return;auditScheduled=true;
+    setTimeout(function(){auditScheduled=false;auditRenderedResults(root);},80);
+  }
+  function scheduleTidy(root){
+    if(tidyScheduled)return;tidyScheduled=true;
+    requestAnimationFrame(function(){tidyScheduled=false;tidyTensorSummaries(root);scheduleAudit(root);});
+  }
+
   function init(){
     installMainThreadSimplifyGuard();installMathJaxQueue();installWorkerMessagePacer();lastCoords=coords();
+    var warning=document.querySelector(".warning-label");if(warning)warning.textContent="Warning";
     document.addEventListener("click",function(event){var load=event.target.closest&&event.target.closest(".catalogue-load");if(load)rememberCatalogueEntry(load);if(event.target&&event.target.id==="loadExample")currentDefinitions=null;},true);
     document.addEventListener("change",function(event){if(event.target&&event.target.classList&&event.target.classList.contains("coordinate-input"))setTimeout(renameDefinitionCoordinates,0);},false);
     var calc=el("calculateSelected");if(calc)calc.addEventListener("click",normalizeBeforeCalculation,true);
     var results=el("results");if(results)new MutationObserver(function(){scheduleTidy(results);}).observe(results,{subtree:true,childList:true});
+    scheduleAudit(document);
   }
 
   installMainThreadSimplifyGuard();installMathJaxQueue();installWorkerMessagePacer();
