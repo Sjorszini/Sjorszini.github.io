@@ -50,6 +50,16 @@
   background:#3f7a5c;
   box-shadow:0 0 0 2px rgba(63,122,92,.12);
 }
+@media(min-width:701px){
+  .matrix-editor{
+    width:100%;
+    min-width:0;
+    grid-template-columns:34px repeat(var(--matrix-n),minmax(0,1fr));
+  }
+  .matrix-cell input{
+    min-width:0;
+  }
+}
 @media(max-width:700px){
   .finsler-workbench{padding-left:6px;padding-right:6px}
   .calculator-shell{border-left:0;border-right:0;border-radius:12px}
