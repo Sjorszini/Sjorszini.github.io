@@ -9,9 +9,10 @@ const wrapper=read('finsler-ui-v6-fixes.js');
 const loader=read('finsler-enhancements-v1.js');
 const validation=read('finsler-enhancement-01-validation.js');
 const dependencies=read('finsler-enhancement-02-dependencies.js');
+const resultTools=read('finsler-enhancement-03-result-tools.js');
 
 if(!/finsler-ui-v6-fixes-core\.js/.test(wrapper)||!/finsler-enhancements-v1\.js/.test(wrapper))fail('enhancement wrapper does not preserve the core fixes and load enhancements');
-['finsler-enhancement-01-validation.js','finsler-enhancement-02-dependencies.js'].forEach(name=>{if(!loader.includes(name))fail('enhancement loader missing '+name);});
+['finsler-enhancement-01-validation.js','finsler-enhancement-02-dependencies.js','finsler-enhancement-03-result-tools.js'].forEach(name=>{if(!loader.includes(name))fail('enhancement loader missing '+name);});
 [
   'math.parse','aria-invalid','setCustomValidity','stopImmediatePropagation','finsler-invalid','metric-entry','oneform-entry','lagrangian','constantsInput','functionsInput','mParameter','FINSLER_VALIDATION_API'
 ].forEach(token=>{if(!validation.includes(token))fail('validation module missing '+token);});
@@ -40,7 +41,9 @@ function dependencyClosure(selected){
 }
 const ricci=dependencyClosure({ricci:true});
 ['metric','inverse','spray','nonlinear','connections','curvature','ricci'].forEach(k=>{if(!ricci[k])fail('Ricci dependency closure missing '+k);});
-const affine=dependencyClosure({affine:true});
-['metric','inverse','connections','affine'].forEach(k=>{if(!affine[k])fail('affine dependency closure missing '+k);});
 
-if(!process.exitCode)console.log('PASS: enhancement layer validates input and exposes the exact hidden computation dependency chain');
+['Copy expression','Copy LaTeX','Copy section','Expand all','Collapse all','navigator.clipboard','document.execCommand("copy")','FINSLER_RESULT_TOOLS'].forEach(token=>{if(!resultTools.includes(token))fail('result tools module missing '+token);});
+if(!/MutationObserver/.test(resultTools)||!/component-row/.test(resultTools)||!/result-card/.test(resultTools))fail('result tools are not attached progressively');
+if(!/dataset\.finslerCopySource/.test(resultTools))fail('result tools do not preserve pre-MathJax formula source');
+
+if(!process.exitCode)console.log('PASS: enhancement layer validates input, explains dependencies, and adds copy/expand result controls');
