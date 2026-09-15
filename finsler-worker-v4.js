@@ -2,20 +2,21 @@
 
 importScripts("finsler-worker-v3.js?v=1");
 
-/* math.simplify is good at local algebra but it does not factor expanded
- * numerator/denominator polynomials before presentation. In tensor work that
- * can leave output such as
- *
- *   (r*rs-r^2)/(r^3*rs-r^4)
- *
- * even though the common factors cancel to 1/r^2. Keep the computational
- * expressions untouched and strengthen only the final presentation layer.
- */
+/* Final-output simplification. math.js simplifies locally very well, but it
+ * does not always factor/cancel a rational tensor expression globally. We use
+ * math.simplify()/math.rationalize() first, then flatten the rational AST and
+ * cancel exact common factors. This is presentation-only; computational
+ * expressions remain unchanged. */
 var finslerBasePS = PS;
 
 function finslerCanonicalNodeText(node){
   try{return math.simplify(node).toString({parenthesis:"auto"});}
   catch(e){return node.toString({parenthesis:"auto"});}
+}
+
+function finslerSimplifyText(text){
+  try{return math.simplify(String(text)).toString({parenthesis:"auto"});}
+  catch(e){return String(text);}
 }
 
 function finslerAddFactor(store,node,power){
@@ -136,8 +137,7 @@ function finslerFactorExpression(node){
     var body=finslerProductText(f,common);
     return f.sign<0?"-("+body+")":"("+body+")";
   });
-  var residualText=residualParts.join("+");
-  try{residualText=math.simplify(residualText).toString({parenthesis:"auto"});}catch(e){}
+  var residualText=finslerSimplifyText(residualParts.join("+"));
 
   var result={sign:1,map:Object.create(null),order:[]};
   commonKeys.forEach(function(key){
@@ -150,84 +150,111 @@ function finslerFactorExpression(node){
   return result;
 }
 
-function finslerCancelCommonRationalFactors(text){
-  var node;
-  try{node=math.parse(text);}catch(e){return null;}
+function finslerPair(num,den){return {num:finslerSimplifyText(num),den:finslerSimplifyText(den)};}
+function finslerRationalPair(node){
   while(node&&node.isParenthesisNode)node=node.content;
-  if(!node||!node.isOperatorNode||node.op!=="/"||node.args.length!==2)return null;
+  if(!node)return finslerPair("0","1");
+  if(node.isOperatorNode){
+    if(node.op==="-"&&node.args.length===1){
+      var u=finslerRationalPair(node.args[0]);
+      return finslerPair("-("+u.num+")",u.den);
+    }
+    if((node.op==="+"||node.op==="-")&&node.args.length===2){
+      var a=finslerRationalPair(node.args[0]),b=finslerRationalPair(node.args[1]);
+      var op=node.op;
+      return finslerPair("("+a.num+")*("+b.den+")"+op+"("+b.num+")*("+a.den+")","("+a.den+")*("+b.den+")");
+    }
+    if(node.op==="*"&&node.args.length===2){
+      var m1=finslerRationalPair(node.args[0]),m2=finslerRationalPair(node.args[1]);
+      return finslerPair("("+m1.num+")*("+m2.num+")","("+m1.den+")*("+m2.den+")");
+    }
+    if(node.op==="/"&&node.args.length===2){
+      var d1=finslerRationalPair(node.args[0]),d2=finslerRationalPair(node.args[1]);
+      return finslerPair("("+d1.num+")*("+d2.den+")","("+d1.den+")*("+d2.num+")");
+    }
+    if(node.op==="^"&&node.args.length===2&&node.args[1].isConstantNode){
+      var p=Number(node.args[1].value);
+      if(Number.isInteger(p)){
+        var base=finslerRationalPair(node.args[0]),q=Math.abs(p);
+        if(p>=0)return finslerPair("("+base.num+")^("+q+")","("+base.den+")^("+q+")");
+        return finslerPair("("+base.den+")^("+q+")","("+base.num+")^("+q+")");
+      }
+    }
+  }
+  return finslerPair(finslerCanonicalNodeText(node),"1");
+}
 
-  var numerator=finslerFactorExpression(node.args[0]);
-  var denominator=finslerFactorExpression(node.args[1]);
+function finslerCancelDeepRational(text){
+  var node;
+  try{node=math.parse(String(text));}catch(e){return null;}
+  var pair=finslerRationalPair(node);
+  var numeratorNode,denominatorNode;
+  try{
+    numeratorNode=math.parse(pair.num);
+    denominatorNode=math.parse(pair.den);
+  }catch(e2){return null;}
+
+  var numerator=finslerFactorExpression(numeratorNode);
+  var denominator=finslerFactorExpression(denominatorNode);
   var cancel=Object.create(null),cancelled=false;
   numerator.order.forEach(function(key){
     if(!denominator.map[key])return;
     var p=Math.min(numerator.map[key].power,denominator.map[key].power);
     if(p>0){cancel[key]=p;cancelled=true;}
   });
-  if(!cancelled)return null;
 
   var num=finslerProductText(numerator,cancel);
   var den=finslerProductText(denominator,cancel);
   if(numerator.sign*denominator.sign<0)num="-("+num+")";
   var candidate=den==="1"?num:"("+num+")/("+den+")";
-  try{candidate=math.simplify(candidate).toString({parenthesis:"auto"});}catch(e3){}
+  candidate=finslerSimplifyText(candidate);
 
-  if(typeof math.symbolicEqual==="function"){
-    try{if(!math.symbolicEqual(text,candidate))return null;}catch(e4){}
-  }
+  /* Even if there was no literal common-factor key, flattening nested
+     divisions can expose a shorter form to math.simplify(). */
+  if(!cancelled&&finslerPresentationScore(candidate)>=finslerPresentationScore(text))return null;
   return candidate;
 }
 
 function finslerPresentationScore(text){return String(text).replace(/\s+/g,"").length;}
-function finslerConsiderPresentation(best,candidate,original){
+function finslerConsiderPresentation(best,candidate){
   if(!candidate)return best;
-  try{candidate=math.simplify(candidate).toString({parenthesis:"auto"});}catch(e){}
-  if(typeof math.symbolicEqual==="function"){
-    try{if(!math.symbolicEqual(original,candidate))return best;}catch(e2){}
-  }
+  candidate=finslerSimplifyText(candidate);
   return finslerPresentationScore(candidate)<finslerPresentationScore(best)?candidate:best;
 }
 
 PS=function(expr){
   var base=finslerBasePS(expr),best=base;
-  best=finslerConsiderPresentation(best,finslerCancelCommonRationalFactors(base),base);
+  best=finslerConsiderPresentation(best,finslerCancelDeepRational(base));
   if(typeof math.rationalize==="function"){
     try{
       var rational=math.rationalize(base).toString({parenthesis:"auto"});
-      best=finslerConsiderPresentation(best,rational,base);
-      best=finslerConsiderPresentation(best,finslerCancelCommonRationalFactors(rational),base);
+      best=finslerConsiderPresentation(best,rational);
+      best=finslerConsiderPresentation(best,finslerCancelDeepRational(rational));
     }catch(e){}
   }
+  best=finslerConsiderPresentation(best,finslerCancelDeepRational(best));
   return best;
 };
 
-/* One final simplification gateway for everything that is actually sent to
- * the UI. JavaScript itself has no symbolic algebra simplifier; math.js does.
- * Apply its simplify/rationalize routines here after all tensor computation is
- * finished, then apply the conservative factor cancellation above. This makes
- * the rule uniform for metric data, spray, all connections, nonlinear and
- * affine curvature, Ricci quantities, and every nested summary tensor. */
 var finslerFinalCache=Object.create(null);
 function finslerFinalExpression(expr){
   var original=raw(expr);
   if(finslerFinalCache[original]!==undefined)return finslerFinalCache[original];
   var best=PS(original),current=best;
   for(var pass=0;pass<5;pass++){
-    try{
-      var simplified=math.simplify(current).toString({parenthesis:"auto"});
-      best=finslerConsiderPresentation(best,simplified,original);
-      if(simplified===current)break;
-      current=simplified;
-    }catch(e){break;}
+    var simplified=finslerSimplifyText(current);
+    best=finslerConsiderPresentation(best,simplified);
+    if(simplified===current)break;
+    current=simplified;
   }
+  best=finslerConsiderPresentation(best,finslerCancelDeepRational(best));
   if(typeof math.rationalize==="function"){
     try{
       var rational=math.rationalize(best).toString({parenthesis:"auto"});
-      best=finslerConsiderPresentation(best,rational,original);
-      best=finslerConsiderPresentation(best,finslerCancelCommonRationalFactors(rational),original);
+      best=finslerConsiderPresentation(best,rational);
+      best=finslerConsiderPresentation(best,finslerCancelDeepRational(rational));
     }catch(e2){}
   }
-  best=finslerConsiderPresentation(best,finslerCancelCommonRationalFactors(best),original);
   finslerFinalCache[original]=best;
   return best;
 }
@@ -242,9 +269,8 @@ function finslerFinalTree(value){
   return value;
 }
 
-/* v3 already funnels ordinary components through emit(), but wrapping the
- * worker's outgoing messages here is deliberate: it also catches nested
- * summaries and any future output path that bypasses emit(). */
+/* Catch both ordinary components and nested summary matrices at the final
+ * worker boundary. */
 var finslerNativePostMessage=self.postMessage.bind(self);
 self.postMessage=function(message,transfer){
   var outgoing=message;
