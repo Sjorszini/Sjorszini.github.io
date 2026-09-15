@@ -24,9 +24,6 @@ on:
       - '.github/workflows/finsler-worker-regression.yml'
   workflow_dispatch:
 
-permissions:
-  contents: write
-
 concurrency:
   group: finsler-worker-regression-${{ github.ref }}
   cancel-in-progress: true
@@ -37,29 +34,6 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v7
-        with:
-          ref: finsler-calculator-experiment
-          fetch-depth: 0
-      - name: Fix compact trig regex
-        if: github.event.head_commit.message == 'Fix compact trig regex via CI'
-        run: |
-          python - <<'PY'
-          from pathlib import Path
-          p = Path('finsler-ui-v6.js')
-          s = p.read_text()
-          start = s.index('function prettyResultTex(text)')
-          end = s.index('function tex(expr)', start)
-          block = s[start:end]
-          fixed = block.replace(r'\\\\left\\\\(', r'\\\\left\\(').replace(r'\\\\right\\\\)', r'\\\\right\\)')
-          if fixed == block:
-              raise SystemExit('No trig-regex escaping changes made')
-          p.write_text(s[:start] + fixed + s[end:])
-          PY
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add finsler-ui-v6.js
-          git commit -m 'Fix compact trigonometric notation'
-          git push origin HEAD:finsler-calculator-experiment
       - uses: actions/setup-node@v7
         with:
           node-version: '22'
