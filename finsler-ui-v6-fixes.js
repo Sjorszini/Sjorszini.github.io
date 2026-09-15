@@ -77,6 +77,16 @@
     }
   }
 
+  function derivativeOperatorTex(labels){
+    var parts=[];
+    for(var i=0;i<labels.length;){
+      var label=labels[i],count=1;
+      while(i+count<labels.length&&labels[i+count]===label)count++;
+      parts.push("\\partial_{"+coordinateTex(label)+"}"+(count>1?"^{"+count+"}":""));
+      i+=count;
+    }
+    return parts.join("\\,");
+  }
   function prettyDerivativeSymbols(text){
     var funcs=declaredFunctions();
     funcs.forEach(function(fn){
@@ -87,7 +97,7 @@
         if(!labels.length)return all;
         var allowed=coords();
         if(labels.some(function(label){return allowed.indexOf(label)===-1;}))return all;
-        return prefix+functionTex(fn.name)+"_{,"+labels.map(coordinateTex).join("")+"}";
+        return prefix+derivativeOperatorTex(labels)+"\\,"+functionTex(fn.name);
       });
     });
     return text;
