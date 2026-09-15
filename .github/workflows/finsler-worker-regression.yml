@@ -40,42 +40,25 @@ jobs:
         with:
           ref: finsler-calculator-experiment
           fetch-depth: 0
-      - name: Apply requested notation polish
-        if: github.event.head_commit.message == 'Apply prettier notation via CI'
+      - name: Fix compact trig regex
+        if: github.event.head_commit.message == 'Fix compact trig regex via CI'
         run: |
           python - <<'PY'
           from pathlib import Path
-
-          ui_path = Path('finsler-ui-v6.js')
-          ui = ui_path.read_text()
-          old = '''  function tex(expr){try{return math.parse(String(expr)).toTex({parenthesis:"auto"});}catch(e){return "\\\\text{"+esc(expr).replace(/[{}]/g,"")+"}";}}'''
-          new = r'''  function prettyResultTex(text){
-            var s=String(text);
-            s=s.replace(/\\mathrm\{rs\}/g,"r_{s}").replace(/\\operatorname\{rs\}/g,"r_{s}");
-            s=s.replace(/(^|[^A-Za-z])rs(?=$|[^A-Za-z])/g,function(all,prefix){return prefix+"r_{s}";});
-            var fn="\\\\(?:sin|cos|tan|sinh|cosh|tanh)";
-            var arg="(?:\\\\[A-Za-z]+|[A-Za-z](?:_\\{[A-Za-z0-9]+\\})?)";
-            s=s.replace(new RegExp("\\{("+fn+")\\\\left\\\\(\\s*("+arg+")\\s*\\\\right\\\\)\\}\\s*\\^\\s*\\{([^{}]+)\\}","g"),"$1^{$3} $2");
-            s=s.replace(new RegExp("("+fn+")\\s*\\^\\s*\\{([^{}]+)\\}\\s*\\\\left\\\\(\\s*("+arg+")\\s*\\\\right\\\\)","g"),"$1^{$2} $3");
-            s=s.replace(new RegExp("("+fn+")\\\\left\\\\(\\s*("+arg+")\\s*\\\\right\\\\)\\s*\\^\\s*\\{([^{}]+)\\}","g"),"$1^{$3} $2");
-            s=s.replace(new RegExp("("+fn+")\\\\left\\\\(\\s*("+arg+")\\s*\\\\right\\\\)","g"),"$1 $2");
-            return s;
-          }
-          function tex(expr){try{return prettyResultTex(math.parse(String(expr)).toTex({parenthesis:"auto"}));}catch(e){return "\\\\text{"+esc(expr).replace(/[{}]/g,"")+"}";}}'''
-          if ui.count(old) != 1:
-              raise SystemExit(f'Expected one tex() target, found {ui.count(old)}')
-          ui_path.write_text(ui.replace(old, new))
-
-          html_path = Path('Finsler.html')
-          html = html_path.read_text()
-          if html.count('finsler-ui-v6.js?v=3') != 1:
-              raise SystemExit('Expected one v3 UI cache key')
-          html_path.write_text(html.replace('finsler-ui-v6.js?v=3', 'finsler-ui-v6.js?v=4'))
+          p = Path('finsler-ui-v6.js')
+          s = p.read_text()
+          start = s.index('function prettyResultTex(text)')
+          end = s.index('function tex(expr)', start)
+          block = s[start:end]
+          fixed = block.replace(r'\\\\left\\\\(', r'\\\\left\\(').replace(r'\\\\right\\\\)', r'\\\\right\\)')
+          if fixed == block:
+              raise SystemExit('No trig-regex escaping changes made')
+          p.write_text(s[:start] + fixed + s[end:])
           PY
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add finsler-ui-v6.js Finsler.html
-          git commit -m 'Polish trigonometric result notation'
+          git add finsler-ui-v6.js
+          git commit -m 'Fix compact trigonometric notation'
           git push origin HEAD:finsler-calculator-experiment
       - uses: actions/setup-node@v7
         with:
