@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Schwarzschild curvature simplification regression</title>
+<style>
+body{font-family:system-ui,sans-serif;max-width:980px;margin:30px auto;padding:0 18px;color:#14283d}h1{font-family:Georgia,serif}.row{border:1px solid #d7e0e8;border-radius:10px;padding:13px 15px;margin:10px 0}.pass{color:#176b42}.fail{color:#a02d37}.pending{color:#6c7b8a}pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#f5f7f9;padding:10px;border-radius:7px}button{padding:9px 14px}
+</style>
+<script defer src="https://cdn.jsdelivr.net/npm/mathjs@11.11.2/lib/browser/math.js"></script>
+</head>
+<body>
+<h1>Schwarzschild curvature simplification regression</h1>
+<p>Runs the real calculator worker. The components below are the ones that previously reached the UI as nested, visibly cancellable fractions.</p>
+<button id="run">Run regression</button><div id="summary" class="row pending">Not run.</div><div id="results"></div>
+<script>
+(function(){
+"use strict";
+var expected={
+  "\\bar R^{2}{}_{112}":"rs*(x2-rs)/x2^4",
+  "\\bar R^{2}{}_{323}":"-rs/(2*x2)",
+  "\\bar R^{2}{}_{424}":"-rs*sin(x3)^2/(2*x2)",
+  "\\bar R^{3}{}_{113}":"-rs*(x2-rs)/(2*x2^4)",
+  "\\bar R^{3}{}_{223}":"rs/(2*x2^2*(x2-rs))",
+  "\\bar R^{3}{}_{434}":"rs*sin(x3)^2/x2",
+  "\\bar R^{4}{}_{114}":"-rs*(x2-rs)/(2*x2^4)",
+  "\\bar R^{4}{}_{224}":"rs/(2*x2^2*(x2-rs))",
+  "\\bar R^{4}{}_{334}":"-rs/x2"
+};
+var samples=[{x2:8,rs:2,x3:1.1},{x2:11,rs:3,x3:.7},{x2:5,rs:1,x3:1.3}];
+function score(s){return String(s).replace(/\s+/g,"").length;}
+function numericEqual(a,b){
+  for(var i=0;i<samples.length;i++){
+    var av=Number(math.evaluate(a,samples[i])),bv=Number(math.evaluate(b,samples[i]));
+    if(!Number.isFinite(av)||!Number.isFinite(bv)||Math.abs(av-bv)>1e-8*Math.max(1,Math.abs(bv)))return false;
+  }
+  return true;
+}
+function run(){
+  var button=document.getElementById("run"),summary=document.getElementById("summary"),host=document.getElementById("results");
+  button.disabled=true;host.innerHTML="";summary.className="row pending";summary.textContent="Running…";
+  var values={},ricci=[],sectionTimes={},wallStart=performance.now(),worker=new Worker("finsler-worker-v4.js?v=6");
+  var timeout=setTimeout(function(){worker.terminate();finish("timeout");},30000);
+  worker.onmessage=function(e){var m=e.data||{};
+    if(m.type==="component"&&m.section==="affineCurvature")values[m.label]=String(m.value);
+    if(m.type==="component"&&m.section==="affineRicci")ricci.push(String(m.value));
+    if(m.type==="sectionComplete")sectionTimes[m.section]=Number(m.elapsedMs||0);
+    if(m.type==="error"){clearTimeout(timeout);worker.terminate();finish(m.message||"worker error");}
+    if(m.type==="done"){clearTimeout(timeout);worker.terminate();finish(null,Number(m.totalMs||0));}
+  };
+  worker.onerror=function(e){clearTimeout(timeout);worker.terminate();finish(e.message||"worker exception");};
+  worker.postMessage({type:"calculate",n:4,inputType:"metric",metricEntries:[
+    ["-(1-rs/x2)","0","0","0"],
+    ["0","1/(1-rs/x2)","0","0"],
+    ["0","0","x2^2","0"],
+    ["0","0","0","x2^2*sin(x3)^2"]
+  ],alphaBeta:{enabled:false},outputs:{affine:true},symbolicFunctions:[]});
+  function finish(error,total){
+    button.disabled=false;if(error){summary.className="row fail";summary.textContent="FAIL: "+error;return;}
+    var failures=0;
+    Object.keys(expected).forEach(function(label){
+      var actual=values[label],want=expected[label],ok=!!actual&&numericEqual(actual,want);
+      var compact=!!actual&&score(actual)<=score(want)+12;
+      if(!ok||!compact)failures++;
+      var row=document.createElement("div");row.className="row "+(ok&&compact?"pass":"fail");
+      row.innerHTML="<strong>"+label.replace(/</g,"&lt;")+"</strong><pre>actual:   "+String(actual)+"\nexpected: "+want+"\nlength: "+(actual?score(actual):"missing")+"</pre>";
+      host.appendChild(row);
+    });
+    var zeroRicci=ricci.length===16&&ricci.every(function(v){return /^-?0(?:\.0+)?$/.test(v.replace(/\s+/g,""));});
+    if(!zeroRicci)failures++;
+    var rr=document.createElement("div");rr.className="row "+(zeroRicci?"pass":"fail");rr.innerHTML="<strong>Vacuum Ricci simplification</strong><pre>all 16 components exactly zero: "+zeroRicci+"</pre>";host.appendChild(rr);
+    var wall=performance.now()-wallStart;
+    summary.className="row "+(failures?"fail":"pass");
+    summary.textContent=(failures?failures+" failures":"PASS")+" · affine curvature "+(sectionTimes.affineCurvature||0).toFixed(1)+" ms · worker "+total.toFixed(1)+" ms · wall "+wall.toFixed(1)+" ms";
+    document.title=(failures?"FAIL":"PASS")+" · Schwarzschild curvature regression";
+  }
+}
+document.getElementById("run").addEventListener("click",run);window.addEventListener("load",function(){setTimeout(run,100);});
+})();
+</script>
+</body></html>
