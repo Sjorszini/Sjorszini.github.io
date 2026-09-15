@@ -19,6 +19,25 @@
   <script defer src="finsler-minusplus-v1.js?v=3"></script>
   <script defer src="finsler-ui-v6.js?v=2"></script>
   <script defer src="finsler-ui-v6-fixes.js?v=2"></script>
+  <script>
+    /* Start from a familiar, nontrivial reference geometry rather than an
+       implementation-oriented Finsler demo.  Clicking the rendered catalogue
+       card deliberately reuses the normal catalogue-loading path, including
+       notation inference and the page-wide (-+++) normalization hooks. */
+    document.addEventListener("DOMContentLoaded",function(){
+      setTimeout(function(){
+        var cards=document.querySelectorAll(".catalogue-card");
+        for(var i=0;i<cards.length;i++){
+          var title=cards[i].querySelector("h4");
+          if(title&&title.textContent.trim()==="Schwarzschild"){
+            var load=cards[i].querySelector(".catalogue-load");
+            if(load)load.click();
+            break;
+          }
+        }
+      },0);
+    });
+  </script>
 </head>
 <body>
 <div class="container finsler-page">
@@ -28,7 +47,7 @@
   </header>
 
   <div class="construction-warning" role="note">
-    <span class="warning-label">Experimental</span>
+    <span class="warning-label">Warning</span>
     <div><strong>Work under construction.</strong> This calculator is experimental. Results may be incomplete or incorrect and should not be trusted without independent verification.</div>
   </div>
 
