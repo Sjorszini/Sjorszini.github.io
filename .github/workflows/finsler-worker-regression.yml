@@ -6,10 +6,16 @@ on:
     paths:
       - 'finsler-worker-v3.js'
       - 'finsler-worker-v4-base.js'
+      - 'finsler-worker-v4-stable.js'
+      - 'finsler-worker-v4-canonical.js'
+      - 'finsler-worker-v4-fast.js'
+      - 'finsler-worker-v4-square.js'
+      - 'finsler-worker-v4-core.js'
       - 'finsler-worker-v4.js'
       - 'tests/finsler-worker-v3-baseline.cjs'
       - 'tests/finsler-worker-regression.cjs'
       - 'tests/finsler-christoffel-regression.cjs'
+      - 'tests/finsler-ricci-consistency.cjs'
       - '.github/workflows/finsler-worker-regression.yml'
   workflow_dispatch:
 
@@ -30,3 +36,5 @@ jobs:
         run: node tests/finsler-christoffel-regression.cjs
       - name: Verify rebuilt worker
         run: node tests/finsler-worker-regression.cjs
+      - name: Verify affine/Finsler Ricci consistency
+        run: node tests/finsler-ricci-consistency.cjs
