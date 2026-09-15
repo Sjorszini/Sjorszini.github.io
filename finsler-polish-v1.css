@@ -18,12 +18,22 @@
   font-variant-numeric:tabular-nums;
   letter-spacing:.03em;
 }
+.metric-label-row{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  flex-wrap:wrap;
+}
+.metric-label-row .field-label{
+  margin-bottom:0;
+}
 .signature-convention{
   display:inline-flex;
   align-items:center;
   gap:6px;
   margin-left:5px;
-  padding:2px 7px;
+  padding:3px 8px;
   border:1px solid #d5e2ed;
   border-radius:999px;
   color:#365875;
@@ -31,6 +41,14 @@
   font-size:.72rem;
   font-weight:750;
   white-space:nowrap;
+}
+.signature-convention:before{
+  content:"";
+  width:6px;
+  height:6px;
+  border-radius:50%;
+  background:#3f7a5c;
+  box-shadow:0 0 0 2px rgba(63,122,92,.12);
 }
 @media(max-width:700px){
   .finsler-workbench{padding-left:6px;padding-right:6px}
@@ -62,4 +80,6 @@
   .segmented-control span{padding:9px 10px}
   .matrix-editor-wrap{padding:7px}
   .reference-drawer{margin-left:7px;margin-right:7px}
+  .metric-label-row{align-items:flex-start}
+  .signature-convention{margin-left:0}
 }
