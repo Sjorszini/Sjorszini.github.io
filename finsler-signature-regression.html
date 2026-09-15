@@ -13,7 +13,7 @@
   </style>
   <script defer src="https://cdn.jsdelivr.net/npm/mathjs@11.11.2/lib/browser/math.js"></script>
   <script defer src="finsler-metric-catalogue.js?v=4"></script>
-  <script defer src="finsler-minusplus-v1.js?v=2"></script>
+  <script defer src="finsler-minusplus-v1.js?v=3"></script>
 </head>
 <body>
   <h1>Finsler signature regression</h1>
@@ -33,7 +33,7 @@
 
   function baseScope(){
     return {
-      t:1.2,x:1.1,y:.4,z:5,r:6,theta:1.0,phi:.3,rho:1.4,tau:.4,R:6,l:1.5,
+      t:1.2,x:1.1,y:.4,z:1.1,r:6,theta:1.0,phi:.3,rho:1.4,tau:.4,R:6,l:1.5,
       M:1,rs:2,k:.8,Lambda:.04,sigma:.7,v:.15,beta:.9,C:.12,alpha:.25,gamma:.8,
       p1:2/3,p2:2/3,p3:-1/3,aK:.35,b0:1.1,b:2,aC:.7,bC:1.3,H:.2,rhoQ:1,Q:.4,
       aG:2,Bmag:.08,lN:.3,aS:.2,
@@ -119,6 +119,9 @@
 
     var sourceIds=catalogue.filter(isLorentz).map(sourceIdentity),unique=new Set(sourceIds),uniqueOk=unique.size===sourceIds.length;
     tested++;if(!uniqueOk)failed++;addRow("Catalogue source IDs","unique",null,uniqueOk,uniqueOk?"all unique":"duplicate source ID");
+
+    var audit=window.FINSLER_SIGNATURE_AUDIT,auditOk=!!(audit&&audit.ok);
+    tested++;if(!auditOk)failed++;addRow("Runtime normalization audit","ok",null,auditOk,auditOk?(audit.lorentzianEntries+" normalized entries"):(audit?audit.problems.join("; "):"audit missing"));
 
     var summary=document.getElementById("summary");
     summary.innerHTML='<span class="pill '+(failed?"fail":"pass")+'">'+(failed?failed+" failed":"All passed")+'</span><span class="pill">'+tested+' checks</span><span class="pill">'+catalogue.filter(isLorentz).length+' Lorentzian entries</span><span class="pill">Convention: '+String(window.FINSLER_SIGNATURE_CONVENTION||"missing")+'</span>';
