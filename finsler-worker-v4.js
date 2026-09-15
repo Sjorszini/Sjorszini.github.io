@@ -115,9 +115,6 @@ function finslerPrefer(base,candidate,allowFactor){
   if(!candidate||!finslerEquivalentNumerically(base,candidate))return base;
   var a=finslerCompactLength(base),b=finslerCompactLength(candidate);
   if(b<a)return candidate;
-  /* Only trade a few characters for a visibly factored form once the
-   * expression is already small. Large expressions must improve monotonically
-   * so repeated passes cannot wander into longer factorizations. */
   if(allowFactor&&a<=48&&b<=a+14&&finslerFactoredAdditiveCount(candidate)>finslerFactoredAdditiveCount(base))return candidate;
   if(allowFactor&&a<=48&&b<=a+10&&finslerAddCount(candidate)<finslerAddCount(base))return candidate;
   return base;
@@ -194,12 +191,51 @@ function finslerFractionForm(text){
   return dtext?ntext+"/("+dtext+")":ntext;
 }
 
+/* Extract a top-level numerator/denominator from an already normalized term. */
+function finslerTopFractionParts(text){
+  var normalized=finslerFractionForm(text),node,sign=1;
+  try{node=math.parse(normalized);}catch(e){return null;}
+  while(node&&node.isParenthesisNode)node=node.content;
+  if(node&&node.isOperatorNode&&node.op==="-"&&node.args.length===1){sign=-1;node=node.args[0];while(node&&node.isParenthesisNode)node=node.content;}
+  if(node&&node.isOperatorNode&&node.op==="/"&&node.args.length===2){
+    var n=node.args[0].toString({parenthesis:"auto"});
+    if(sign<0)n="-("+n+")";
+    return {num:n,den:node.args[1].toString({parenthesis:"auto"}),text:normalized};
+  }
+  return {num:sign<0?"-("+node.toString({parenthesis:"auto"})+")":node.toString({parenthesis:"auto"}),den:"1",text:normalized};
+}
+/* Exact local fraction combination for equal/opposite denominators. It handles
+ * identities such as 1/(a-1)+1/(1-a)=0 without asking the general CAS to
+ * expand the surrounding tensor expression. */
+function finslerCombineAlignedFractionNode(node){
+  var n=node;while(n&&n.isParenthesisNode)n=n.content;
+  if(!n||!n.isOperatorNode||!(n.op==="+"||(n.op==="-"&&n.args.length===2))||n.args.length!==2)return null;
+  var left=finslerTopFractionParts(n.args[0].toString({parenthesis:"auto"}));
+  var right=finslerTopFractionParts(n.args[1].toString({parenthesis:"auto"}));
+  if(!left||!right||left.den==="1"||right.den==="1")return null;
+  var rel=finslerFactorRelation(left.den,right.den);if(!rel)return null;
+  var second=(n.op==="-"?-1:1)*rel;
+  var numerator;
+  try{numerator=math.simplify("("+left.num+")+"+second+"*("+right.num+")").toString({parenthesis:"auto"});}
+  catch(e){return null;}
+  if(numerator.replace(/\s+/g,"")==="0")return "0";
+  var candidate;
+  try{candidate=math.simplify("("+numerator+")/("+left.den+")").toString({parenthesis:"auto"});}
+  catch(e2){candidate="("+numerator+")/("+left.den+")";}
+  candidate=finslerFractionForm(candidate);
+  var original=n.toString({parenthesis:"auto"});
+  if(!finslerEquivalentNumerically(original,candidate))return null;
+  return finslerCompactLength(candidate)<finslerCompactLength(original)?candidate:null;
+}
+
 function finslerSimplifyNode(node,depth){
   if(!node)return node;
   var mapped=node;
   if(typeof node.map==="function"){
     try{mapped=node.map(function(child){return finslerSimplifyNode(child,depth+1);});}catch(e){}
   }
+  var aligned=finslerCombineAlignedFractionNode(mapped);
+  if(aligned!==null){try{mapped=math.parse(aligned);}catch(e0){}}
   var text;
   try{text=mapped.toString({parenthesis:"auto"});}catch(e2){return mapped;}
   var key=(depth<2?"R":"S")+"\u0000"+text;
@@ -215,10 +251,6 @@ function finslerSimplifyNode(node,depth){
   try{return math.parse(best);}catch(e4){return mapped;}
 }
 
-/* Simplify multiplicative factors independently before asking a CAS to touch
- * the whole product. This prevents harmless factors such as sin(theta)^2 from
- * provoking trigonometric expansion while the rational factor beside them can
- * collapse on its own. */
 function finslerLocalProductStep(current,reference){
   var node;try{node=math.parse(current);}catch(e){return current;}
   while(node&&node.isParenthesisNode)node=node.content;
@@ -229,7 +261,7 @@ function finslerLocalProductStep(current,reference){
     var candidate=finslerNerdamerCandidate(text,true);
     if(candidate)candidate=finslerFractionForm(candidate);
     var best=finslerPrefer(text,candidate,true);
-    if(best===text&&finslerCompactLength(text)>55&&finslerCompactLength(text)<=300){
+    if(best===text&&finslerCompactLength(text)>18&&finslerCompactLength(text)<=300){
       try{
         var rec=finslerSimplifyNode(node.args[i],0).toString({parenthesis:"auto"});
         rec=finslerFractionForm(rec);
@@ -258,16 +290,14 @@ PS=function(expr){return finslerBasePS(expr);};
 function finslerOneStrongStep(current,reference){
   var local=finslerLocalProductStep(current,reference);
   if(local!==current)return local;
-
   var candidate=finslerNerdamerCandidate(current,true);
   if(candidate)candidate=finslerFractionForm(candidate);
   var best=finslerPrefer(current,candidate,true);
   best=finslerFractionForm(best);
   if(!finslerEquivalentNumerically(reference,best))best=current;
   if(best!==current)return best;
-
   var len=finslerCompactLength(current);
-  if(len>60&&len<=380){
+  if(len>45&&len<=380){
     try{
       var node=math.parse(current);
       var recursive=finslerSimplifyNode(node,0).toString({parenthesis:"auto"});
@@ -282,7 +312,7 @@ function finslerStrongPS(expr){
   if(finslerPresentCache[original]!==undefined)return finslerPresentCache[original];
   var base=S(original),best=base;
   if(base==="0"||base==="1"||finslerCompactLength(base)<7){finslerPresentCache[original]=base;return base;}
-  for(var round=0;round<4;round++){
+  for(var round=0;round<5;round++){
     var next=finslerOneStrongStep(best,base);
     if(next===best)break;
     best=next;
@@ -347,7 +377,7 @@ function finslerDerivativeToken(info,argIndex){
   if(!finslerFunctionInfo[token])finslerFunctionInfo[token]={token:token,baseToken:info.baseToken,name:info.name,args:info.args.slice(),multi:multi,argLabels:info.argLabels.slice()};
   return token;
 }
-function finslerFindBase(name,args){return finslerBaseByKey[name+"\u0000"+args.join("\u0001")]||null;}
+function finslerFindBase(name,args){return finslerBaseByKey[name+"\u0000"+args.join("\u0001") ]||null;}
 function finslerTokenDerivative(info,variable){
   var terms=[];
   if(info.multi.length===0&&info.args.length===1&&(info.name==="J0"||info.name==="J1")){
