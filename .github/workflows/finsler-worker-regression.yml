@@ -5,9 +5,11 @@ on:
     branches: [finsler-calculator-experiment]
     paths:
       - 'finsler-worker-v3.js'
+      - 'finsler-worker-v4-base.js'
       - 'finsler-worker-v4.js'
       - 'tests/finsler-worker-v3-baseline.cjs'
       - 'tests/finsler-worker-regression.cjs'
+      - 'tests/finsler-christoffel-regression.cjs'
       - '.github/workflows/finsler-worker-regression.yml'
   workflow_dispatch:
 
@@ -26,3 +28,5 @@ jobs:
         run: node tests/finsler-worker-v3-baseline.cjs
       - name: Verify rebuilt worker
         run: node tests/finsler-worker-regression.cjs
+      - name: Verify canonical Schwarzschild Christoffels
+        run: node tests/finsler-christoffel-regression.cjs
