@@ -15,10 +15,10 @@
 </head>
 <body>
   <h1>Finsler solver regression</h1>
-  <p class="lede">Developer-only browser smoke tests for <code>finsler-worker-v4.js</code>. These tests exercise the real symbolic worker and compare selected curvature outputs with simple reference geometries.</p>
+  <p class="lede">Developer-only browser smoke tests for <code>finsler-worker-v4.js</code>. These tests exercise the real symbolic worker and compare selected curvature and presentation outputs with simple reference geometries.</p>
   <div class="toolbar"><button id="run">Run solver tests</button><span id="summary" class="pill">Not run</span></div>
   <div id="tests" class="tests"></div>
-  <div class="note">The suite intentionally uses small examples. It is meant to catch sign/factor regressions and broken worker paths quickly; it does not replace the larger catalogue validation or independent mathematical verification.</div>
+  <div class="note">The suite intentionally uses small examples. It is meant to catch sign/factor regressions, poor rational simplification, and broken worker paths quickly; it does not replace the larger catalogue validation or independent mathematical verification.</div>
 <script>
 (function(){
   "use strict";
@@ -32,6 +32,13 @@
     return true;
   }
   function matrixMaxAbs(matrix,scope){var m=0;matrix.forEach(function(row){row.forEach(function(x){m=Math.max(m,Math.abs(numeric(x,scope)));});});return m;}
+  function componentValue(result,section,label){
+    for(var i=0;i<result.messages.length;i++){
+      var m=result.messages[i];
+      if(m.type==="component"&&m.section===section&&m.label===label)return String(m.value);
+    }
+    return null;
+  }
 
   function workerRun(payload,timeoutMs){
     return new Promise(function(resolve,reject){
@@ -55,6 +62,18 @@
       check:function(r){var m=r.sections.affineRicci&&r.sections.affineRicci.matrix;if(!m)throw new Error("missing affine Ricci summary");var max=matrixMaxAbs(m,{});return {ok:max<1e-10,detail:"max |Ric_ij| = "+max.toExponential(3)};}
     },
     {
+      name:"Schwarzschild inverse is fully cancelled",
+      payload:{n:4,inputType:"metric",metricEntries:[["-(1-rs/x2)","0","0","0"],["0","1/(1-rs/x2)","0","0"],["0","0","x2^2","0"],["0","0","0","x2^2*sin(x3)^2"]],alphaBeta:{enabled:false},outputs:{inverse:true}},
+      check:function(r){
+        var g33=componentValue(r,"inverse","g^{33}"),g44=componentValue(r,"inverse","g^{44}");
+        if(!g33||!g44)throw new Error("missing Schwarzschild angular inverse components");
+        var eq33=math.symbolicEqual(g33,"1/x2^2"),eq44=math.symbolicEqual(g44,"1/(x2^2*sin(x3)^2)");
+        var noRs=g33.indexOf("rs")===-1&&g44.indexOf("rs")===-1;
+        var compact=g33.replace(/\s+/g,"").length<=8&&g44.replace(/\s+/g,"").length<=24;
+        return {ok:eq33&&eq44&&noRs&&compact,detail:"g^33 = "+g33+"\ng^44 = "+g44};
+      }
+    },
+    {
       name:"Round 2-sphere",
       payload:{n:2,inputType:"metric",metricEntries:[["1","0"],["0","sin(x1)^2"]],alphaBeta:{enabled:false},outputs:{affine:true}},
       check:function(r){var m=r.sections.affineRicci&&r.sections.affineRicci.matrix;if(!m)throw new Error("missing affine Ricci summary");var scope={x1:1.1,x2:.3},expected=[["1","0"],["0","sin(x1)^2"]],ok=matrixNear(m,expected,scope,1e-8);return {ok:ok,detail:"Ric = g at theta=1.1; matrix = "+JSON.stringify(m)};}
@@ -64,7 +83,7 @@
       payload:{n:2,inputType:"metric",metricEntries:[["-1","0"],["0","__uf0^2"]],alphaBeta:{enabled:false},outputs:{affine:true},symbolicFunctions:[{token:"__uf0",name:"a",args:["x1"],argLabels:["t"]}]},
       check:function(r){
         var m=r.sections.affineRicci&&r.sections.affineRicci.matrix;if(!m)throw new Error("missing affine Ricci summary");
-        var scope={__uf0:2,__uf0_d1:.3,__uf0_d1_1:-.2,x1:.5,x2:.2},expected=[["-__uf0_d1_1/__uf0","0"],["0","__uf0*__uf0_d1_1"]],ok=matrixNear(m,expected,scope,1e-8);
+        var scope={__uf0:2,__uf0_d1:.3,__uf0_d1_1:-.2,x1:.5,x2:.2},expected:[["-__uf0_d1_1/__uf0","0"],["0","__uf0*__uf0_d1_1"]],ok=matrixNear(m,expected,scope,1e-8);
         return {ok:ok,detail:"expected Ric_tt=-a''/a and Ric_xx=a a''; matrix = "+JSON.stringify(m)};
       }
     },
