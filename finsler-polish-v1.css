@@ -53,6 +53,45 @@
   background:#3f7a5c;
   box-shadow:0 0 0 2px rgba(63,122,92,.12);
 }
+
+/* The site already provides the page canvas. Keep the calculator as content,
+   not as a second rounded/shadowed application frame inside it. */
+.calculator-shell{
+  overflow:visible;
+  background:transparent;
+  border:0;
+  border-radius:0;
+  box-shadow:none;
+}
+.calculator-toolbar{
+  padding:0 0 18px;
+  color:var(--navy);
+  background:transparent;
+  border-bottom:1px solid var(--line);
+}
+.toolbar-eyebrow{color:var(--blue)}
+.toolbar-title h2{color:var(--navy)}
+.toolbar-title p{color:var(--muted)}
+.dimension-box{color:var(--navy)}
+.notation-card{
+  margin:0;
+  padding:20px 0;
+  background:transparent;
+  border:0;
+  border-bottom:1px solid var(--line);
+  border-radius:0;
+}
+.metric-catalogue-drawer{
+  margin:16px 0 0;
+  border-radius:11px;
+}
+.workspace-grid{
+  padding:18px 0 0;
+}
+.results-area{
+  padding:18px 0 0;
+}
+
 @media(min-width:701px){
   .matrix-editor{
     width:100%;
@@ -64,12 +103,14 @@
   }
 }
 @media(max-width:700px){
-  .finsler-workbench{padding-left:6px;padding-right:6px}
-  .calculator-shell{border-left:0;border-right:0;border-radius:12px}
-  .notation-card,.metric-catalogue-drawer{margin-left:7px;margin-right:7px}
-  .workspace-grid{padding:7px}
+  .finsler-workbench{padding-left:14px;padding-right:14px}
+  .calculator-shell{border:0;border-radius:0}
+  .calculator-toolbar{padding:0 0 14px}
+  .notation-card,.metric-catalogue-drawer{margin-left:0;margin-right:0}
+  .notation-card{padding:16px 0}
+  .workspace-grid{padding:14px 0 0}
   .workflow-card{padding:14px 11px}
-  .results-area{padding:0 7px 8px}
+  .results-area{padding:14px 0 0}
   .progress-card,.result-card{padding:13px 10px}
   .component-list{gap:6px;margin-top:9px}
   .component-row{gap:2px;padding:7px 9px}
@@ -86,13 +127,13 @@
 @media(max-width:420px){
   .finsler-page .construction-warning{margin-left:7px;margin-right:7px}
   .finsler-intro{padding-left:14px!important;padding-right:14px!important}
-  .calculator-toolbar{padding-left:12px;padding-right:12px}
-  .notation-card{padding:13px 11px}
+  .calculator-toolbar{padding-left:0;padding-right:0}
+  .notation-card{padding:15px 0}
   .metric-catalogue-drawer>summary{padding:12px}
   .catalogue-body{padding:10px}
   .segmented-control span{padding:9px 10px}
   .matrix-editor-wrap{padding:7px}
-  .reference-drawer{margin-left:7px;margin-right:7px}
+  .reference-drawer{margin-left:0;margin-right:0}
   .metric-label-row{align-items:flex-start}
   .signature-convention{margin-left:0}
 }
