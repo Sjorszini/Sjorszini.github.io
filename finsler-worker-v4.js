@@ -9,11 +9,7 @@ importScripts("finsler-worker-v3.js?v=1");
  *   (r*rs-r^2)/(r^3*rs-r^4)
  *
  * even though the common factors cancel to 1/r^2. Keep the computational
- * expressions untouched and strengthen only PS(), the final presentation
- * simplifier used by emitted components and summaries. The factoring below is
- * structural and conservative: it extracts factors common to every term of an
- * additive factor, including additive factors nested inside products/powers,
- * and then cancels exact numerator/denominator factors.
+ * expressions untouched and strengthen only the final presentation layer.
  */
 var finslerBasePS = PS;
 
@@ -205,6 +201,62 @@ PS=function(expr){
   return best;
 };
 
+/* One final simplification gateway for everything that is actually sent to
+ * the UI. JavaScript itself has no symbolic algebra simplifier; math.js does.
+ * Apply its simplify/rationalize routines here after all tensor computation is
+ * finished, then apply the conservative factor cancellation above. This makes
+ * the rule uniform for metric data, spray, all connections, nonlinear and
+ * affine curvature, Ricci quantities, and every nested summary tensor. */
+var finslerFinalCache=Object.create(null);
+function finslerFinalExpression(expr){
+  var original=raw(expr);
+  if(finslerFinalCache[original]!==undefined)return finslerFinalCache[original];
+  var best=PS(original),current=best;
+  for(var pass=0;pass<5;pass++){
+    try{
+      var simplified=math.simplify(current).toString({parenthesis:"auto"});
+      best=finslerConsiderPresentation(best,simplified,original);
+      if(simplified===current)break;
+      current=simplified;
+    }catch(e){break;}
+  }
+  if(typeof math.rationalize==="function"){
+    try{
+      var rational=math.rationalize(best).toString({parenthesis:"auto"});
+      best=finslerConsiderPresentation(best,rational,original);
+      best=finslerConsiderPresentation(best,finslerCancelCommonRationalFactors(rational),original);
+    }catch(e2){}
+  }
+  best=finslerConsiderPresentation(best,finslerCancelCommonRationalFactors(best),original);
+  finslerFinalCache[original]=best;
+  return best;
+}
+function finslerFinalTree(value){
+  if(typeof value==="string")return finslerFinalExpression(value);
+  if(Array.isArray(value))return value.map(finslerFinalTree);
+  if(value&&typeof value==="object"){
+    var out={};
+    Object.keys(value).forEach(function(key){out[key]=finslerFinalTree(value[key]);});
+    return out;
+  }
+  return value;
+}
+
+/* v3 already funnels ordinary components through emit(), but wrapping the
+ * worker's outgoing messages here is deliberate: it also catches nested
+ * summaries and any future output path that bypasses emit(). */
+var finslerNativePostMessage=self.postMessage.bind(self);
+self.postMessage=function(message,transfer){
+  var outgoing=message;
+  if(message&&message.type==="component"&&typeof message.value==="string"){
+    outgoing=Object.assign({},message,{value:finslerFinalExpression(message.value)});
+  }else if(message&&message.type==="sectionComplete"&&message.summary){
+    outgoing=Object.assign({},message,{summary:finslerFinalTree(message.summary)});
+  }
+  if(transfer!==undefined)return finslerNativePostMessage(outgoing,transfer);
+  return finslerNativePostMessage(outgoing);
+};
+
 var finslerBaseOnMessage = onmessage;
 var finslerFunctionInfo = Object.create(null);
 var finslerBaseByKey = Object.create(null);
@@ -335,5 +387,6 @@ onmessage=function(event){
   if(data.type!=="calculate") return;
   finslerResetFunctions(data.symbolicFunctions||[]);
   derivativeCache=Object.create(null);
+  finslerFinalCache=Object.create(null);
   finslerBaseOnMessage(event);
 };
