@@ -44,7 +44,7 @@ function finslerSymbols(text){
   return out.sort();
 }
 function finslerScope(names,k){
-  var scope=Object.create(null);
+  var scope={};
   names.forEach(function(name,index){
     var value=1.17+0.19*index+0.13*k;
     var m=/^x(\d+)$/.exec(name);
@@ -103,6 +103,21 @@ function finslerPrefer(base,candidate,allowTie){
   return base;
 }
 
+function finslerIntegerExponent(node){
+  if(node&&node.isConstantNode){var n=Number(node.value);return Number.isInteger(n)?n:null;}
+  if(node&&node.isOperatorNode&&node.op==="-"&&node.args.length===1&&node.args[0].isConstantNode){var m=-Number(node.args[0].value);return Number.isInteger(m)?m:null;}
+  return null;
+}
+function finslerFactorRelation(a,b){
+  try{
+    var same=math.simplify("("+a+")-("+b+")").toString({parenthesis:"auto"}).replace(/\s+/g,"");
+    if(same==="0")return 1;
+    var opposite=math.simplify("("+a+")+("+b+")").toString({parenthesis:"auto"}).replace(/\s+/g,"");
+    if(opposite==="0")return -1;
+  }catch(e){}
+  return 0;
+}
+
 function finslerFractionForm(text){
   var root;try{root=math.parse(String(text));}catch(e){return String(text);}
   var num=[],den=[],sign=1;
@@ -112,9 +127,9 @@ function finslerFractionForm(text){
     if(node.isOperatorNode&&node.op==="-"&&node.args.length===1){sign*=-1;put(node.args[0],toDen);return;}
     if(node.isOperatorNode&&node.op==="*"&&node.args.length>=2){node.args.forEach(function(a){put(a,toDen);});return;}
     if(node.isOperatorNode&&node.op==="/"&&node.args.length===2){put(node.args[0],toDen);put(node.args[1],!toDen);return;}
-    if(node.isOperatorNode&&node.op==="^"&&node.args.length===2&&node.args[1].isConstantNode){
-      var p=Number(node.args[1].value);
-      if(Number.isInteger(p)&&p<0){
+    if(node.isOperatorNode&&node.op==="^"&&node.args.length===2){
+      var p=finslerIntegerExponent(node.args[1]);
+      if(p!==null&&p<0){
         var q=-p,base=node.args[0].toString({parenthesis:"auto"});
         (toDen?num:den).push(q===1?base:"("+base+")^"+q);return;
       }
@@ -126,6 +141,13 @@ function finslerFractionForm(text){
   }
   put(root,false);
   if(!den.length)return String(text);
+  for(var ni=num.length-1;ni>=0;ni--){
+    for(var di=den.length-1;di>=0;di--){
+      var relation=finslerFactorRelation(num[ni],den[di]);
+      if(!relation)continue;
+      num.splice(ni,1);den.splice(di,1);if(relation<0)sign*=-1;break;
+    }
+  }
   function rank(atom){
     if(/^[A-Za-z_]\w*$/.test(atom))return 0;
     if(/^[A-Za-z_]\w*\s*\^/.test(atom))return 1;
@@ -185,10 +207,16 @@ S=function(expr){
 PS=function(expr){
   var original=raw(expr);
   if(finslerPresentCache[original]!==undefined)return finslerPresentCache[original];
-  var base=S(original),node,best=base;
-  try{node=math.parse(base);best=finslerSimplifyNode(node,0).toString({parenthesis:"auto"});}catch(e){}
-  var direct=finslerNerdamerCandidate(best,true);
-  best=finslerPrefer(best,direct,true);
+  var base=S(original);
+  if(base==="0"||base==="1"||finslerCompactLength(base)<7){finslerPresentCache[original]=base;return base;}
+  var direct=finslerNerdamerCandidate(base,true);
+  var best=finslerPrefer(base,direct,true);
+  best=finslerFractionForm(best);
+  if(best===base||finslerCompactLength(best)>=finslerCompactLength(base)-2){
+    if(/sin\(|cos\(|tan\(/.test(base)&&finslerCompactLength(base)<=280){
+      try{var node=math.parse(base);var recursive=finslerSimplifyNode(node,0).toString({parenthesis:"auto"});best=finslerPrefer(best,recursive,true);}catch(e){}
+    }
+  }
   best=finslerFractionForm(best);
   if(!finslerEquivalentNumerically(base,best))best=base;
   finslerPresentCache[original]=best;
@@ -216,10 +244,11 @@ function finslerFinalTree(value){
   if(value&&typeof value==="object"){var out={};Object.keys(value).forEach(function(key){out[key]=finslerFinalTree(value[key]);});return out;}
   return value;
 }
+function finslerStrongOutputSection(section){return section==="inverse"||section==="christoffel"||section==="affineCurvature"||section==="affineRicci";}
 self.postMessage=function(message,transfer){
-  var outgoing=message;
-  if(message&&message.type==="component"&&typeof message.value==="string")outgoing=Object.assign({},message,{value:PS(message.value)});
-  else if(message&&message.type==="sectionComplete"&&message.summary)outgoing=Object.assign({},message,{summary:finslerFinalTree(message.summary)});
+  var outgoing=message,strong=message&&finslerStrongOutputSection(message.section);
+  if(strong&&message.type==="component"&&typeof message.value==="string")outgoing=Object.assign({},message,{value:PS(message.value)});
+  else if(strong&&message.type==="sectionComplete"&&message.summary)outgoing=Object.assign({},message,{summary:finslerFinalTree(message.summary)});
   if(transfer!==undefined)return finslerNativePostMessage(outgoing,transfer);
   return finslerNativePostMessage(outgoing);
 };
