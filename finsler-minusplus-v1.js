@@ -49,6 +49,20 @@
     window.FINSLER_SIGNATURE_CONVENTION=SIGNATURE;
   }
 
+  function auditCatalogueNormalization(){
+    var items=window.FINSLER_METRIC_CATALOGUE||[],lorentz=items.filter(function(item){return item._minusPlusLorentz===true;}),problems=[];
+    lorentz.forEach(function(item){
+      if(item.signature!==SIGNATURE) problems.push((item._sourceId||item.id)+": signature metadata is "+String(item.signature));
+      if(!item._sourceId||!item._sourceGroup) problems.push((item.id||"unknown")+": missing source identity");
+      if(String(item.id).indexOf("minusplus-")!==0) problems.push((item._sourceId||item.id)+": legacy v6 guard not applied");
+    });
+    var sultana=lorentz.find(function(item){return item._sourceId==="sultana-dyer";});
+    if(!sultana) problems.push("sultana-dyer: entry missing");
+    else if(String(sultana.matrix[0][0]).charAt(0)!=="-") problems.push("sultana-dyer: global sign conversion missing");
+    window.FINSLER_SIGNATURE_AUDIT={convention:SIGNATURE,lorentzianEntries:lorentz.length,problems:problems.slice(),ok:problems.length===0};
+    if(problems.length&&window.console&&console.error) console.error("Finsler (-+++) normalization audit failed:",problems);
+  }
+
   function metricInputs(){return Array.prototype.slice.call(document.querySelectorAll(".metric-entry"));}
   function setMatrix(matrix){
     metricInputs().forEach(function(input){
@@ -112,6 +126,7 @@
   }
 
   normalizeCatalogueSource();
+  auditCatalogueNormalization();
 
   document.addEventListener("click",function(event){
     var loadExample=event.target.closest&&event.target.closest("#loadExample");
