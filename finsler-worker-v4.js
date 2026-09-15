@@ -2,10 +2,9 @@
 
 /*
  * Finsler worker v4 — verified geometry + conservative presentation CAS.
- *
- * Tensor assembly and differentiation stay on the independently checked v3
- * math.js engine. Stronger CAS work is presentation-only: bounded Nerdamer
- * rewrites are accepted only after independent numerical equivalence probes.
+ * Tensor assembly/differentiation stay on the checked v3 math.js engine.
+ * Strong CAS is presentation-only and every accepted rewrite is numerically
+ * verified at several generic points before it can be emitted.
  */
 importScripts("finsler-worker-v3.js?v=1");
 try{importScripts("https://cdn.jsdelivr.net/npm/nerdamer-prime@1.5.0/all.min.js");}catch(e){}
@@ -116,8 +115,11 @@ function finslerPrefer(base,candidate,allowFactor){
   if(!candidate||!finslerEquivalentNumerically(base,candidate))return base;
   var a=finslerCompactLength(base),b=finslerCompactLength(candidate);
   if(b<a)return candidate;
-  if(allowFactor&&b<=a+18&&finslerFactoredAdditiveCount(candidate)>finslerFactoredAdditiveCount(base))return candidate;
-  if(allowFactor&&b<=a+12&&finslerAddCount(candidate)<finslerAddCount(base))return candidate;
+  /* Only trade a few characters for a visibly factored form once the
+   * expression is already small. Large expressions must improve monotonically
+   * so repeated passes cannot wander into longer factorizations. */
+  if(allowFactor&&a<=48&&b<=a+14&&finslerFactoredAdditiveCount(candidate)>finslerFactoredAdditiveCount(base))return candidate;
+  if(allowFactor&&a<=48&&b<=a+10&&finslerAddCount(candidate)<finslerAddCount(base))return candidate;
   return base;
 }
 
@@ -213,6 +215,36 @@ function finslerSimplifyNode(node,depth){
   try{return math.parse(best);}catch(e4){return mapped;}
 }
 
+/* Simplify multiplicative factors independently before asking a CAS to touch
+ * the whole product. This prevents harmless factors such as sin(theta)^2 from
+ * provoking trigonometric expansion while the rational factor beside them can
+ * collapse on its own. */
+function finslerLocalProductStep(current,reference){
+  var node;try{node=math.parse(current);}catch(e){return current;}
+  while(node&&node.isParenthesisNode)node=node.content;
+  if(!node||!node.isOperatorNode||node.op!=="*"||node.args.length<2)return current;
+  var parts=[],changed=false;
+  for(var i=0;i<node.args.length;i++){
+    var text=node.args[i].toString({parenthesis:"auto"});
+    var candidate=finslerNerdamerCandidate(text,true);
+    if(candidate)candidate=finslerFractionForm(candidate);
+    var best=finslerPrefer(text,candidate,true);
+    if(best===text&&finslerCompactLength(text)>55&&finslerCompactLength(text)<=300){
+      try{
+        var rec=finslerSimplifyNode(node.args[i],0).toString({parenthesis:"auto"});
+        rec=finslerFractionForm(rec);
+        best=finslerPrefer(text,rec,true);
+      }catch(e2){}
+    }
+    if(best!==text)changed=true;
+    parts.push("("+best+")");
+  }
+  if(!changed)return current;
+  var rebuilt=finslerFractionForm(parts.join("*"));
+  if(!finslerEquivalentNumerically(reference,rebuilt))return current;
+  return finslerCompactLength(rebuilt)<finslerCompactLength(current)?rebuilt:current;
+}
+
 S=function(expr){
   var original=raw(expr);
   if(finslerComputeCache[original]!==undefined)return finslerComputeCache[original];
@@ -224,6 +256,9 @@ S=function(expr){
 PS=function(expr){return finslerBasePS(expr);};
 
 function finslerOneStrongStep(current,reference){
+  var local=finslerLocalProductStep(current,reference);
+  if(local!==current)return local;
+
   var candidate=finslerNerdamerCandidate(current,true);
   if(candidate)candidate=finslerFractionForm(candidate);
   var best=finslerPrefer(current,candidate,true);
@@ -231,9 +266,6 @@ function finslerOneStrongStep(current,reference){
   if(!finslerEquivalentNumerically(reference,best))best=current;
   if(best!==current)return best;
 
-  /* Large rational identities sometimes make Nerdamer time out as a whole.
-   * Simplify their bounded subtrees first, then let the next outer round finish
-   * the now-small expression. */
   var len=finslerCompactLength(current);
   if(len>60&&len<=380){
     try{
