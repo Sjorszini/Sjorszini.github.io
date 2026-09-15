@@ -1,13 +1,13 @@
 "use strict";
 
 /*
- * Finsler worker v4 — conservative symbolic layer.
+ * Finsler worker v4 — verified geometry + conservative presentation CAS.
  *
- * Geometry/tensor assembly comes directly from the independently checked v3
- * engine. Stronger simplification is delegated to Nerdamer Prime only for
- * bounded expressions, and a rewrite is accepted only after numerical
- * equivalence checks at several generic points. The accepted S(expr) value is
- * the value stored and reused by all subsequent tensor calculations.
+ * The tensor engine is the independently checked v3 implementation. Its
+ * computational simplifier stays on math.js so later derivatives/contractions
+ * cannot be corrupted by heuristic rewrites. A separate bounded Nerdamer
+ * pass is used only for emitted expressions; every CAS rewrite is numerically
+ * checked at several generic points before it is accepted.
  */
 importScripts("finsler-worker-v3.js?v=1");
 try{importScripts("https://cdn.jsdelivr.net/npm/nerdamer-prime@1.5.0/all.min.js");}catch(e){}
@@ -15,8 +15,10 @@ try{importScripts("https://cdn.jsdelivr.net/npm/nerdamer-prime@1.5.0/all.min.js"
 var finslerBaseS=S;
 var finslerBaseInverseMatrix=inverseMatrix;
 var finslerBaseOnMessage=onmessage;
-var finslerCasCache=Object.create(null);
+var finslerNativePostMessage=self.postMessage.bind(self);
+var finslerComputeCache=Object.create(null);
 var finslerPresentCache=Object.create(null);
+var finslerSubtreeCache=Object.create(null);
 var finslerFunctionInfo=Object.create(null);
 var finslerBaseByKey=Object.create(null);
 
@@ -77,50 +79,128 @@ function finslerEquivalentNumerically(a,b){
   return success>=3;
 }
 
-function finslerNerdamerCandidate(text){
+function finslerNerdamerCandidate(text,relaxed){
   if(typeof nerdamer!=="function")return null;
+  text=String(text);
   var length=finslerCompactLength(text),ops=finslerOpCount(text);
-  if(length>240||ops>26)return null;
+  var maxLength=relaxed?330:220,maxOps=relaxed?42:28;
+  if(length>maxLength||ops>maxOps)return null;
   try{
     var candidate=nerdamer("simplify("+text+")").toString();
     if(!candidate)return null;
-    if(finslerCompactLength(candidate)<=180&&finslerOpCount(candidate)<=18){
+    if(finslerCompactLength(candidate)<=190&&finslerOpCount(candidate)<=22){
       try{
         var factored=nerdamer("factor("+candidate+")").toString();
-        if(factored&&finslerCompactLength(factored)<=finslerCompactLength(candidate)+8)candidate=factored;
+        if(factored&&finslerCompactLength(factored)<=finslerCompactLength(candidate)+10)candidate=factored;
       }catch(e2){}
     }
     return candidate;
   }catch(e){return null;}
 }
-function finslerPrefer(base,candidate){
+function finslerPrefer(base,candidate,allowTie){
   if(!candidate||!finslerEquivalentNumerically(base,candidate))return base;
   var a=finslerCompactLength(base),b=finslerCompactLength(candidate);
   if(b<a)return candidate;
-  if(b<=a+12&&finslerAddCount(candidate)<finslerAddCount(base))return candidate;
-  if(b<=a+8&&candidate.indexOf("*(")!==-1&&base.indexOf("+")!==-1)return candidate;
+  if(allowTie&&b<=a+12&&finslerAddCount(candidate)<finslerAddCount(base))return candidate;
   return base;
 }
 
-/* Computational simplifier. Every later derivative/contraction receives this
- * accepted canonical expression, not a display-only copy. */
+/* Exact syntactic conversion of multiplicative negative powers into one
+ * numerator/denominator. It never expands sums, so a CAS factor such as
+ * (rs-x2) survives instead of becoming rs^2-x2*rs again. */
+function finslerFractionForm(text){
+  var root;try{root=math.parse(String(text));}catch(e){return String(text);}
+  var num=[],den=[],sign=1;
+  function put(node,toDen){
+    while(node&&node.isParenthesisNode)node=node.content;
+    if(!node)return;
+    if(node.isOperatorNode&&node.op==="-"&&node.args.length===1){sign*=-1;put(node.args[0],toDen);return;}
+    if(node.isOperatorNode&&node.op==="*"&&node.args.length>=2){node.args.forEach(function(a){put(a,toDen);});return;}
+    if(node.isOperatorNode&&node.op==="/"&&node.args.length===2){put(node.args[0],toDen);put(node.args[1],!toDen);return;}
+    if(node.isOperatorNode&&node.op==="^"&&node.args.length===2&&node.args[1].isConstantNode){
+      var p=Number(node.args[1].value);
+      if(Number.isInteger(p)&&p<0){
+        var q=-p,base=node.args[0].toString({parenthesis:"auto"});
+        (toDen?num:den).push(q===1?base:"("+base+")^"+q);return;
+      }
+    }
+    var atom=node.toString({parenthesis:"auto"});
+    if(atom==="1")return;
+    if(atom==="-1"){sign*=-1;return;}
+    (toDen?den:num).push(atom);
+  }
+  put(root,false);
+  if(!den.length)return String(text);
+  function rank(atom){
+    if(/^[A-Za-z_]\w*$/.test(atom))return 0;
+    if(/^[A-Za-z_]\w*\s*\^/.test(atom))return 1;
+    if(/^[A-Za-z_]\w*\s*\(/.test(atom))return 2;
+    if(/[+\-]/.test(atom.replace(/^[-+]/,"")))return 4;
+    return 3;
+  }
+  num.sort(function(a,b){return rank(a)-rank(b)||a.localeCompare(b);});
+  den.sort(function(a,b){
+    var an=/^[0-9.]+$/.test(a),bn=/^[0-9.]+$/.test(b);
+    if(an!==bn)return an?-1:1;
+    return rank(a)-rank(b)||a.localeCompare(b);
+  });
+  function factor(atom){
+    var node;try{node=math.parse(atom);}catch(e){return "("+atom+")";}
+    while(node&&node.isParenthesisNode)node=node.content;
+    if(node&&(node.isSymbolNode||node.isConstantNode||node.isFunctionNode))return atom;
+    if(node&&node.isOperatorNode&&node.op==="^"&&node.args.length===2)return atom;
+    return "("+atom+")";
+  }
+  var ntext=num.length?num.map(factor).join("*"):"1";
+  var dtext=den.map(factor).join("*");
+  if(sign<0)ntext="-"+ntext;
+  return dtext?ntext+"/("+dtext+")":ntext;
+}
+
+function finslerSimplifyNode(node,depth){
+  if(!node)return node;
+  var mapped=node;
+  if(typeof node.map==="function"){
+    try{mapped=node.map(function(child){return finslerSimplifyNode(child,depth+1);});}catch(e){}
+  }
+  var text;
+  try{text=mapped.toString({parenthesis:"auto"});}catch(e2){return mapped;}
+  var key=(depth<2?"R":"S")+"\u0000"+text;
+  if(finslerSubtreeCache[key]!==undefined){
+    try{return math.parse(finslerSubtreeCache[key]);}catch(e3){return mapped;}
+  }
+  var candidate=finslerNerdamerCandidate(text,depth<2);
+  var best=finslerPrefer(text,candidate,true);
+  if(candidate&&candidate!==best)best=text;
+  best=finslerFractionForm(best);
+  if(!finslerEquivalentNumerically(text,best))best=text;
+  finslerSubtreeCache[key]=best;
+  try{return math.parse(best);}catch(e4){return mapped;}
+}
+
+/* Keep computational state on the verified math.js simplifier. Strong CAS
+ * work happens only at the output boundary. */
 S=function(expr){
   var original=raw(expr);
-  if(finslerCasCache[original]!==undefined)return finslerCasCache[original];
-  var base=finslerBaseS(original),best=base;
-  if(base!=="0"&&base!=="1"&&finslerCompactLength(base)>6){
-    best=finslerPrefer(base,finslerNerdamerCandidate(base));
-  }
-  finslerCasCache[original]=best;
-  finslerCasCache[best]=best;
+  if(finslerComputeCache[original]!==undefined)return finslerComputeCache[original];
+  var best=finslerBaseS(original);
+  finslerComputeCache[original]=best;
+  finslerComputeCache[best]=best;
   return best;
 };
 
 PS=function(expr){
   var original=raw(expr);
   if(finslerPresentCache[original]!==undefined)return finslerPresentCache[original];
-  var best=S(original),candidate=finslerNerdamerCandidate(best);
-  best=finslerPrefer(best,candidate);
+  var base=S(original),node,best=base;
+  try{
+    node=math.parse(base);
+    best=finslerSimplifyNode(node,0).toString({parenthesis:"auto"});
+  }catch(e){}
+  var direct=finslerNerdamerCandidate(best,true);
+  best=finslerPrefer(best,direct,true);
+  best=finslerFractionForm(best);
+  if(!finslerEquivalentNumerically(base,best))best=base;
   finslerPresentCache[original]=best;
   finslerPresentCache[best]=best;
   return best;
@@ -141,6 +221,25 @@ inverseMatrix=function(matrix){
     inv[i][i]=S(div("1",d));factors.push(d);
   }
   return {matrix:inv,det:S(factors.reduce(function(a,b){return mul(a,b);},"1"))};
+};
+
+function finslerFinalTree(value){
+  if(typeof value==="string")return PS(value);
+  if(Array.isArray(value))return value.map(finslerFinalTree);
+  if(value&&typeof value==="object"){
+    var out={};Object.keys(value).forEach(function(key){out[key]=finslerFinalTree(value[key]);});return out;
+  }
+  return value;
+}
+self.postMessage=function(message,transfer){
+  var outgoing=message;
+  if(message&&message.type==="component"&&typeof message.value==="string"){
+    outgoing=Object.assign({},message,{value:PS(message.value)});
+  }else if(message&&message.type==="sectionComplete"&&message.summary){
+    outgoing=Object.assign({},message,{summary:finslerFinalTree(message.summary)});
+  }
+  if(transfer!==undefined)return finslerNativePostMessage(outgoing,transfer);
+  return finslerNativePostMessage(outgoing);
 };
 
 /* Custom coordinate-dependent function differentiation retained from the
@@ -204,7 +303,7 @@ D=function(expr,variable){
     try{partial=finslerDerivative(node,token,{simplify:false}).toString({parenthesis:"auto"});}
     catch(e2){partial=finslerDerivative(node,token).toString({parenthesis:"auto"});}
     if(isZero(partial))continue;
-    var dt=finslerTokenDerivative(finslerFunctionInfo[token],variable);if(isZero(dt))continue;
+    var dt=finslerDerivativeToken(finslerFunctionInfo[token],variable);if(isZero(dt))continue;
     pieces.push(mul(partial,dt));
   }
   var value=S(sum(pieces));derivativeCache[key]=value;return value;
@@ -214,7 +313,8 @@ onmessage=function(event){
   var data=event.data||{};if(data.type!=="calculate")return;
   finslerResetFunctions(data.symbolicFunctions||[]);
   derivativeCache=Object.create(null);
-  finslerCasCache=Object.create(null);
+  finslerComputeCache=Object.create(null);
   finslerPresentCache=Object.create(null);
+  finslerSubtreeCache=Object.create(null);
   finslerBaseOnMessage(event);
 };
