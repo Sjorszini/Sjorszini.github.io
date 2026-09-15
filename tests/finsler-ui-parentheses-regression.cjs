@@ -14,11 +14,12 @@ function fail(message) {
 if (!/toTex\(\{parenthesis:"auto"\}\)/.test(ui)) fail('UI tex() is not using automatic parenthesis serialization');
 if (/function tex\(expr\)[\s\S]{0,240}parenthesis:"keep"/.test(ui)) fail('UI tex() still preserves redundant source parentheses');
 
-const match = ui.match(/  function prettyResultTex\(text\)\{[\s\S]*?\n  \}\n  function tex\(expr\)/);
-if (!match) {
+const start = ui.indexOf('function prettyResultTex(text)');
+const end = ui.indexOf('function tex(expr)', start);
+if (start < 0 || end <= start) {
   fail('prettyResultTex() could not be extracted from the UI');
 } else {
-  const functionSource = match[0].replace(/\n  function tex\(expr\)[\s\S]*$/, '');
+  const functionSource = ui.slice(start, end);
   const context = {};
   vm.runInNewContext(functionSource + '\nthis.prettyResultTex=prettyResultTex;', context);
   const pretty = context.prettyResultTex;
