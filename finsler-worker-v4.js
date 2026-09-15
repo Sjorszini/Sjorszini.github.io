@@ -59,9 +59,7 @@ function finslerScope(names,k){
   });
   return scope;
 }
-function finslerMagnitude(value){
-  try{return Number(math.abs(value));}catch(e){return NaN;}
-}
+function finslerMagnitude(value){try{return Number(math.abs(value));}catch(e){return NaN;}}
 function finslerEquivalentNumerically(a,b){
   if(String(a)===String(b))return true;
   var names=finslerSymbols("("+a+")+("+b+")"),success=0;
@@ -105,9 +103,6 @@ function finslerPrefer(base,candidate,allowTie){
   return base;
 }
 
-/* Exact syntactic conversion of multiplicative negative powers into one
- * numerator/denominator. It never expands sums, so a CAS factor such as
- * (rs-x2) survives instead of becoming rs^2-x2*rs again. */
 function finslerFractionForm(text){
   var root;try{root=math.parse(String(text));}catch(e){return String(text);}
   var num=[],den=[],sign=1;
@@ -178,8 +173,6 @@ function finslerSimplifyNode(node,depth){
   try{return math.parse(best);}catch(e4){return mapped;}
 }
 
-/* Keep computational state on the verified math.js simplifier. Strong CAS
- * work happens only at the output boundary. */
 S=function(expr){
   var original=raw(expr);
   if(finslerComputeCache[original]!==undefined)return finslerComputeCache[original];
@@ -193,10 +186,7 @@ PS=function(expr){
   var original=raw(expr);
   if(finslerPresentCache[original]!==undefined)return finslerPresentCache[original];
   var base=S(original),node,best=base;
-  try{
-    node=math.parse(base);
-    best=finslerSimplifyNode(node,0).toString({parenthesis:"auto"});
-  }catch(e){}
+  try{node=math.parse(base);best=finslerSimplifyNode(node,0).toString({parenthesis:"auto"});}catch(e){}
   var direct=finslerNerdamerCandidate(best,true);
   best=finslerPrefer(best,direct,true);
   best=finslerFractionForm(best);
@@ -206,12 +196,9 @@ PS=function(expr){
   return best;
 };
 
-/* Safe fast path for diagonal metrics. */
 inverseMatrix=function(matrix){
   var n=matrix.length,diagonal=true,i,j;
-  for(i=0;i<n&&diagonal;i++)for(j=0;j<n;j++){
-    if(i!==j&&!isZero(matrix[i][j])){diagonal=false;break;}
-  }
+  for(i=0;i<n&&diagonal;i++)for(j=0;j<n;j++)if(i!==j&&!isZero(matrix[i][j])){diagonal=false;break;}
   if(!diagonal)return finslerBaseInverseMatrix(matrix);
   var inv=[],factors=[];
   for(i=0;i<n;i++){
@@ -226,24 +213,17 @@ inverseMatrix=function(matrix){
 function finslerFinalTree(value){
   if(typeof value==="string")return PS(value);
   if(Array.isArray(value))return value.map(finslerFinalTree);
-  if(value&&typeof value==="object"){
-    var out={};Object.keys(value).forEach(function(key){out[key]=finslerFinalTree(value[key]);});return out;
-  }
+  if(value&&typeof value==="object"){var out={};Object.keys(value).forEach(function(key){out[key]=finslerFinalTree(value[key]);});return out;}
   return value;
 }
 self.postMessage=function(message,transfer){
   var outgoing=message;
-  if(message&&message.type==="component"&&typeof message.value==="string"){
-    outgoing=Object.assign({},message,{value:PS(message.value)});
-  }else if(message&&message.type==="sectionComplete"&&message.summary){
-    outgoing=Object.assign({},message,{summary:finslerFinalTree(message.summary)});
-  }
+  if(message&&message.type==="component"&&typeof message.value==="string")outgoing=Object.assign({},message,{value:PS(message.value)});
+  else if(message&&message.type==="sectionComplete"&&message.summary)outgoing=Object.assign({},message,{summary:finslerFinalTree(message.summary)});
   if(transfer!==undefined)return finslerNativePostMessage(outgoing,transfer);
   return finslerNativePostMessage(outgoing);
 };
 
-/* Custom coordinate-dependent function differentiation retained from the
- * experiment branch. */
 function finslerSymbolNode(variable){
   var symbol=math.parse(String(variable));
   if(!symbol||!symbol.isSymbolNode)throw new Error("Invalid differentiation variable: "+variable);
@@ -261,9 +241,7 @@ function finslerResetFunctions(defs){
 }
 function finslerCollectFunctionSymbols(node){
   var found=Object.create(null),out=[];
-  node.traverse(function(child){
-    if(child&&child.isSymbolNode&&finslerFunctionInfo[child.name]&&!found[child.name]){found[child.name]=true;out.push(child.name);}
-  });
+  node.traverse(function(child){if(child&&child.isSymbolNode&&finslerFunctionInfo[child.name]&&!found[child.name]){found[child.name]=true;out.push(child.name);}});
   return out;
 }
 function finslerDerivativeToken(info,argIndex){
@@ -278,10 +256,7 @@ function finslerTokenDerivative(info,variable){
   if(info.multi.length===0&&info.args.length===1&&(info.name==="J0"||info.name==="J1")){
     var darg=finslerNativeD(info.args[0],variable);if(isZero(darg))return "0";
     var mate=finslerFindBase(info.name==="J0"?"J1":"J0",info.args);
-    if(mate){
-      if(info.name==="J0")return S(mul(neg(mate.token),darg));
-      return S(mul(sub(mate.token,div(info.token,info.args[0])),darg));
-    }
+    if(mate){if(info.name==="J0")return S(mul(neg(mate.token),darg));return S(mul(sub(mate.token,div(info.token,info.args[0])),darg));}
   }
   for(var j=0;j<info.args.length;j++){
     var da=finslerNativeD(info.args[j],variable);if(isZero(da))continue;
@@ -303,7 +278,7 @@ D=function(expr,variable){
     try{partial=finslerDerivative(node,token,{simplify:false}).toString({parenthesis:"auto"});}
     catch(e2){partial=finslerDerivative(node,token).toString({parenthesis:"auto"});}
     if(isZero(partial))continue;
-    var dt=finslerDerivativeToken(finslerFunctionInfo[token],variable);if(isZero(dt))continue;
+    var dt=finslerTokenDerivative(finslerFunctionInfo[token],variable);if(isZero(dt))continue;
     pieces.push(mul(partial,dt));
   }
   var value=S(sum(pieces));derivativeCache[key]=value;return value;
