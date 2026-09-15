@@ -78,10 +78,10 @@
   s=s.replace(/(^|[^A-Za-z])rs(?=$|[^A-Za-z])/g,function(all,prefix){return prefix+"r_{s}";});
   var fn="\\\\(?:sin|cos|tan|sinh|cosh|tanh)";
   var arg="(?:\\\\[A-Za-z]+|[A-Za-z](?:_\\{[A-Za-z0-9]+\\})?)";
-  s=s.replace(new RegExp("\\{("+fn+")\\\\left\\\\(\\s*("+arg+")\\s*\\\\right\\\\)\\}\\s*\\^\\s*\\{([^{}]+)\\}","g"),"$1^{$3} $2");
-  s=s.replace(new RegExp("("+fn+")\\s*\\^\\s*\\{([^{}]+)\\}\\s*\\\\left\\\\(\\s*("+arg+")\\s*\\\\right\\\\)","g"),"$1^{$2} $3");
-  s=s.replace(new RegExp("("+fn+")\\\\left\\\\(\\s*("+arg+")\\s*\\\\right\\\\)\\s*\\^\\s*\\{([^{}]+)\\}","g"),"$1^{$3} $2");
-  s=s.replace(new RegExp("("+fn+")\\\\left\\\\(\\s*("+arg+")\\s*\\\\right\\\\)","g"),"$1 $2");
+  s=s.replace(new RegExp("\\{("+fn+")\\\\left\\(\\s*("+arg+")\\s*\\\\right\\)\\}\\s*\\^\\s*\\{([^{}]+)\\}","g"),"$1^{$3} $2");
+  s=s.replace(new RegExp("("+fn+")\\s*\\^\\s*\\{([^{}]+)\\}\\s*\\\\left\\(\\s*("+arg+")\\s*\\\\right\\)","g"),"$1^{$2} $3");
+  s=s.replace(new RegExp("("+fn+")\\\\left\\(\\s*("+arg+")\\s*\\\\right\\)\\s*\\^\\s*\\{([^{}]+)\\}","g"),"$1^{$3} $2");
+  s=s.replace(new RegExp("("+fn+")\\\\left\\(\\s*("+arg+")\\s*\\\\right\\)","g"),"$1 $2");
   return s;
 }
 function tex(expr){try{return prettyResultTex(math.parse(String(expr)).toTex({parenthesis:"auto"}));}catch(e){return "\\\\text{"+esc(expr).replace(/[{}]/g,"")+"}";}}
