@@ -20,26 +20,76 @@
   <script defer src="finsler-ui-v6.js?v=2"></script>
   <script defer src="finsler-ui-v6-fixes.js?v=2"></script>
   <script>
-    /* The legacy calculator initializes its hidden quick-example preset during
-       startup. Wait until the whole page (including deferred calculator code)
-       has finished loading, then use the normal rendered catalogue Load action
-       exactly once. This avoids racing the calculator's own initialization. */
-    window.addEventListener("load",function(){
-      var attempts=0;
-      function loadSchwarzschild(){
+    /* Mobile browsers can restore form controls after load/pageshow. Keep the
+       initial calculator state deterministic for a short startup window by
+       re-applying the normal Schwarzschild catalogue action if the visible
+       coordinates or metric have been restored to another preset. Stop as soon
+       as the user makes a real interaction so startup never fights editing. */
+    (function(){
+      var userInteracted=false;
+      var stopAt=0;
+      var timer=null;
+
+      function markInteraction(event){
+        if(event&&event.isTrusted)userInteracted=true;
+      }
+      ["pointerdown","touchstart","keydown","input","change"].forEach(function(type){
+        document.addEventListener(type,markInteraction,true);
+      });
+
+      function schwarzschildButton(){
         var cards=document.querySelectorAll(".catalogue-card");
         for(var i=0;i<cards.length;i++){
           var title=cards[i].querySelector("h4");
-          if(title&&title.textContent.trim()==="Schwarzschild"){
-            var load=cards[i].querySelector(".catalogue-load");
-            if(load){load.click();window.FINSLER_DEFAULT_EXAMPLE="Schwarzschild";}
-            return;
-          }
+          if(title&&title.textContent.trim()==="Schwarzschild")return cards[i].querySelector(".catalogue-load");
         }
-        if(++attempts<20)setTimeout(loadSchwarzschild,50);
+        return null;
       }
-      loadSchwarzschild();
-    });
+
+      function currentCoordinates(){
+        return Array.prototype.map.call(document.querySelectorAll(".coordinate-input"),function(input){return input.value.trim();});
+      }
+
+      function normalizedValue(input){
+        return input?String(input.value||"").replace(/\s+/g,""):"";
+      }
+
+      function isSchwarzschildVisible(){
+        var c=currentCoordinates();
+        if(c.length!==4||c[0]!=="t"||c[1]!=="r"||c[2]!=="theta"||c[3]!=="phi")return false;
+        var g00=document.querySelector('.metric-entry[data-i="0"][data-j="0"]');
+        var g11=document.querySelector('.metric-entry[data-i="1"][data-j="1"]');
+        var a=normalizedValue(g00),b=normalizedValue(g11);
+        return a.indexOf("rs")!==-1&&a.indexOf("r")!==-1&&b.indexOf("rs")!==-1&&b.indexOf("r")!==-1;
+      }
+
+      function enforceSchwarzschild(){
+        if(userInteracted)return;
+        if(!isSchwarzschildVisible()){
+          var button=schwarzschildButton();
+          if(button)button.click();
+        }
+        if(isSchwarzschildVisible())window.FINSLER_DEFAULT_EXAMPLE="Schwarzschild";
+        if(performance.now()<stopAt&&!userInteracted){
+          clearTimeout(timer);
+          timer=setTimeout(enforceSchwarzschild,120);
+        }
+      }
+
+      function beginStartupDefault(){
+        if(userInteracted)return;
+        stopAt=performance.now()+2200;
+        enforceSchwarzschild();
+      }
+
+      window.addEventListener("load",beginStartupDefault);
+      window.addEventListener("pageshow",function(){
+        if(!userInteracted){
+          clearTimeout(timer);
+          setTimeout(beginStartupDefault,40);
+        }
+      });
+    })();
   </script>
 </head>
 <body>
