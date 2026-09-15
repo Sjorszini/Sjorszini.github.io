@@ -8,6 +8,7 @@
   <link rel="stylesheet" type="text/css" href="style.css">
   <link rel="stylesheet" type="text/css" href="menu-clean.css?v=4">
   <link rel="stylesheet" type="text/css" href="finsler-workbench-v3.css?v=1">
+  <link rel="stylesheet" type="text/css" href="finsler-polish-v1.css?v=1">
   <link rel="icon" href="icon.ico" type="image/vnd.microsoft.icon">
   <script defer src="https://cdn.jsdelivr.net/npm/mathjs@11.11.2/lib/browser/math.js"></script>
   <script>
@@ -15,8 +16,9 @@
   </script>
   <script defer src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
   <script defer src="finsler-metric-catalogue.js?v=3"></script>
-  <script defer src="finsler-ui-v6.js?v=1"></script>
-  <script defer src="finsler-ui-v6-fixes.js?v=1"></script>
+  <script defer src="finsler-minusplus-v1.js?v=1"></script>
+  <script defer src="finsler-ui-v6.js?v=2"></script>
+  <script defer src="finsler-ui-v6-fixes.js?v=2"></script>
 </head>
 <body>
 <div class="container finsler-page">
@@ -34,7 +36,7 @@
     <p class="eyebrow">Geometry tool</p>
     <h1>Finsler geometry calculator</h1>
     <p>Calculate connection and curvature quantities from a 2-homogeneous Finsler Lagrangian, a pseudo-Riemannian metric, or an α–β metric built from a metric and 1-form.</p>
-    <p class="finsler-reference">Conventions follow <a href="PhDDissertation.pdf" target="_blank" rel="noopener noreferrer"><em>Finsler Geometry, Spacetime &amp; Gravity</em></a>. Lorentzian examples use the <strong>(+---)</strong> signature convention.</p>
+    <p class="finsler-reference">Conventions follow <a href="PhDDissertation.pdf" target="_blank" rel="noopener noreferrer"><em>Finsler Geometry, Spacetime &amp; Gravity</em></a>. Lorentzian examples use the <strong>(-+++)</strong> signature convention.</p>
   </article>
 
   <main class="finsler-workbench">
@@ -90,7 +92,7 @@
           <span class="catalogue-summary-action">Browse</span>
         </summary>
         <div class="catalogue-body">
-          <p class="catalogue-intro">Search reference geometries, useful pre-solution ansätze, and the principal metric families in Müller &amp; Grave, <em>Catalogue of Spacetimes</em> (arXiv:0904.4184). Lorentzian entries are loaded in (+---), with reference-sign statements adjusted accordingly.</p>
+          <p class="catalogue-intro">Search reference geometries, useful pre-solution ansätze, and the principal metric families in Müller &amp; Grave, <em>Catalogue of Spacetimes</em> (arXiv:0904.4184). All Lorentzian entries are loaded in the (-+++) convention.</p>
           <div class="catalogue-controls">
             <input id="catalogueSearch" type="search" placeholder="Search Schwarzschild, FLRW, wave, sphere…">
             <select id="catalogueGroup"><option value="">All groups</option></select>
@@ -131,7 +133,7 @@
                 <label><input type="radio" name="geometryMode" value="riemannian" checked><span>Pseudo-Riemannian</span></label>
                 <label><input type="radio" name="geometryMode" value="alphabeta"><span>Build α–β metric</span></label>
               </div>
-              <p id="plainMetricHint" class="plain-metric-hint">The matrix is used directly. Manual Lorentzian inputs are interpreted exactly as entered; catalogue examples use (+---).</p>
+              <p id="plainMetricHint" class="plain-metric-hint">The matrix is used directly. Manual Lorentzian inputs are interpreted exactly as entered; catalogue examples use (-+++).</p>
               <div id="alphaBetaPanel" class="alpha-beta-panel" hidden>
                 <div class="alpha-beta-top">
                   <div class="alpha-type-control">
@@ -219,12 +221,12 @@
           <div>\[G^j=\frac12 g^{jk}\left(y^m\partial_m\bar\partial_k L-\partial_kL\right)\]</div>
           <div>\[N^j{}_i=\frac12\bar\partial_iG^j,\qquad \delta_i=\partial_i-N^a{}_i\bar\partial_a\]</div>
           <div>\[{}^B\Gamma^k{}_{ij}=\frac12\bar\partial_i\bar\partial_jG^k\]</div>
-          <div>\[{}^C\Gamma^k{}_{ij}=\frac12g^{k\ell}(\delta_i g_{\ell j}+\delta_j g_{i\ell}-\delta_\ell g_{ij})\]</div>
+          <div>\[{}^C\Gamma^k{}_{ij}=\frac12g^{k\ell}(\delta_i g_{\ell j}+\delta_jg_{i\ell}-\delta_\ell g_{ij})\]</div>
           <div>\[R^k{}_{ij}=\delta_iN^k{}_j-\delta_jN^k{}_i\]</div>
           <div>\[R^k{}_i=R^k{}_{ij}y^j,\qquad \mathrm{Ric}=R^i{}_{ij}y^j\]</div>
           <div>\[R_{ij}=\frac12\bar\partial_i\bar\partial_j\mathrm{Ric}\]</div>
         </div>
-        <p class="convention-note">Lorentzian presets and catalogue entries are presented in (+---). A manual metric is used with the signature you enter.</p>
+        <p class="convention-note">Lorentzian presets and catalogue entries are presented in (-+++). A manual metric is used with the signature you enter.</p>
       </details>
     </section>
   </main>
