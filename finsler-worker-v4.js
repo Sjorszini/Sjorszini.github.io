@@ -21,8 +21,22 @@ function finslerSimplifyText(text){
 
 function finslerAddFactor(store,node,power){
   if(power<=0)return;
+  while(node&&node.isParenthesisNode)node=node.content;
   var text=finslerCanonicalNodeText(node);
   if(text==="1")return;
+
+  /* Canonicalize additive factors up to an overall minus sign. This makes
+     (rs-r) and (r-rs) the same cancellable factor while retaining the sign. */
+  if(node&&node.isOperatorNode&&(node.op==="+"||(node.op==="-"&&node.args.length===2))){
+    var neg=finslerSimplifyText("-("+text+")");
+    var plain=text.replace(/\s+/g,"");
+    var negative=neg.replace(/\s+/g,"");
+    if(negative<plain){
+      text=neg;
+      if(power%2===1)store.sign*=-1;
+    }
+  }
+
   if(!store.map[text]){
     store.map[text]={text:text,power:0};
     store.order.push(text);
