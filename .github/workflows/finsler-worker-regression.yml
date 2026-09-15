@@ -1,0 +1,26 @@
+name: Finsler worker regression
+
+on:
+  push:
+    branches: [finsler-calculator-experiment]
+    paths:
+      - 'finsler-worker-v3.js'
+      - 'finsler-worker-v4-base.js'
+      - 'finsler-worker-v4.js'
+      - 'tests/finsler-worker-regression.cjs'
+      - '.github/workflows/finsler-worker-regression.yml'
+  workflow_dispatch:
+
+jobs:
+  schwarzschild-regression:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install exact symbolic engine version
+        run: npm install --no-save --ignore-scripts mathjs@11.11.2
+      - name: Run real worker regression
+        run: node tests/finsler-worker-regression.cjs
