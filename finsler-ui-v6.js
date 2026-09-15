@@ -72,7 +72,19 @@
 
   function payload(){var n=dimension(),mode=currentInputMode(),outputs=collectOutputs();if(!Object.keys(outputs).some(function(k){return outputs[k];}))throw new Error("Select at least one quantity to calculate.");inferNotation(collectRawExpressions());var ctx=makeTranslationContext(),out={n:n,inputType:mode,outputs:dependencyOutputs(outputs)},rawDisplay=outputs;if(mode==="lagrangian"){var L=el("lagrangian").value.trim();if(!L)throw new Error("Enter a Finsler Lagrangian.");out.L=translateExpression(L,ctx,true);}else{out.metricEntries=collectGridValues().map(function(r){return r.map(function(v){return translateExpression(v,ctx,false);});});var ab=currentGeometryMode()==="alphabeta";out.alphaBeta={enabled:ab};if(ab){out.alphaBeta.type=el("alphaBetaType").value;out.alphaBeta.b=collectOneForm().map(function(v){return translateExpression(v,ctx,false);});out.alphaBeta.m=el("mParameter").value.trim();}}out.symbolicFunctions=ctx.functions;return {workerPayload:out,displayOutputs:rawDisplay,context:ctx};}
 
-  function tex(expr){try{return math.parse(String(expr)).toTex({parenthesis:"auto"});}catch(e){return "\\text{"+esc(expr).replace(/[{}]/g,"")+"}";}}
+  function prettyResultTex(text){
+  var s=String(text);
+  s=s.replace(/\\mathrm\{rs\}/g,"r_{s}").replace(/\\operatorname\{rs\}/g,"r_{s}");
+  s=s.replace(/(^|[^A-Za-z])rs(?=$|[^A-Za-z])/g,function(all,prefix){return prefix+"r_{s}";});
+  var fn="\\\\(?:sin|cos|tan|sinh|cosh|tanh)";
+  var arg="(?:\\\\[A-Za-z]+|[A-Za-z](?:_\\{[A-Za-z0-9]+\\})?)";
+  s=s.replace(new RegExp("\\{("+fn+")\\\\left\\\\(\\s*("+arg+")\\s*\\\\right\\\\)\\}\\s*\\^\\s*\\{([^{}]+)\\}","g"),"$1^{$3} $2");
+  s=s.replace(new RegExp("("+fn+")\\s*\\^\\s*\\{([^{}]+)\\}\\s*\\\\left\\\\(\\s*("+arg+")\\s*\\\\right\\\\)","g"),"$1^{$2} $3");
+  s=s.replace(new RegExp("("+fn+")\\\\left\\\\(\\s*("+arg+")\\s*\\\\right\\\\)\\s*\\^\\s*\\{([^{}]+)\\}","g"),"$1^{$3} $2");
+  s=s.replace(new RegExp("("+fn+")\\\\left\\\\(\\s*("+arg+")\\s*\\\\right\\\\)","g"),"$1 $2");
+  return s;
+}
+function tex(expr){try{return prettyResultTex(math.parse(String(expr)).toTex({parenthesis:"auto"}));}catch(e){return "\\\\text{"+esc(expr).replace(/[{}]/g,"")+"}";}}
   function displayLabel(label,coords){function c(i){return coordTex(coords[Number(i)-1]||("x"+i));}var s=String(label);s=s.replace(/g_\{(\d)(\d)\}/g,function(_,a,b){return "g_{"+c(a)+c(b)+"}";});s=s.replace(/g\^\{(\d)(\d)\}/g,function(_,a,b){return "g^{"+c(a)+c(b)+"}";});s=s.replace(/C_\{(\d)(\d)(\d)\}/g,function(_,a,b,d){return "C_{"+c(a)+c(b)+c(d)+"}";});s=s.replace(/G\^\{(\d)\}/g,function(_,a){return "G^{"+c(a)+"}";});s=s.replace(/N\^\{(\d)\}\{\}_\{(\d)\}/g,function(_,a,b){return "N^{"+c(a)+"}{}_{"+c(b)+"}";});s=s.replace(/\\Gamma\^\{(\d)\}\{\}_\{(\d)(\d)\}/g,function(_,a,b,d){return "\\Gamma^{"+c(a)+"}{}_{"+c(b)+c(d)+"}";});s=s.replace(/\^B\\Gamma\^\{(\d)\}\{\}_\{(\d)(\d)\}/g,function(_,a,b,d){return "{}^B\\Gamma^{"+c(a)+"}{}_{"+c(b)+c(d)+"}";});s=s.replace(/\^C\\Gamma\^\{(\d)\}\{\}_\{(\d)(\d)\}/g,function(_,a,b,d){return "{}^C\\Gamma^{"+c(a)+"}{}_{"+c(b)+c(d)+"}";});s=s.replace(/\\bar R\^\{(\d)\}\{\}_\{(\d)(\d)(\d)\}/g,function(_,a,b,d,e){return "\\bar R^{"+c(a)+"}{}_{"+c(b)+c(d)+c(e)+"}";});s=s.replace(/R\^\{(\d)\}\{\}_\{(\d)(\d)\}/g,function(_,a,b,d){return "R^{"+c(a)+"}{}_{"+c(b)+c(d)+"}";});s=s.replace(/R\^\{(\d)\}\{\}_\{(\d)\}/g,function(_,a,b){return "R^{"+c(a)+"}{}_{"+c(b)+"}";});s=s.replace(/R_\{(\d)(\d)\}/g,function(_,a,b){return "R_{"+c(a)+c(b)+"}";});s=s.replace(/\\bar R_\{(\d)(\d)\}/g,function(_,a,b){return "\\bar R_{"+c(a)+c(b)+"}";});return s;}
   function isZeroValue(v){var s=String(v).replace(/\s+/g,"");if(/^-?0(?:\.0+)?$/.test(s))return true;try{var z=math.simplify(v).toString().replace(/\s+/g,"");return /^-?0(?:\.0+)?$/.test(z);}catch(e){return false;}}
   function matrixAllZero(m){for(var i=0;i<m.length;i++)for(var j=0;j<m[i].length;j++)if(!isZeroValue(m[i][j]))return false;return true;}
