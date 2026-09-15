@@ -1,0 +1,116 @@
+name: Apply prettier mathematical notation
+
+on:
+  push:
+    branches: [finsler-calculator-experiment]
+    paths:
+      - '.github/workflows/pretty-math-patch.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: finsler-calculator-experiment
+          fetch-depth: 0
+      - name: Patch result TeX formatting
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          ui_path = Path('finsler-ui-v6.js')
+          ui = ui_path.read_text()
+          old = '''  function tex(expr){try{return math.parse(String(expr)).toTex({parenthesis:"auto"});}catch(e){return "\\\\text{"+esc(expr).replace(/[{}]/g,"")+"}";}}'''
+          new = r'''  function prettyResultTex(text){
+            var s=String(text);
+            s=s.replace(/\\mathrm\{rs\}/g,"r_{s}").replace(/\\operatorname\{rs\}/g,"r_{s}");
+            s=s.replace(/(^|[^A-Za-z])rs(?=$|[^A-Za-z])/g,function(all,prefix){return prefix+"r_{s}";});
+            var fn="\\\\(?:sin|cos|tan|sinh|cosh|tanh)";
+            var arg="(?:\\\\[A-Za-z]+|[A-Za-z](?:_\\{[A-Za-z0-9]+\\})?)";
+            s=s.replace(new RegExp("\\{("+fn+")\\\\left\\\\(\\s*("+arg+")\\s*\\\\right\\\\)\\}\\s*\\^\\s*\\{([^{}]+)\\}","g"),"$1^{$3} $2");
+            s=s.replace(new RegExp("("+fn+")\\s*\\^\\s*\\{([^{}]+)\\}\\s*\\\\left\\\\(\\s*("+arg+")\\s*\\\\right\\\\)","g"),"$1^{$2} $3");
+            s=s.replace(new RegExp("("+fn+")\\\\left\\\\(\\s*("+arg+")\\s*\\\\right\\\\)\\s*\\^\\s*\\{([^{}]+)\\}","g"),"$1^{$3} $2");
+            s=s.replace(new RegExp("("+fn+")\\\\left\\\\(\\s*("+arg+")\\s*\\\\right\\\\)","g"),"$1 $2");
+            return s;
+          }
+          function tex(expr){try{return prettyResultTex(math.parse(String(expr)).toTex({parenthesis:"auto"}));}catch(e){return "\\\\text{"+esc(expr).replace(/[{}]/g,"")+"}";}}'''
+          if ui.count(old) != 1:
+              raise SystemExit(f'Expected one tex() target, found {ui.count(old)}')
+          ui_path.write_text(ui.replace(old, new))
+
+          html_path = Path('Finsler.html')
+          html = html_path.read_text()
+          old_src = 'finsler-ui-v6.js?v=3'
+          new_src = 'finsler-ui-v6.js?v=4'
+          if html.count(old_src) != 1:
+              raise SystemExit(f'Expected one UI cache key, found {html.count(old_src)}')
+          html_path.write_text(html.replace(old_src, new_src))
+
+          test_path = Path('tests/finsler-ui-parentheses-regression.cjs')
+          test_path.write_text(r'''const fs = require('fs');
+const path = require('path');
+const math = require('mathjs');
+
+const root = path.resolve(__dirname, '..');
+const ui = fs.readFileSync(path.join(root, 'finsler-ui-v6.js'), 'utf8');
+
+function fail(message) {
+  console.error('FAIL:', message);
+  process.exitCode = 1;
+}
+
+if (!/toTex\(\{parenthesis:"auto"\}\)/.test(ui)) fail('UI tex() is not using automatic parenthesis serialization');
+if (/function tex\(expr\)[\s\S]{0,240}parenthesis:"keep"/.test(ui)) fail('UI tex() still preserves redundant source parentheses');
+if (!/function prettyResultTex\(text\)/.test(ui)) fail('prettyResultTex() is missing');
+if (!/r_\{s\}/.test(ui)) fail('rs -> r_s display mapping is missing');
+
+function prettyResultTex(text) {
+  var s = String(text);
+  s = s.replace(/\\mathrm\{rs\}/g, 'r_{s}').replace(/\\operatorname\{rs\}/g, 'r_{s}');
+  s = s.replace(/(^|[^A-Za-z])rs(?=$|[^A-Za-z])/g, (_, prefix) => prefix + 'r_{s}');
+  var fn = '\\\\(?:sin|cos|tan|sinh|cosh|tanh)';
+  var arg = '(?:\\\\[A-Za-z]+|[A-Za-z](?:_\\{[A-Za-z0-9]+\\})?)';
+  s = s.replace(new RegExp('\\{(' + fn + ')\\\\left\\\\(\\s*(' + arg + ')\\s*\\\\right\\\\)\\}\\s*\\^\\s*\\{([^{}]+)\\}', 'g'), '$1^{$3} $2');
+  s = s.replace(new RegExp('(' + fn + ')\\s*\\^\\s*\\{([^{}]+)\\}\\s*\\\\left\\\\(\\s*(' + arg + ')\\s*\\\\right\\\\)', 'g'), '$1^{$2} $3');
+  s = s.replace(new RegExp('(' + fn + ')\\\\left\\\\(\\s*(' + arg + ')\\s*\\\\right\\\\)\\s*\\^\\s*\\{([^{}]+)\\}', 'g'), '$1^{$3} $2');
+  s = s.replace(new RegExp('(' + fn + ')\\\\left\\\\(\\s*(' + arg + ')\\s*\\\\right\\\\)', 'g'), '$1 $2');
+  return s;
+}
+
+const structuralSamples = ['1/((rs/x2 - 1))', '1/(x2^2*sin(x3)^2)', 'rs*y1*y2/(x2*(x2-rs))'];
+for (const expr of structuralSamples) {
+  const rendered = prettyResultTex(math.parse(expr).toTex({ parenthesis: 'auto' }));
+  if (/\\left\(\s*\\left\(/.test(rendered) || /\\right\)\s*\\right\)/.test(rendered)) fail(`nested redundant parentheses remain for ${expr}: ${rendered}`);
+}
+
+const cases = [
+  ['sin(theta)', /\\sin\s+\\theta/, /\\sin\\left\(/],
+  ['cos(theta)', /\\cos\s+\\theta/, /\\cos\\left\(/],
+  ['sin(theta)^2', /\\sin\^\{2\}\s+\\theta/, /\\sin\\left\(/],
+  ['cos(theta)^3', /\\cos\^\{3\}\s+\\theta/, /\\cos\\left\(/],
+  ['sin(theta+phi)^2', /\\sin/, null],
+  ['rs/r', /r_\{s\}/, /(^|[^A-Za-z])rs(?=$|[^A-Za-z])/] 
+];
+
+for (const [expr, required, forbidden] of cases) {
+  const rendered = prettyResultTex(math.parse(expr).toTex({ parenthesis: 'auto' }));
+  console.log(`${expr} => ${rendered}`);
+  if (required && !required.test(rendered)) fail(`missing preferred notation for ${expr}: ${rendered}`);
+  if (forbidden && forbidden.test(rendered)) fail(`unwanted notation remains for ${expr}: ${rendered}`);
+  if (expr === 'sin(theta+phi)^2' && !/\\left\(/.test(rendered)) fail(`composite trig argument lost necessary parentheses: ${rendered}`);
+}
+
+if (!process.exitCode) console.log('PASS: UI result TeX uses minimal grouping, compact trig notation, trig powers, and r_s');
+''')
+          PY
+      - name: Commit patch
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add finsler-ui-v6.js Finsler.html tests/finsler-ui-parentheses-regression.cjs
+          git commit -m 'Polish trigonometric result notation'
+          git push origin HEAD:finsler-calculator-experiment
