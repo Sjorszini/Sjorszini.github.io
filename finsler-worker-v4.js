@@ -42,9 +42,8 @@ function finslerV6FactorAtom(text){
   return finslerV6NeedsParens(text)?"("+text+")":text;
 }
 
-/* Render the already-factorised representation without calling simplify on the
- * product afterwards. This is the key fix for expanded output such as
- * (rs^2-r*rs)/(2*r^4). */
+/* Render an already-factorised representation without simplifying the product
+ * again. This prevents math.js from immediately expanding it back out. */
 function finslerV6ProductText(factors,removed){
   var parts=[];
   factors.order.forEach(function(key){
@@ -56,6 +55,23 @@ function finslerV6ProductText(factors,removed){
     parts.push(p===1?atom:atom+"^"+p);
   });
   return parts.length?parts.join("*"):"1";
+}
+
+/* True when some additive subexpression has a nontrivial common factor. This
+ * lets the canonical-form selector prefer rs*(r-rs) over rs^2-r*rs even when
+ * character-count heuristics alone would call them a tie. */
+function finslerV6HasFactorableSum(text){
+  var node,found=false;
+  try{node=math.parse(String(text));}catch(e){return false;}
+  node.traverse(function(child){
+    if(found||!child||!child.isOperatorNode)return;
+    if(child.op!=="+"&&!(child.op==="-"&&child.args.length===2))return;
+    try{
+      var f=finslerFactorExpression(child);
+      if(f&&f.order&&f.order.length>1)found=true;
+    }catch(e2){}
+  });
+  return found;
 }
 
 /* Reduce one rational pair. Inputs are simplified before factoring, but the
@@ -77,16 +93,16 @@ function finslerV6ReducePair(num,den){
 
   var n=finslerV6ProductText(nf,cancel);
   var d=finslerV6ProductText(df,cancel);
-  if(nf.sign*df.sign<0)n=n==="1"?"-1":"-("+n+")";
+  if(nf.sign*df.sign<0)n="-"+n;
 
   if(n==="0")return {num:"0",den:"1"};
   if(d==="1")return {num:n,den:"1"};
-  if(d==="-1")return {num:n.charAt(0)==="-"?n.slice(1):"-("+n+")",den:"1"};
+  if(d==="-1")return {num:n.charAt(0)==="-"?n.slice(1):"-"+n,den:"1"};
   return {num:n,den:d};
 }
 
 /* Build a reduced rational expression recursively. Reduction at every node is
- * what ensures that cancelled/factored forms are the expressions seen by later
+ * what ensures cancelled/factored forms are the expressions seen by later
  * derivatives and contractions, not merely by the renderer. */
 function finslerV6RationalPair(node){
   while(node&&node.isParenthesisNode)node=node.content;
@@ -130,14 +146,13 @@ function finslerV6RationalCanonical(expr){
   return pair.den==="1"?pair.num:"("+pair.num+")/("+pair.den+")";
 }
 
-/* Prefer a shorter canonical form. For ties, prefer the factorised form when
- * the original contains an expanded additive polynomial; this makes
- * rs^2-r*rs consistently become rs*(rs-r) instead of oscillating between the
- * two equivalent representations. */
 function finslerV6Choose(base,canonical){
   if(!canonical)return base;
   var a=finslerV6Score(base),b=finslerV6Score(canonical);
   if(b<a)return canonical;
+  var baseFactorable=finslerV6HasFactorableSum(base);
+  var canonicalFactorable=finslerV6HasFactorableSum(canonical);
+  if(baseFactorable&&!canonicalFactorable&&b<=a+8)return canonical;
   if(b===a&&/[+-]/.test(base)&&canonical.indexOf("*(")!==-1)return canonical;
   return base;
 }
