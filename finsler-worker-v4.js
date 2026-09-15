@@ -3,16 +3,17 @@
 importScripts("finsler-worker-v3.js?v=1");
 
 /* math.simplify is good at local algebra but it does not factor expanded
- * numerator/denominator polynomials before presentation.  In tensor work that
+ * numerator/denominator polynomials before presentation. In tensor work that
  * can leave output such as
  *
  *   (r*rs-r^2)/(r^3*rs-r^4)
  *
- * even though the common factors cancel to 1/r^2.  Keep the computational
+ * even though the common factors cancel to 1/r^2. Keep the computational
  * expressions untouched and strengthen only PS(), the final presentation
- * simplifier used by emitted components and summaries.  The factoring below
- * is structural and conservative: it only extracts factors common to every
- * term of an additive numerator/denominator and then cancels exact factors.
+ * simplifier used by emitted components and summaries. The factoring below is
+ * structural and conservative: it extracts factors common to every term of an
+ * additive factor, including additive factors nested inside products/powers,
+ * and then cancels exact numerator/denominator factors.
  */
 var finslerBasePS = PS;
 
@@ -22,14 +23,27 @@ function finslerCanonicalNodeText(node){
 }
 
 function finslerAddFactor(store,node,power){
-  if(power<=0) return;
+  if(power<=0)return;
   var text=finslerCanonicalNodeText(node);
-  if(text==="1") return;
+  if(text==="1")return;
   if(!store.map[text]){
     store.map[text]={text:text,power:0};
     store.order.push(text);
   }
   store.map[text].power+=power;
+}
+
+function finslerMergeFactors(target,source,mult){
+  mult=mult||1;
+  if(source.sign<0&&mult%2===1)target.sign*=-1;
+  source.order.forEach(function(key){
+    var entry=source.map[key];
+    if(!target.map[key]){
+      target.map[key]={text:entry.text,power:0};
+      target.order.push(key);
+    }
+    target.map[key].power+=entry.power*mult;
+  });
 }
 
 function finslerTermFactors(node){
@@ -52,6 +66,10 @@ function finslerTermFactors(node){
         var p=Number(exponent.value);
         if(Number.isInteger(p)&&p>0){walk(n.args[0],mult*p);return;}
       }
+    }
+    if(n.isOperatorNode&&(n.op==="+"||(n.op==="-"&&n.args.length===2))){
+      finslerMergeFactors(out,finslerFactorExpression(n),mult);
+      return;
     }
     finslerAddFactor(out,n,mult);
   }
@@ -96,10 +114,7 @@ function finslerProductText(factors,removed){
 function finslerFactorExpression(node){
   var terms=[];
   finslerCollectSumTerms(node,1,terms);
-  if(terms.length<=1){
-    var single=finslerTermFactors(node);
-    return single;
-  }
+  if(terms.length<=1)return finslerTermFactors(node);
 
   var factored=terms.map(function(term){
     var f=finslerTermFactors(term.node);
@@ -134,8 +149,7 @@ function finslerFactorExpression(node){
     result.order.push(key);
   });
   if(residualText!=="1"){
-    try{finslerAddFactor(result,math.parse(residualText),1);}
-    catch(e2){}
+    try{finslerAddFactor(result,math.parse(residualText),1);}catch(e2){}
   }
   return result;
 }
@@ -162,8 +176,6 @@ function finslerCancelCommonRationalFactors(text){
   var candidate=den==="1"?num:"("+num+")/("+den+")";
   try{candidate=math.simplify(candidate).toString({parenthesis:"auto"});}catch(e3){}
 
-  /* Verify algebraic equivalence when math.js can decide it.  A failed or
-     undecidable check simply leaves the original presentation untouched. */
   if(typeof math.symbolicEqual==="function"){
     try{if(!math.symbolicEqual(text,candidate))return null;}catch(e4){}
   }
@@ -280,7 +292,6 @@ function finslerTokenDerivative(info,variable){
   for(var j=0;j<info.args.length;j++){
     var da=finslerNativeD(info.args[j],variable);
     if(isZero(da)) continue;
-    /* Differentiate the CURRENT derivative token, not its base token. */
     terms.push(mul(finslerDerivativeToken(info,j),da));
   }
   return terms.length ? S(sum(terms)) : "0";
