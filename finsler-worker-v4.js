@@ -10,9 +10,9 @@
  *
  * The Finsler Ricci tensor is therefore the fiber Hessian of that quadratic
  * form, i.e. the symmetric part of Rbar_ij (and exactly Rbar_ij for the
- * Levi-Civita cases used by pseudo-Riemannian inputs).  Use the already strongly
+ * Levi-Civita cases used by pseudo-Riemannian inputs). Use the already strongly
  * simplified affine Ricci components as the computational source for the later
- * Ricci section.  This prevents separate algebraic routes from disagreeing and
+ * Ricci section. This prevents separate algebraic routes from disagreeing and
  * avoids redoing an expensive curvature contraction/Hessian calculation.
  */
 importScripts("finsler-worker-v4-core.js?v=1");
@@ -34,10 +34,6 @@ function finslerRicciMatrix(n){
   for(var i=0;i<n;i++)out[i]=new Array(n).fill(null);
   return out;
 }
-function finslerRicciZeroLike(value){
-  var t=finslerRicciStrong(value).replace(/\s+/g,"");
-  return t==="0"||t==="0.0"||t==="-0";
-}
 function finslerRicciCapture(message){
   var s=finslerRicciState;
   if(!s||!message||message.type!=="component"||message.section!=="affineRicci")return;
@@ -57,22 +53,24 @@ function finslerRicciSymmetricEntry(a,b){
   if(a===b)return finslerRicciStrong(a);
   return finslerRicciStrong(S(mul("0.5",add(a,b))));
 }
-function finslerRicciSend(message){
-  return finslerRicciBasePost(message);
+function finslerRicciSend(message){return finslerRicciBasePost(message);}
+function finslerRicciPrepareDerived(){
+  var s=finslerRicciState;
+  if(!s||!s.wantsRicci||s.affineReady||!finslerRicciReady())return;
+  s.affineReady=true;
+  /* calculate() has not reached its generic Ricci block yet. Disable that
+     duplicate route now; the exact affine-derived result is emitted just before
+     the final done message, after curvature/deviation have kept their normal
+     section ordering. */
+  if(typeof activeOutputs==="object"&&activeOutputs)activeOutputs.ricci=false;
 }
 function finslerRicciSynthesize(){
   var s=finslerRicciState;
-  if(!s||!s.wantsRicci||s.synthesized||!finslerRicciReady())return;
+  if(!s||!s.wantsRicci||!s.affineReady||s.synthesized)return;
   s.synthesized=true;
 
-  /* The base calculate() checks want("ricci") only after the affine Ricci
-     section. Turn that old duplicate route off before execution reaches it. */
-  if(typeof activeOutputs==="object"&&activeOutputs)activeOutputs.ricci=false;
-
   var start=performance.now(),terms=[];
-  for(var i=0;i<s.n;i++)for(var j=0;j<s.n;j++){
-    terms.push(mul(mul(s.affineRicci[i][j],"y"+(i+1)),"y"+(j+1)));
-  }
+  for(var i=0;i<s.n;i++)for(var j=0;j<s.n;j++)terms.push(mul(mul(s.affineRicci[i][j],"y"+(i+1)),"y"+(j+1)));
   var Ric=finslerRicciStrong(S(sum(terms)));
   var matrix=[];
   for(i=0;i<s.n;i++)matrix[i]=new Array(s.n).fill("0");
@@ -97,20 +95,23 @@ self.postMessage=function(message,transfer){
     if(message.type==="component"&&message.section==="affineRicci")finslerRicciCapture(message);
 
     if(message.type==="sectionComplete"&&message.section==="affineRicci"){
-      /* Preserve user-requested affine output ordering: finish that card first,
-         then produce the dependent Finsler-Ricci card. Internally forced affine
-         sections remain hidden. */
       if(!s.forcedAffine){
         if(transfer!==undefined)finslerRicciBasePost(message,transfer);else finslerRicciBasePost(message);
       }
-      finslerRicciSynthesize();
+      finslerRicciPrepareDerived();
       return;
     }
 
     if(s.forcedAffine&&(message.section==="affineCurvature"||message.section==="affineRicci"))return;
 
-    /* If an imported/base implementation ever reaches its old Ricci route
-       despite the activeOutputs switch, discard it rather than emit duplicates. */
+    if(message.type==="done"&&s.affineReady&&!s.synthesized){
+      finslerRicciSynthesize();
+      if(transfer!==undefined)return finslerRicciBasePost(message,transfer);
+      return finslerRicciBasePost(message);
+    }
+
+    /* Defensive only: after the generic route is disabled there should be no
+       base Ricci messages for affine paths. */
     if(s.synthesized&&message.section==="ricci")return;
   }
   if(transfer!==undefined)return finslerRicciBasePost(message,transfer);
@@ -128,15 +129,15 @@ onmessage=function(event){
     affineRicci:finslerRicciMatrix(Number(data.n)||0),
     forcedAffine:wantsRicci&&!userAffine,
     wantsRicci:wantsRicci,
+    affineReady:false,
     synthesized:false
   };
 
   /* For an affine/Berwald calculation Ric already depends on the same affine
      curvature. If the affine cards were not selected, request them internally
      so Rbar_ij is available as the exact computational source, then suppress
-     those extra cards in the message wrapper above. Non-affine Finsler paths
-     never emit affineRicci and therefore continue through the generic Ricci
-     calculation unchanged. */
+     those extra cards above. Non-affine Finsler paths never emit affineRicci and
+     therefore continue through the generic Ricci calculation unchanged. */
   if(finslerRicciState.forcedAffine)outputs.affine=true;
   var forwarded=Object.assign({},data,{outputs:outputs});
   return finslerRicciBaseOnMessage({data:forwarded});
