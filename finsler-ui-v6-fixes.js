@@ -97,7 +97,7 @@
         if(!labels.length)return all;
         var allowed=coords();
         if(labels.some(function(label){return allowed.indexOf(label)===-1;}))return all;
-        return prefix+derivativeOperatorTex(labels)+"\\,"+functionTex(fn.name);
+        return prefix+derivativeOperatorTex(labels)+functionTex(fn.name);
       });
     });
     return text;
