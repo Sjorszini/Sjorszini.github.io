@@ -3,26 +3,23 @@
 /*
  * Stable entry point for the calculator worker.
  *
- * v4-base contains the symbolic-function, diagonal-inverse and two-level
- * simplification machinery from the previous revision.  This entry point adds
- * recursive reduced-rational canonicalization.  The important distinction is
- * that S(expr) below is the COMPUTATIONAL simplifier: its result is stored and
- * reused by Christoffel, spray, curvature and Ricci calculations.  PS(expr)
- * only adds a stronger final presentation pass.
+ * v4-base contains symbolic-function support, diagonal inversion and the
+ * original two-level simplifier.  This entry point strengthens the actual
+ * computational simplifier: reduced expressions are stored and reused by
+ * Christoffel, spray, curvature and Ricci calculations.  Final rendering only
+ * performs one cheap cached canonicalization pass.
  */
 importScripts("finsler-worker-v4-base.js?v=1");
 
 var finslerV5BaseS=S;
-var finslerV5BasePS=PS;
 var finslerV5BaseOnMessage=onmessage;
 var finslerV5ComputeCache=Object.create(null);
 var finslerV5PresentCache=Object.create(null);
 
 function finslerV5Score(text){return String(text).replace(/\s+/g,"").length;}
 
-/* Cancel factors in one numerator/denominator pair.  Unlike the older final
- * pass this runs while the rational tree is being built, so a quotient such as
- * ((r-rs)*rs)/(r-rs) becomes rs BEFORE it is added to neighbouring terms. */
+/* Cancel factors in one numerator/denominator pair.  This happens while the
+ * rational expression is being built, not only at display time. */
 function finslerV5ReducePair(num,den){
   num=finslerSimplifyText(num);
   den=finslerSimplifyText(den);
@@ -47,10 +44,8 @@ function finslerV5ReducePair(num,den){
   return {num:n,den:d};
 }
 
-/* Convert an expression to a reduced rational pair recursively.  Reducing at
- * every node prevents large common-denominator numerators from ever entering
- * later tensor calculations.  Non-rational atoms (sin, custom function tokens,
- * etc.) are simply treated as algebraic atoms and are therefore safe. */
+/* Build a reduced rational pair recursively.  Non-rational functions such as
+ * sin(x) and custom symbolic functions remain exact algebraic atoms. */
 function finslerV5RationalPair(node){
   while(node&&node.isParenthesisNode)node=node.content;
   if(!node)return {num:"0",den:"1"};
@@ -94,10 +89,8 @@ function finslerV5RationalCanonical(expr){
   return finslerSimplifyText(candidate);
 }
 
-/* Computational simplification.  This is deliberately cached and is the S()
- * used by all subsequent calculations.  Rational canonicalization is bounded
- * by expression size to avoid making genuinely huge Finsler expressions more
- * expensive merely for prettiness. */
+/* Computational simplification.  This S() is what later derivatives and
+ * tensor contractions actually receive. */
 S=function(expr){
   var original=raw(expr);
   if(finslerV5ComputeCache[original]!==undefined)return finslerV5ComputeCache[original];
@@ -111,15 +104,13 @@ S=function(expr){
   return best;
 };
 
-/* Presentation adds the older strong pass and then one more reduced-rational
- * pass.  It never feeds a different expression back into the calculation;
- * calculation already uses the simplified S() value above. */
+/* Final output is intentionally light.  Do not run the old multi-pass
+ * presentation simplifier again: that duplicated work and was included in the
+ * per-component timing shown in the UI. */
 PS=function(expr){
   var original=raw(expr);
   if(finslerV5PresentCache[original]!==undefined)return finslerV5PresentCache[original];
   var best=S(original);
-  var strong=finslerV5BasePS(best);
-  if(finslerV5Score(strong)<finslerV5Score(best))best=strong;
   if(finslerV5Score(best)<=5000){
     var canonical=finslerV5RationalCanonical(best);
     if(finslerV5Score(canonical)<=finslerV5Score(best))best=canonical;
@@ -129,8 +120,6 @@ PS=function(expr){
   return best;
 };
 
-/* The imported v4 onmessage already resets its own derivative/compute caches.
- * Reset the new canonicalization caches at the same run boundary. */
 onmessage=function(event){
   if(event&&event.data&&event.data.type==="calculate"){
     finslerV5ComputeCache=Object.create(null);
