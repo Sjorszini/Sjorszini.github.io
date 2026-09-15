@@ -60,6 +60,12 @@ Additional reference checks:
 
 The harness is intentionally not linked from the public site navigation. It is meant to catch accidental reintroduction of `(+---)` data or metadata during catalogue edits.
 
+## Solver regression harness
+
+`finsler-solver-regression.html` is a second developer-only browser suite that sends calculations directly to `finsler-worker-v4.js`. It checks flat Minkowski space, the round 2-sphere (`Ric = g`), a vacuum Brinkmann pp-wave in `(-+++)`, a direct flat Finsler Lagrangian, and a constant Randers metric. Each case has a 30-second timeout and compares the returned Ricci quantities numerically at regular sample points.
+
+Together the two regression pages separate catalogue/signature transcription checks from actual symbolic-worker smoke tests.
+
 ## Important scope limitation
 
 These checks validate the catalogue transcription and the curvature convention independently. They do **not** constitute a browser-runtime benchmark of every large symbolic calculation. Kerr, Taub–NUT, Petrov C, Bessel and Halilsoy calculations can be expensive in the client-side CAS. The work-under-construction warning on the calculator therefore remains intentional.
