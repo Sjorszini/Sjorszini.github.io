@@ -103,6 +103,11 @@
   }
 }
 @media(max-width:700px){
+  /* Do not change warning content on small screens. The legacy workbench CSS
+     hid the WARNING badge below 700px, which made the notice read differently
+     on mobile. Keep exactly the same text and only compact the layout. */
+  .finsler-page .construction-warning{align-items:flex-start;gap:8px}
+  .finsler-page .construction-warning .warning-label{display:inline-flex}
   .finsler-workbench{padding-left:14px;padding-right:14px}
   .calculator-shell{border:0;border-radius:0}
   .calculator-toolbar{padding:0 0 14px}
