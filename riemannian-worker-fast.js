@@ -4,7 +4,7 @@
    math.js remains responsible for parsing and differentiation; Algebrite is
    used only as a bounded final canonicalizer for rational cancellation. */
 importScripts("riemannian-worker.js?v=2");
-importScripts("https://cdn.jsdelivr.net/npm/algebrite@1.4.0/dist/algebrite.bundle-for-browser.js");
+importScripts("https://unpkg.com/algebrite@1.4.0/dist/algebrite.bundle-for-browser.js");
 
 var canonicalCache=Object.create(null);
 
