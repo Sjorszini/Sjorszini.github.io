@@ -1,7 +1,7 @@
 (function(){
   "use strict";
 
-  var worker=null, runToken=0, coordinateNames=["t","r","theta","phi"], activeContext=null;
+  var worker=null, runToken=0, coordinateNames=["t","r","theta","phi"], activeContext=null, calculationStarted=0, calculationTimer=null;
   var KNOWN_FUNCTIONS={sqrt:1,exp:1,sin:1,cos:1,tan:1,sinh:1,cosh:1,tanh:1,log:1,ln:1,abs:1,asin:1,acos:1,atan:1,atan2:1,min:1,max:1,sign:1};
   var BUILTIN_CONSTANTS={pi:1,e:1,i:1,Infinity:1};
   var PRESETS=[
@@ -162,8 +162,22 @@
     ctx.coords.forEach(function(name,i){tex=tex.replace(new RegExp("velocity"+String.fromCharCode(65+i),"g"),"\\dot{"+coordTex(name)+"}");});
     return tex;
   }
-  function coordTex(name){var greek={theta:"\\theta",phi:"\\phi",psi:"\\psi",eta:"\\eta",rho:"\\rho",tau:"\\tau",sigma:"\\sigma",lambda:"\\lambda"};if(greek[name])return greek[name];if(/^[A-Za-z]$/.test(name))return name;return "\\mathrm{"+String(name).replace(/[^A-Za-z0-9_]/g,"")+"}";}
+  function coordTex(name){
+    var greek={alpha:"\\alpha",beta:"\\beta",gamma:"\\gamma",delta:"\\delta",epsilon:"\\epsilon",eta:"\\eta",theta:"\\theta",lambda:"\\lambda",mu:"\\mu",nu:"\\nu",xi:"\\xi",rho:"\\rho",sigma:"\\sigma",tau:"\\tau",phi:"\\phi",psi:"\\psi",omega:"\\omega"};
+    if(greek[name])return greek[name];
+    var sub=/^([A-Za-z]+)_([A-Za-z0-9]+)$/.exec(name);if(sub)return sub[1]+"_{"+sub[2]+"}";
+    return /^[A-Za-z]$/.test(name)?name:"\\mathrm{"+String(name).replace(/[^A-Za-z0-9]/g,"")+"}";
+  }
   function matrixTex(matrix,ctx){return "\\begin{pmatrix}"+matrix.map(function(row){return row.map(function(x){return expressionTex(x,ctx);}).join(" & ");}).join(" \\\\ ")+"\\end{pmatrix}";}
+  function isZero(value){var s=String(value).replace(/\s+/g,"");return s==="0"||s==="0.0"||s==="-0";}
+  function symmetricComponents(matrix,ctx,prefix){
+    var out=[];if(!Array.isArray(matrix))return out;
+    for(var i=0;i<matrix.length;i++)for(var j=i;j<matrix.length;j++){
+      var value=matrix[i]&&matrix[i][j]!==undefined?matrix[i][j]:"0";if(isZero(value))continue;
+      out.push(prefix+"_{"+coordTex(ctx.coords[i]||("x"+(i+1)))+coordTex(ctx.coords[j]||("x"+(j+1)))+"}="+expressionTex(value,ctx));
+    }
+    return out;
+  }
 
   function collectOutputs(){var out={};qa("[data-output]").forEach(function(n){out[n.dataset.output]=n.checked;});return out;}
   function updateSelectionCount(){el("selectionCount").textContent=qa("[data-output]:checked").length+" selected";}
@@ -192,24 +206,38 @@
     el("cancelCalculation").hidden=!on;el("progressLine").hidden=!on;
   }
 
+  function formatMs(ms){return ms<1000?Math.max(0,Math.round(ms))+" ms":(ms/1000).toFixed(ms<10000?1:0)+" s";}
+  function showTiming(ms,running){var node=el("calculationTime");node.hidden=false;node.textContent=formatMs(ms)+(running?" elapsed":"");}
+  function stopTiming(clear){
+    if(calculationTimer!==null){clearInterval(calculationTimer);calculationTimer=null;}
+    if(clear){calculationStarted=0;var node=el("calculationTime");node.textContent="";node.hidden=true;}
+  }
+  function startTiming(){
+    stopTiming(true);calculationStarted=performance.now();showTiming(0,true);
+    calculationTimer=setInterval(function(){showTiming(performance.now()-calculationStarted,true);},100);
+  }
+  function finishTiming(){
+    var elapsed=calculationStarted?performance.now()-calculationStarted:0;
+    stopTiming(false);showTiming(elapsed,false);calculationStarted=0;return elapsed;
+  }
+
   function calculate(){
     var payload;try{payload=preparePayload();}catch(err){setStatus(err.message||String(err),"error");return;}
     cancelCalculation(false);activeContext=payload.ctx;runToken++;var token=runToken;
-    el("results").innerHTML="";el("calculationTime").textContent="";el("progressText").textContent="Starting worker…";setBusy(true);setStatus("Starting symbolic calculation…","working");
-    worker=new Worker("riemannian-worker.js?v=1");
+    el("results").innerHTML="";el("progressText").textContent="Starting worker…";setBusy(true);setStatus("Starting symbolic calculation…","working");startTiming();
+    worker=new Worker("riemannian-worker-present.js?v=3");
     worker.onmessage=function(event){if(token!==runToken)return;handleWorkerMessage(event.data||{},payload.ctx);};
-    worker.onerror=function(event){if(token!==runToken)return;setBusy(false);el("progressLine").hidden=true;setStatus("Worker error: "+(event.message||"unknown error"),"error");};
+    worker.onerror=function(event){if(token!==runToken)return;stopTiming(true);setBusy(false);el("progressLine").hidden=true;setStatus("Worker error: "+(event.message||"unknown error"),"error");};
     worker.postMessage(payload.data);saveState();
   }
 
   function handleWorkerMessage(message,ctx){
     if(message.type==="progress"){el("progressText").textContent=message.label+(message.detail?" · "+message.detail:"");setStatus(message.label+"…","working");return;}
-    if(message.type==="result"){renderResults(message.result,ctx);return;}
-    if(message.type==="done"){setBusy(false);el("progressLine").hidden=true;el("calculationTime").textContent=formatMs(message.elapsedMs);setStatus("Calculation complete in "+formatMs(message.elapsedMs)+".","success");worker=null;return;}
-    if(message.type==="error"){setBusy(false);el("progressLine").hidden=true;setStatus(message.message||"Calculation failed.","error");worker=null;}
+    if(message.type==="result"){window.__riemannianLastResult=message.result||null;renderResults(message.result,ctx);return;}
+    if(message.type==="done"){var elapsed=finishTiming();setBusy(false);el("progressLine").hidden=true;setStatus("Calculation complete in "+formatMs(elapsed)+".","success");worker=null;return;}
+    if(message.type==="error"){stopTiming(true);setBusy(false);el("progressLine").hidden=true;setStatus(message.message||"Calculation failed.","error");worker=null;}
   }
 
-  function formatMs(ms){return ms<1000?ms.toFixed(0)+" ms":(ms/1000).toFixed(ms<10000?2:1)+" s";}
   function resultCard(title,meta,body,copyText,open){
     var html='<details class="result-card"'+(open?' open':'')+'><summary><strong>'+esc(title)+'</strong><span>'+esc(meta||"")+'</span></summary><div class="result-card-body">'+body;
     if(copyText)html+='<div class="result-actions"><button type="button" class="copy-button" data-copy="'+esc(copyText)+'">Copy TeX</button></div>';
@@ -234,17 +262,17 @@
       var riem=result.riemann.map(function(c){return 'R^{'+coordTex(ctx.coords[c.i])+'}{}_{'+coordTex(ctx.coords[c.j])+coordTex(ctx.coords[c.k])+coordTex(ctx.coords[c.l])+'}='+expressionTex(c.value,ctx);});
       cards.push(resultCard("Riemann tensor",result.riemann.length+" nonzero components with k < l",componentList(riem),riem.join("\n"),false));
     }
-    if(result.ricci){var rt='R_{ij}='+matrixTex(result.ricci,ctx);cards.push(resultCard("Ricci tensor","Rᵢⱼ",mathBlock(rt),rt,true));}
+    if(result.ricci){var rc=symmetricComponents(result.ricci,ctx,"R");cards.push(resultCard("Ricci tensor",rc.length+" nonzero independent component"+(rc.length===1?"":"s"),componentList(rc),rc.join("\n"),true));}
     if(result.scalar!==undefined){var st='R='+expressionTex(result.scalar,ctx);cards.push(resultCard("Ricci scalar","R",mathBlock(st),st,true));}
-    if(result.einstein){var et='G_{ij}='+matrixTex(result.einstein,ctx);cards.push(resultCard("Einstein tensor","Gᵢⱼ",mathBlock(et),et,false));}
+    if(result.einstein){var ec=symmetricComponents(result.einstein,ctx,"G");cards.push(resultCard("Einstein tensor",ec.length+" nonzero independent component"+(ec.length===1?"":"s"),componentList(ec),ec.join("\n"),false));}
     el("results").innerHTML=cards.length?cards.join(""):'<div class="results-empty">No output was produced.</div>';
     qa(".copy-button",el("results")).forEach(function(button){button.addEventListener("click",function(){copyText(button.dataset.copy||"").then(function(){var old=button.textContent;button.textContent="Copied";setTimeout(function(){button.textContent=old;},1000);});});});
     typeset(el("results"));
   }
 
   function copyText(text){if(navigator.clipboard&&navigator.clipboard.writeText)return navigator.clipboard.writeText(text);return new Promise(function(resolve){var ta=document.createElement("textarea");ta.value=text;document.body.appendChild(ta);ta.select();document.execCommand("copy");ta.remove();resolve();});}
-  function cancelCalculation(showStatus){if(worker){worker.terminate();worker=null;}runToken++;setBusy(false);el("progressLine").hidden=true;if(showStatus!==false)setStatus("Calculation cancelled.","");}
-  function clearResults(setReady){cancelCalculation(false);el("results").innerHTML='<div class="results-empty">Choose quantities and calculate. Results will appear here.</div>';el("calculationTime").textContent="";if(setReady!==false)setStatus("Ready.","");}
+  function cancelCalculation(showStatus){if(worker){worker.terminate();worker=null;}stopTiming(true);runToken++;setBusy(false);el("progressLine").hidden=true;if(showStatus!==false)setStatus("Calculation cancelled.","");}
+  function clearResults(setReady){cancelCalculation(false);el("results").innerHTML='<div class="results-empty">Choose quantities and calculate. Results will appear here.</div>';if(setReady!==false)setStatus("Ready.","");}
 
   function saveState(){
     try{localStorage.setItem("riemannianCalculatorState",JSON.stringify({n:dimension(),coords:currentCoords(),constants:el("constantsInput").value,functions:el("functionsInput").value,matrix:collectGridValues(),outputs:collectOutputs(),preset:el("presetSelect").value}));}catch(e){}
