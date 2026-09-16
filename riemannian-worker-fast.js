@@ -16,6 +16,27 @@ S=function(expr){
   simplifyCache[text]=out;simplifyCache[out]=out;return out;
 };
 
+/* The base worker used a fresh placeholder for every function occurrence.
+   That makes sin(x) appearing twice look like two unrelated variables to
+   rationalize().  Reuse placeholders for structurally identical calls. */
+rationalizeAtomic=function(expr){
+  var node=math.parse(raw(expr)),held=[],byKey=Object.create(null),prefix="__heldfn";
+  node=node.transform(function(child){
+    if(child&&child.isFunctionNode){
+      var key=child.toString({parenthesis:"auto"}),index=byKey[key];
+      if(index===undefined){index=held.length;byKey[key]=index;held.push(child);}
+      return math.parse(prefix+index);
+    }
+    return child;
+  });
+  var candidate=math.rationalize(node);
+  candidate=candidate.transform(function(child){
+    if(child&&child.isSymbolNode&&child.name.indexOf(prefix)===0){var i=Number(child.name.slice(prefix.length));if(Number.isInteger(i)&&held[i])return held[i];}
+    return child;
+  });
+  return candidate;
+};
+
 function trigCleanup(expr){
   try{
     return math.simplify(expr,[
@@ -40,8 +61,8 @@ function C(expr){
     }else{
       best=S(rationalizeAtomic(base));
       best=S(trigCleanup(best));
-      /* A second rationalization is cheap after trig cleanup and catches
-         cancellations exposed by sin^2+cos^2 identities. */
+      /* A second rationalization catches cancellations exposed by
+         sin^2+cos^2 identities. */
       if(best.length<2500)best=S(rationalizeAtomic(best));
     }
   }catch(e){best=base;}
@@ -85,14 +106,14 @@ ricciTensor=function(G,x){
   for(s=0;s<n;s++)for(v=s;v<n;v++){
     terms=[];
     for(a=0;a<n;a++){
-      terms.push(D(G[a][v][s],x[a]));
-      terms.push(neg(D(G[a][a][s],x[v])));
+      if(!isZero(G[a][v][s]))terms.push(D(G[a][v][s],x[a]));
+      if(!isZero(G[a][a][s]))terms.push(neg(D(G[a][a][s],x[v])));
       for(l=0;l<n;l++){
         if(!isZero(G[a][a][l])&&!isZero(G[l][v][s]))terms.push(mul(G[a][a][l],G[l][v][s]));
         if(!isZero(G[a][v][l])&&!isZero(G[l][a][s]))terms.push(neg(mul(G[a][v][l],G[l][a][s])));
       }
     }
-    value=C(sum(terms));R[s][v]=value;R[v][s]=value;
+    value=terms.length?C(sum(terms)):"0";R[s][v]=value;R[v][s]=value;
   }
   return R;
 };
