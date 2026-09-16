@@ -17,14 +17,17 @@ jobs:
         run: npm install --no-save nerdamer@1.1.13 algebrite@1.4.0
       - name: Simplify captured Schwarzschild Rrr
         run: |
-          cat > /tmp/cas.cjs <<'NODE'
+          cat > cas-benchmark.cjs <<'NODE'
           const expr='((r_s ^ 2 * x2 ^ 2 - 2 * r_s * x2 ^ 3) / (x2 ^ 3 - r_s * x2 ^ 2) ^ 2 + (2 * r_s * x2 ^ 3 - r_s ^ 2 * x2 ^ 2) * ((x2 ^ 3 - r_s * x2 ^ 2) ^ (-2) + (x2 ^ 2 * r_s - x2 ^ 3) ^ (-2))) / 2 + x2 ^ 2 * r_s ^ 2 * -1 / 4 / (x2 ^ 2 * r_s - x2 ^ 3) ^ 2 + (x2 ^ 2 * r_s ^ 2 / 4 / (x2 ^ 2 * r_s - x2 ^ 3) - r_s) / (x2 ^ 3 - r_s * x2 ^ 2)';
-          function bench(name,fn){const t=performance.now();try{const out=fn();console.log(name,'MS',Math.round(performance.now()-t),'OUT',String(out));}catch(e){console.log(name,'ERROR',e.stack||e)}}
-          const nerdamer=require('nerdamer/all.min');
-          bench('NERDAMER_SIMPLIFY',()=>nerdamer(expr).simplify().toString());
-          bench('NERDAMER_RATIONAL',()=>nerdamer(`ratsimp(${expr})`).toString());
+          function bench(name,fn){const t=performance.now();try{const out=fn();console.log(name,'MS',Math.round(performance.now()-t),'OUT',String(out));}catch(e){console.log(name,'ERROR',e.message)}}
           const Algebrite=require('algebrite');
           bench('ALGEBRITE_SIMPLIFY',()=>Algebrite.simplify(expr).toString());
           bench('ALGEBRITE_FACTOR',()=>Algebrite.factor(Algebrite.simplify(expr)).toString());
+          try{
+            const nerdamer=require('nerdamer');
+            require('nerdamer/Algebra');
+            bench('NERDAMER_SIMPLIFY',()=>nerdamer(expr).simplify().toString());
+            bench('NERDAMER_EXPAND_SIMPLIFY',()=>nerdamer(expr).expand().simplify().toString());
+          }catch(e){console.log('NERDAMER_LOAD_ERROR',e.message)}
           NODE
-          timeout 30s node /tmp/cas.cjs
+          timeout 30s node cas-benchmark.cjs
