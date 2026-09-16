@@ -50,16 +50,10 @@ function C(expr){
   if(key.length>5000){canonicalCache[key]=base;return base;}
   var best=base;
   try{
-    if(key.indexOf("__uf")!==-1&&key.length<1800){
-      best=strongFinalSimplify(base);
-    }else{
-      best=S(rationalizeAtomic(base));
-      best=S(trigCleanup(best));
-      if(best.length<2500)best=S(rationalizeAtomic(best));
-    }
+    if(key.indexOf("__uf")!==-1&&key.length<1800){best=strongFinalSimplify(base);}
+    else{best=S(rationalizeAtomic(base));best=S(trigCleanup(best));if(best.length<2500)best=S(rationalizeAtomic(best));}
   }catch(e){best=base;}
-  best=S(best);
-  canonicalCache[key]=best;canonicalCache[best]=best;return best;
+  best=S(best);canonicalCache[key]=best;canonicalCache[best]=best;return best;
 }
 
 var baseInverseMatrix=inverseMatrix;
@@ -68,35 +62,20 @@ inverseMatrix=function(matrix){var out=baseInverseMatrix(matrix);out.det=C(out.d
 christoffel=function(metric,inv,x){
   var n=metric.length,G=[],a,b,c,d;
   for(a=0;a<n;a++){G[a]=[];for(b=0;b<n;b++){G[a][b]=[];for(c=0;c<n;c++){
-    var terms=[];for(d=0;d<n;d++){
-      var bracket=add(add(D(metric[d][c],x[b]),D(metric[b][d],x[c])),neg(D(metric[b][c],x[d])));
-      terms.push(mul(inv[a][d],bracket));
-    }
-    var value=S(mul("1/2",sum(terms)));
-    G[a][b][c]=isZero(value)?"0":C(value);
+    var terms=[];for(d=0;d<n;d++){var bracket=add(add(D(metric[d][c],x[b]),D(metric[b][d],x[c])),neg(D(metric[b][c],x[d])));terms.push(mul(inv[a][d],bracket));}
+    var value=S(mul("1/2",sum(terms)));G[a][b][c]=isZero(value)?"0":C(value);
   }}}
   return G;
 };
 
-christoffelOutput=function(G){
-  var out=[],n=G.length;for(var a=0;a<n;a++)for(var b=0;b<n;b++)for(var c=b;c<n;c++){
-    var v=G[a][b][c];if(!isZero(v))out.push({i:a,j:b,k:c,value:C(v)});
-  }return out;
-};
+christoffelOutput=function(G){var out=[],n=G.length;for(var a=0;a<n;a++)for(var b=0;b<n;b++)for(var c=b;c<n;c++){var v=G[a][b][c];if(!isZero(v))out.push({i:a,j:b,k:c,value:C(v)});}return out;};
 
-geodesicOutput=function(G){
-  var n=G.length,out=[];for(var a=0;a<n;a++){
-    var terms=[];for(var b=0;b<n;b++)for(var c=0;c<n;c++)if(!isZero(G[a][b][c]))terms.push(mul(mul(G[a][b][c],"v"+(b+1)),"v"+(c+1)));
-    out.push({i:a,value:terms.length?C(sum(terms)):"0"});
-  }return out;
-};
+geodesicOutput=function(G){var n=G.length,out=[];for(var a=0;a<n;a++){var terms=[];for(var b=0;b<n;b++)for(var c=0;c<n;c++)if(!isZero(G[a][b][c]))terms.push(mul(mul(G[a][b][c],"v"+(b+1)),"v"+(c+1)));out.push({i:a,value:terms.length?C(sum(terms)):"0"});}return out;};
 
 ricciTensor=function(G,x){
-  var n=G.length,R=[],s,v,a,l,terms,value,componentStart,rawValue;
+  var n=G.length,R=[],s,v,a,l,terms,value,rawValue;
   for(s=0;s<n;s++)R[s]=new Array(n).fill("0");
   for(s=0;s<n;s++)for(v=s;v<n;v++){
-    componentStart=performance.now();
-    postProgress("Ricci component R"+(s+1)+(v+1),"assembling");
     terms=[];
     for(a=0;a<n;a++){
       if(!isZero(G[a][v][s]))terms.push(D(G[a][v][s],x[a]));
@@ -107,29 +86,17 @@ ricciTensor=function(G,x){
       }
     }
     rawValue=terms.length?S(sum(terms)):"0";
-    postProgress("Ricci component R"+(s+1)+(v+1),"simplifying · raw length "+rawValue.length);
+    if(s===1&&v===1)postProgress("R22 raw",rawValue);
+    else postProgress("Ricci component R"+(s+1)+(v+1),"raw length "+rawValue.length);
     value=isZero(rawValue)?"0":C(rawValue);
-    postProgress("Ricci component R"+(s+1)+(v+1),"done in "+Math.round(performance.now()-componentStart)+" ms");
     R[s][v]=value;R[v][s]=value;
   }
   return R;
 };
 
-ricciScalar=function(ricci,inv){
-  var terms=[];for(var i=0;i<ricci.length;i++)for(var j=0;j<ricci.length;j++)if(!isZero(ricci[i][j])&&!isZero(inv[i][j]))terms.push(mul(inv[i][j],ricci[i][j]));
-  return terms.length?C(sum(terms)):"0";
-};
+ricciScalar=function(ricci,inv){var terms=[];for(var i=0;i<ricci.length;i++)for(var j=0;j<ricci.length;j++)if(!isZero(ricci[i][j])&&!isZero(inv[i][j]))terms.push(mul(inv[i][j],ricci[i][j]));return terms.length?C(sum(terms)):"0";};
 
-einsteinTensor=function(ricci,scalar,metric){
-  var n=metric.length,out=[],i,j,value;for(i=0;i<n;i++)out[i]=new Array(n).fill("0");
-  if(isZero(scalar)){for(i=0;i<n;i++)for(j=i;j<n;j++){value=C(ricci[i][j]);out[i][j]=value;out[j][i]=value;}return out;}
-  for(i=0;i<n;i++)for(j=i;j<n;j++){
-    value=C(sub(ricci[i][j],mul("1/2",mul(scalar,metric[i][j]))));out[i][j]=value;out[j][i]=value;
-  }
-  return out;
-};
+einsteinTensor=function(ricci,scalar,metric){var n=metric.length,out=[],i,j,value;for(i=0;i<n;i++)out[i]=new Array(n).fill("0");if(isZero(scalar)){for(i=0;i<n;i++)for(j=i;j<n;j++){value=C(ricci[i][j]);out[i][j]=value;out[j][i]=value;}return out;}for(i=0;i<n;i++)for(j=i;j<n;j++){value=C(sub(ricci[i][j],mul("1/2",mul(scalar,metric[i][j]))));out[i][j]=value;out[j][i]=value;}return out;};
 
 var baseRiemannOutput=riemannOutput;
-riemannOutput=function(G,x){
-  return baseRiemannOutput(G,x).map(function(c){c.value=C(c.value);return c;}).filter(function(c){return !isZero(c.value);});
-};
+riemannOutput=function(G,x){return baseRiemannOutput(G,x).map(function(c){c.value=C(c.value);return c;}).filter(function(c){return !isZero(c.value);});};
