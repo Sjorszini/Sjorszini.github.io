@@ -52,12 +52,13 @@ jobs:
               const status=await page.$eval('#status',e=>({text:e.textContent,cls:e.className}));
               if(!/\bis-success\b/.test(status.cls))throw new Error(preset+' failed: '+status.text);
               await page.waitForFunction(()=>window.__riemannianLastResult!==null,{timeout:3000});
-              await sleep(1000);
+              await sleep(700);
               return {ms:Date.now()-start,result:await page.evaluate(()=>window.__riemannianLastResult)};
             }
 
             function allZero(matrix){return Array.isArray(matrix)&&matrix.every(row=>row.every(zero));}
             function evalExpr(expr,scope){return page.evaluate(({expr,scope})=>math.evaluate(expr,scope),{expr,scope});}
+            function component(list,i,j,k){return (list||[]).find(c=>c.i===i&&c.j===j&&c.k===k);}
             async function cardSnapshot(){
               return page.evaluate(()=>{
                 const cards=[...document.querySelectorAll('#results .result-card')];
@@ -99,6 +100,31 @@ jobs:
             if(!/\\dot\{|\\ddot\{/.test(copied))throw new Error('FLRW derivative dot notation missing: '+copied);
             if(/a_\{?t\}?/.test(copied))throw new Error('Old a_t notation remains: '+copied);
             if(report.flrw.cards.mjxErrors.length)throw new Error('FLRW MathJax errors: '+report.flrw.cards.mjxErrors.join('|'));
+
+            report.minkowski=await calculate('minkowski',['christoffel','ricci','scalar','einstein']);
+            report.minkowski.cards=await cardSnapshot();
+            if(report.minkowski.result.christoffel.length)throw new Error('Minkowski Christoffels are not zero');
+            if(!allZero(report.minkowski.result.ricci)||!zero(report.minkowski.result.scalar)||!allZero(report.minkowski.result.einstein))throw new Error('Minkowski curvature is not zero');
+            if(report.minkowski.cards.mjxErrors.length)throw new Error('Minkowski MathJax errors');
+
+            report.polar=await calculate('polar2',['christoffel','ricci','scalar']);
+            report.polar.cards=await cardSnapshot();
+            if(!allZero(report.polar.result.ricci)||!zero(report.polar.result.scalar))throw new Error('Polar plane curvature is not zero');
+            const pr=component(report.polar.result.christoffel,0,1,1),pp=component(report.polar.result.christoffel,1,0,1);
+            if(!pr||!pp)throw new Error('Polar Christoffel components missing');
+            report.polar.numeric={GammaRphiphi:await evalExpr(pr.value,{x1:3,x2:0.4}),GammaPhirphi:await evalExpr(pp.value,{x1:3,x2:0.4})};
+            if(!nearly(report.polar.numeric.GammaRphiphi,-3)||!nearly(report.polar.numeric.GammaPhirphi,1/3))throw new Error('Polar Christoffel mismatch '+JSON.stringify(report.polar.numeric));
+            if(report.polar.cards.mjxErrors.length)throw new Error('Polar MathJax errors');
+
+            report.sphere=await calculate('sphere2',['ricci','scalar','einstein']);
+            report.sphere.cards=await cardSnapshot();
+            const s=report.sphere.result,sphereScope={R:3,x1:0.7,x2:0.2};
+            report.sphere.numeric={Rthetatheta:await evalExpr(s.ricci[0][0],sphereScope),Rphiphi:await evalExpr(s.ricci[1][1],sphereScope),scalar:await evalExpr(s.scalar,sphereScope)};
+            if(!nearly(report.sphere.numeric.Rthetatheta,1))throw new Error('Sphere R_theta_theta mismatch '+report.sphere.numeric.Rthetatheta);
+            if(!nearly(report.sphere.numeric.Rphiphi,Math.sin(0.7)**2))throw new Error('Sphere R_phi_phi mismatch '+report.sphere.numeric.Rphiphi);
+            if(!nearly(report.sphere.numeric.scalar,2/9))throw new Error('Sphere scalar mismatch '+report.sphere.numeric.scalar);
+            if(!allZero(s.einstein))throw new Error('2-sphere Einstein tensor should vanish identically');
+            if(report.sphere.cards.mjxErrors.length)throw new Error('Sphere MathJax errors');
 
             report.errors=errors;
             if(errors.length)throw new Error(errors.join(' | '));
