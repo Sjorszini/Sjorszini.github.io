@@ -12,7 +12,7 @@
   var BaseWorker=window.Worker;
   function PerformanceWorker(url,options){
     var target=String(url);
-    if(/(?:^|\/)riemannian-worker\.js(?:\?v=\d+)?$/.test(target))target="riemannian-worker-present.js?v=2";
+    if(/(?:^|\/)riemannian-worker\.js(?:\?v=\d+)?$/.test(target))target="riemannian-worker-present.js?v=3";
     var instance=new BaseWorker(target,options),started=0,timer=null;
     var nativePost=instance.postMessage.bind(instance),nativeTerminate=instance.terminate.bind(instance);
 
