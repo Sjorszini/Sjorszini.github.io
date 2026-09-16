@@ -14,7 +14,7 @@
     window.MathJax={tex:{inlineMath:[['\\(','\\)']],displayMath:[['\\[','\\]']]},options:{skipHtmlTags:['script','noscript','style','textarea','pre','code']}};
   </script>
   <script defer src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
-  <script defer src="riemannian-pretty.js?v=1"></script>
+  <script defer src="riemannian-pretty.js?v=2"></script>
   <script defer src="riemannian-calculator.js?v=1"></script>
 </head>
 <body>
@@ -71,7 +71,7 @@
             <label class="notation-field">
               <span>Functions</span>
               <input id="functionsInput" type="text" placeholder="a(t), H(u,x,y)">
-              <small>Function calls are differentiated symbolically by the worker.</small>
+              <small>Function calls are differentiated symbolically; time derivatives use dot notation and multivariable derivatives use ∂.</small>
             </label>
           </div>
         </section>
