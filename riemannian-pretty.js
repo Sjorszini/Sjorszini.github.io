@@ -92,7 +92,7 @@
   function symbolTex(name){
     if(BUILTIN_FUNCTIONS[name])return null;
     if(/^velocity[A-Z]$/.test(name))return null;
-    /* Always group custom symbol TeX.  math.js can concatenate a preceding
+    /* Always group custom symbol TeX. math.js can concatenate a preceding
        control word such as \\cdot directly with a symbol handler result;
        grouping prevents invalid commands like \\cdotr_s. */
     return "{"+simpleTex(name)+"}";
@@ -121,20 +121,5 @@
     math.__riemannianPrettyPatched=true;
   }
 
-  function installWorkerPatch(){
-    if(!window.Worker||window.Worker.__riemannianPrettyPatched)return;
-    var NativeWorker=window.Worker;
-    function PatchedWorker(url,options){
-      var target=String(url);
-      if(/(?:^|\/)riemannian-worker\.js(?:\?v=1|\?v=2)?$/.test(target))target=target.replace(/\?v=[12]$/,"")+"?v=2";
-      return new NativeWorker(target,options);
-    }
-    PatchedWorker.prototype=NativeWorker.prototype;
-    Object.setPrototypeOf(PatchedWorker,NativeWorker);
-    PatchedWorker.__riemannianPrettyPatched=true;
-    window.Worker=PatchedWorker;
-  }
-
   installTexPatch();
-  installWorkerPatch();
 })();
