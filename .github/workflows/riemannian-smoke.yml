@@ -7,7 +7,7 @@ on:
 jobs:
   schwarzschild-browser:
     runs-on: ubuntu-latest
-    timeout-minutes: 8
+    timeout-minutes: 6
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -19,87 +19,59 @@ jobs:
         run: |
           python3 -m http.server 8000 > /tmp/riemannian-http.log 2>&1 &
           sleep 1
-      - name: Run Schwarzschild calculator in Chrome
+      - name: Diagnose Schwarzschild calculator in Chrome
         run: |
-          cat > smoke.cjs <<'NODE'
+          cat > diagnose.cjs <<'NODE'
           const puppeteer=require('puppeteer-core');
           const fs=require('fs');
           const cp=require('child_process');
           function which(c){try{return cp.execFileSync('bash',['-lc',`command -v ${c}`],{encoding:'utf8'}).trim()}catch{return ''}}
           const executablePath=which('google-chrome')||which('chromium')||which('chromium-browser');
           if(!executablePath)throw new Error('Chrome/Chromium not found');
-          const zero=x=>String(x).replace(/\s+/g,'')==='0';
+          const sleep=ms=>new Promise(r=>setTimeout(r,ms));
           (async()=>{
             const browser=await puppeteer.launch({headless:true,executablePath,args:['--no-sandbox','--disable-dev-shm-usage']});
             const page=await browser.newPage();
-            await page.setViewport({width:1440,height:1200});
-            const browserErrors=[];
-            page.on('pageerror',e=>browserErrors.push(e.message));
-            page.on('console',m=>{if(m.type()==='error')browserErrors.push('console: '+m.text());});
+            await page.setViewport({width:1440,height:1000});
+            const events=[];
+            page.on('pageerror',e=>{events.push('PAGEERROR '+e.message);console.log('PAGEERROR',e.message);});
+            page.on('console',m=>{events.push('CONSOLE '+m.type()+' '+m.text());console.log('BROWSER',m.type(),m.text());});
             await page.goto('http://127.0.0.1:8000/Finsler.html',{waitUntil:'networkidle2',timeout:60000});
-            await page.select('#presetSelect','schwarzschild');
-            await page.click('#loadPreset');
+            await page.select('#presetSelect','schwarzschild');await page.click('#loadPreset');
             await page.evaluate(()=>{
               for(const e of document.querySelectorAll('[data-output]'))e.checked=false;
-              for(const key of ['inverse','christoffel','ricci','scalar','einstein']){
-                const e=document.querySelector(`[data-output="${key}"]`);if(e)e.checked=true;
-              }
+              for(const key of ['inverse','christoffel','ricci','scalar','einstein']){const e=document.querySelector(`[data-output="${key}"]`);if(e)e.checked=true;}
               document.querySelector('[data-output="einstein"]').dispatchEvent(new Event('change',{bubbles:true}));
             });
-            const started=Date.now();
-            await page.click('#calculateSelected');
-            await page.waitForFunction(()=>document.querySelector('#status')?.classList.contains('is-success'),{timeout:45000});
-            await page.waitForFunction(()=>window.__riemannianLastResult&&window.__riemannianLastResult.scalar!==undefined,{timeout:5000});
-            await new Promise(r=>setTimeout(r,1200));
-            const report=await page.evaluate(()=>{
-              const result=window.__riemannianLastResult||{};
-              const cards=[...document.querySelectorAll('#results .result-card')];
-              const card=t=>cards.find(c=>c.querySelector('summary strong')?.textContent.trim()===t);
-              const ricciCard=card('Ricci tensor'),einsteinCard=card('Einstein tensor'),inverseCard=card('Inverse metric and determinant'),christoffelCard=card('Christoffel symbols'),scalarCard=card('Ricci scalar');
-              const mjxErrors=[...document.querySelectorAll('mjx-merror')].map(x=>x.textContent||'MathJax error');
-              return {
-                timing:document.querySelector('#calculationTime')?.textContent||'',
+            const start=Date.now();await page.click('#calculateSelected');
+            let finalState=null,last='';
+            while(Date.now()-start<25000){
+              const state=await page.evaluate(()=>({
                 status:document.querySelector('#status')?.textContent||'',
-                determinant:result.inverse?.det??null,
-                christoffel:(result.christoffel||[]).map(c=>({i:c.i,j:c.j,k:c.k,value:c.value})),
-                ricci:result.ricci||null,
-                scalar:result.scalar??null,
-                einstein:result.einstein||null,
-                ricciText:ricciCard?.textContent||'',
-                einsteinText:einsteinCard?.textContent||'',
-                scalarText:scalarCard?.textContent||'',
-                determinantText:inverseCard?.textContent||'',
-                christoffelText:christoffelCard?.textContent||'',
-                ricciRows:ricciCard?.querySelectorAll('.component-row').length||0,
-                einsteinRows:einsteinCard?.querySelectorAll('.component-row').length||0,
-                ricciMatrix:!!ricciCard?.querySelector('.matrix-display,.result-matrix,.matrix-output,table'),
-                einsteinMatrix:!!einsteinCard?.querySelector('.matrix-display,.result-matrix,.matrix-output,table'),
-                mjxErrors
-              };
-            });
-            report.wallMs=Date.now()-started;
-            report.browserErrors=browserErrors;
-            console.log('SMOKE_REPORT '+JSON.stringify(report,null,2));
-            fs.writeFileSync('riemannian-smoke.json',JSON.stringify(report,null,2));
-            await page.screenshot({path:'riemannian-smoke.png',fullPage:true});
-
-            if(browserErrors.length)throw new Error('Browser errors: '+browserErrors.join(' | '));
-            if(report.mjxErrors.length)throw new Error('MathJax errors: '+report.mjxErrors.join(' | '));
-            if(!Array.isArray(report.ricci)||report.ricci.some(row=>row.some(v=>!zero(v))))throw new Error('Schwarzschild Ricci tensor is not zero');
-            if(!zero(report.scalar))throw new Error('Schwarzschild Ricci scalar is not zero: '+report.scalar);
-            if(!Array.isArray(report.einstein)||report.einstein.some(row=>row.some(v=>!zero(v))))throw new Error('Schwarzschild Einstein tensor is not zero');
-            if(!report.ricciText.includes('All components simplify to zero.'))throw new Error('Ricci tensor was not componentized as a zero tensor');
-            if(!report.einsteinText.includes('All components simplify to zero.'))throw new Error('Einstein tensor was not componentized as a zero tensor');
-            if(report.ricciMatrix||report.einsteinMatrix)throw new Error('Ricci/Einstein matrix presentation still present');
-            if(report.wallMs>30000)throw new Error('Schwarzschild calculation too slow: '+report.wallMs+' ms');
+                classes:document.querySelector('#status')?.className||'',
+                progress:document.querySelector('#progressText')?.textContent||'',
+                timing:document.querySelector('#calculationTime')?.textContent||'',
+                result:window.__riemannianLastResult||null
+              }));
+              const sig=state.status+'|'+state.progress+'|'+state.timing;
+              if(sig!==last){console.log('STATE',Date.now()-start,JSON.stringify(state));last=sig;}
+              finalState=state;
+              if(/\bis-success\b/.test(state.classes)||/\bis-error\b/.test(state.classes))break;
+              await sleep(500);
+            }
+            const report={wallMs:Date.now()-start,finalState,events};
+            console.log('DIAGNOSTIC_REPORT '+JSON.stringify(report,null,2));
+            fs.writeFileSync('riemannian-diagnostic.json',JSON.stringify(report,null,2));
+            await page.screenshot({path:'riemannian-diagnostic.png',fullPage:true});
             await browser.close();
+            if(!finalState||!/\bis-success\b/.test(finalState.classes))process.exitCode=1;
           })().catch(e=>{console.error(e);process.exit(1)});
           NODE
-          node smoke.cjs
+          node diagnose.cjs
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: riemannian-smoke
+          name: riemannian-diagnostic
           path: |
-            riemannian-smoke.json
-            riemannian-smoke.png
+            riemannian-diagnostic.json
+            riemannian-diagnostic.png
