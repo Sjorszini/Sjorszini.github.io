@@ -49,6 +49,23 @@
     return walk(0);
   }
 
+  function compactDerivativeTex(def,indices){
+    var nameTex=simpleTex(def.name),order=indices.length;
+    if(def.args.length===1&&def.safeArgs[0]==="t"){
+      if(order===1)return "\\dot{"+nameTex+"}";
+      if(order===2)return "\\ddot{"+nameTex+"}";
+      return "\\partial_{t}^{"+order+"}"+nameTex;
+    }
+    var counts=Object.create(null);
+    indices.forEach(function(i){counts[i]=(counts[i]||0)+1;});
+    var ops=[];
+    Object.keys(counts).map(Number).sort(function(a,b){return a-b;}).forEach(function(i){
+      var count=counts[i],arg=simpleTex(def.args[i]||("x"+(i+1)));
+      ops.push("\\partial_{"+arg+"}"+(count>1?"^{"+count+"}":""));
+    });
+    return ops.join("")+nameTex;
+  }
+
   function derivativeTex(symbol){
     var defs=declaredFunctions();
     for(var d=0;d<defs.length;d++){
@@ -56,15 +73,7 @@
       if(symbol.indexOf(prefix)!==0)continue;
       var suffix=symbol.slice(prefix.length),indices=splitSuffix(suffix,def.safeArgs);
       if(!indices||!indices.length)continue;
-      var order=indices.length,nameTex=simpleTex(def.name);
-      if(def.args.length===1){
-        var arg=simpleTex(def.args[0]),power=order>1?"^{"+order+"}":"";
-        return "\\frac{\\mathrm{d}"+power+" "+nameTex+"}{\\mathrm{d}"+arg+power+"}";
-      }
-      var counts=Object.create(null);indices.forEach(function(i){counts[i]=(counts[i]||0)+1;});
-      var numerator="\\partial"+(order>1?"^{"+order+"}":"")+" "+nameTex,den=[];
-      Object.keys(counts).map(Number).sort(function(a,b){return a-b;}).forEach(function(i){var c=counts[i],arg=simpleTex(def.args[i]);den.push("\\partial "+arg+(c>1?"^{"+c+"}":""));});
-      return "\\frac{"+numerator+"}{"+den.join("\\,")+"}";
+      return compactDerivativeTex(def,indices);
     }
     return null;
   }
