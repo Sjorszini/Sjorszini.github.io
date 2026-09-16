@@ -84,7 +84,7 @@
       if(symbol.indexOf(prefix)!==0)continue;
       var suffix=symbol.slice(prefix.length),indices=splitSuffix(suffix,def.safeArgs);
       if(!indices||!indices.length)continue;
-      return compactDerivativeTex(def,indices);
+      return "{"+compactDerivativeTex(def,indices)+"}";
     }
     return null;
   }
@@ -92,7 +92,10 @@
   function symbolTex(name){
     if(BUILTIN_FUNCTIONS[name])return null;
     if(/^velocity[A-Z]$/.test(name))return null;
-    return simpleTex(name);
+    /* Always group custom symbol TeX.  math.js can concatenate a preceding
+       control word such as \\cdot directly with a symbol handler result;
+       grouping prevents invalid commands like \\cdotr_s. */
+    return "{"+simpleTex(name)+"}";
   }
 
   function installTexPatch(){
