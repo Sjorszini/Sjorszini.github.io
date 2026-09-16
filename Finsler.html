@@ -43,110 +43,154 @@
   <main class="geometry-workbench">
     <section id="calculator-shell">
       <div class="calculator-content calculator-content-flat">
-        <div class="calculator-grid">
-          <section class="calculator-panel calculator-panel-input">
-            <div class="panel-header">
-              <div>
-                <p class="panel-kicker">Metric input</p>
-                <h2>Geometry</h2>
-              </div>
-              <div class="setup-actions">
-                <label class="dimension-box" for="dimensionSelect">Dimension
-                  <select id="dimensionSelect">
-                    <option value="2">2D</option>
-                    <option value="3">3D</option>
-                    <option value="4" selected>4D</option>
-                  </select>
-                </label>
-                <button id="resetMetric" type="button" class="secondary-button">Reset</button>
-              </div>
-            </div>
-
-            <div class="field-block">
-              <label for="presetSelect">Preset</label>
-              <div class="inline-controls">
-                <select id="presetSelect">
-                  <option value="minkowski">Minkowski spacetime</option>
-                  <option value="schwarzschild">Schwarzschild spacetime</option>
-                  <option value="flrw-flat">Flat FLRW</option>
-                  <option value="flrw-k">FLRW with spatial curvature</option>
-                  <option value="pp-wave">Brinkmann pp-wave</option>
-                  <option value="sphere">2-sphere</option>
-                  <option value="polar">Euclidean plane in polar coordinates</option>
-                </select>
-                <button id="loadPreset" type="button" class="secondary-button">Load preset</button>
-              </div>
-            </div>
-
-            <div class="field-block">
-              <label>Coordinates</label>
-              <div id="coordinateInputs" class="coordinate-inputs"></div>
-            </div>
-
-            <div class="field-block">
-              <label>Metric tensor <span class="field-note">symmetric entries</span></label>
-              <div id="metricEditor" class="metric-editor" aria-label="Metric tensor editor"></div>
-            </div>
-
-            <div class="field-block split-fields">
-              <div>
-                <label for="constantsInput">Constants</label>
-                <input id="constantsInput" type="text" placeholder="M, k, R">
-                <p class="field-help">Comma-separated symbolic constants.</p>
-              </div>
-              <div>
-                <label for="functionsInput">Functions</label>
-                <input id="functionsInput" type="text" placeholder="a(t), H(u,x,y)">
-                <p class="field-help">Declare symbolic functions used in the metric.</p>
-              </div>
-            </div>
-
-            <div class="notation-banner" id="notationBanner">Use standard math syntax such as <code>sin(theta)</code>, <code>exp(x)</code>, <code>r^2</code>, and declared functions such as <code>a(t)</code>.</div>
-          </section>
-
-          <section class="calculator-panel calculator-panel-output">
-            <div class="panel-header">
-              <div>
-                <p class="panel-kicker">Calculation</p>
-                <h2>Outputs</h2>
-              </div>
-              <span id="calculationTime" class="calculation-time" hidden></span>
-            </div>
-
-            <fieldset class="output-choices">
-              <legend>Select quantities</legend>
-              <label><input type="checkbox" data-output="metric"> Metric</label>
-              <label><input type="checkbox" data-output="inverse" checked> Inverse metric &amp; determinant</label>
-              <label><input type="checkbox" data-output="christoffel" checked> Christoffel symbols</label>
-              <label><input type="checkbox" data-output="geodesic"> Geodesic equations</label>
-              <label><input type="checkbox" data-output="ricci" checked> Ricci tensor</label>
-              <label><input type="checkbox" data-output="scalar" checked> Ricci scalar</label>
-              <label><input type="checkbox" data-output="einstein"> Einstein tensor</label>
-              <label><input type="checkbox" data-output="riemann"> Riemann tensor</label>
-            </fieldset>
-
-            <div class="calculation-actions">
-              <button id="calculateSelected" type="button" class="primary-button">Calculate selected</button>
-              <button id="cancelCalculation" type="button" class="secondary-button" disabled>Cancel</button>
-            </div>
-
-            <div id="status" class="calculator-status" role="status" aria-live="polite">Ready.</div>
-            <div class="progress-line"><span id="progressText">Waiting for input.</span></div>
-          </section>
-        </div>
-
-        <section class="results-section">
-          <div class="results-heading">
+        <section class="setup-card">
+          <div class="section-heading-inline">
             <div>
-              <p class="panel-kicker">Symbolic result</p>
-              <h2>Results</h2>
+              <span class="section-kicker">1 · Setup</span>
+              <h3>Coordinates and notation</h3>
+              <p>Name the coordinates and declare any constants or coordinate-dependent functions used in the metric.</p>
+            </div>
+            <div class="setup-actions">
+              <label class="dimension-box" for="dimension">Dimension
+                <select id="dimension">
+                  <option value="2">2</option>
+                  <option value="3">3</option>
+                  <option value="4" selected>4</option>
+                </select>
+              </label>
+              <button type="button" class="utility-button" id="detectNotation">Detect notation</button>
             </div>
           </div>
-          <div id="results" class="results-stack"></div>
+          <div class="notation-grid">
+            <div>
+              <label class="field-label">Coordinates</label>
+              <div id="coordinateFields" class="coordinate-fields"></div>
+            </div>
+            <label class="notation-field">
+              <span>Constants</span>
+              <input id="constantsInput" type="text" placeholder="M, r_s, k, Lambda">
+              <small>Comma-separated bare symbols that should not be differentiated.</small>
+            </label>
+            <label class="notation-field">
+              <span>Functions</span>
+              <input id="functionsInput" type="text" placeholder="a(t), H(u,x,y)">
+              <small>Function calls are differentiated symbolically; time derivatives use dot notation and multivariable derivatives use ∂.</small>
+            </label>
+          </div>
         </section>
+
+        <section class="preset-strip" aria-labelledby="preset-title">
+          <div>
+            <span class="section-kicker">Examples</span>
+            <h3 id="preset-title">Start from a known metric</h3>
+          </div>
+          <div class="preset-controls">
+            <label for="presetSelect" class="sr-only">Example metric</label>
+            <select id="presetSelect"></select>
+            <button type="button" class="utility-button primary-utility" id="loadPreset">Load example</button>
+          </div>
+          <p id="presetNote" class="preset-note"></p>
+        </section>
+
+        <div class="workspace-grid">
+          <section class="workflow-card metric-card">
+            <div class="card-title-row">
+              <div>
+                <span class="section-kicker">2 · Metric</span>
+                <h3>Metric tensor</h3>
+                <p class="card-explainer">Edit the symmetric matrix directly. Off-diagonal entries mirror automatically.</p>
+              </div>
+              <span class="signature-pill">Any signature</span>
+            </div>
+            <div class="matrix-editor-wrap">
+              <div id="metricGrid" class="matrix-editor" aria-label="Metric matrix editor"></div>
+            </div>
+            <div class="input-guidance">
+              <strong>Syntax</strong>
+              <span>Use math.js notation: <code>^</code> for powers, <code>*</code> for multiplication, and functions such as <code>sin(theta)</code>. Examples: <code>1/(1-r_s/r)</code>, <code>a(t)^2</code>.</span>
+            </div>
+          </section>
+
+          <aside class="workflow-card output-card">
+            <div class="options-title-row">
+              <div>
+                <span class="section-kicker">3 · Calculate</span>
+                <h3>Choose quantities</h3>
+                <p class="card-explainer">Zero components are omitted. Ricci quantities use a direct contraction path and do not require full Riemann output.</p>
+              </div>
+              <span class="selection-count" id="selectionCount">0 selected</span>
+            </div>
+
+            <div class="option-actions">
+              <button type="button" class="utility-button" id="selectEssentials">Essentials</button>
+              <button type="button" class="utility-button" id="selectAllOutputs">All</button>
+              <button type="button" class="utility-button" id="clearAllOutputs">None</button>
+            </div>
+
+            <div class="output-groups">
+              <div class="output-group">
+                <p class="output-group-title">Metric</p>
+                <label class="output-check"><input type="checkbox" data-output="metric" checked><span><strong>Metric</strong><span>g<sub>ij</sub></span></span></label>
+                <label class="output-check"><input type="checkbox" data-output="inverse" checked><span><strong>Inverse &amp; determinant</strong><span>g<sup>ij</sup>, det(g)</span></span></label>
+              </div>
+              <div class="output-group">
+                <p class="output-group-title">Connection</p>
+                <label class="output-check"><input type="checkbox" data-output="christoffel" checked><span><strong>Christoffel symbols</strong><span>Γ<sup>i</sup><sub>jk</sub></span></span></label>
+                <label class="output-check"><input type="checkbox" data-output="geodesic"><span><strong>Geodesic equations</strong><span>d²x<sup>i</sup>/dλ² + Γ<sup>i</sup><sub>jk</sub> ẋ<sup>j</sup>ẋ<sup>k</sup> = 0</span></span></label>
+              </div>
+              <div class="output-group">
+                <p class="output-group-title">Curvature</p>
+                <label class="output-check expensive-option"><input type="checkbox" data-output="riemann"><span><strong>Riemann tensor</strong><span>R<sup>i</sup><sub>jkl</sub> · potentially large</span></span></label>
+                <label class="output-check"><input type="checkbox" data-output="ricci" checked><span><strong>Ricci tensor</strong><span>R<sub>ij</sub></span></span></label>
+                <label class="output-check"><input type="checkbox" data-output="scalar" checked><span><strong>Ricci scalar</strong><span>R</span></span></label>
+                <label class="output-check"><input type="checkbox" data-output="einstein"><span><strong>Einstein tensor</strong><span>G<sub>ij</sub></span></span></label>
+              </div>
+            </div>
+
+            <div class="calculate-panel">
+              <button type="button" class="calculate-button" id="calculateSelected">Calculate selected</button>
+              <button type="button" class="utility-button" id="cancelCalculation" hidden>Cancel</button>
+              <button type="button" class="utility-button" id="clearResults">Clear</button>
+              <div id="status" class="calc-status" role="status" aria-live="polite">Ready.</div>
+            </div>
+          </aside>
+        </div>
+
+        <section class="results-panel" aria-labelledby="results-title">
+          <div class="results-header">
+            <div>
+              <span class="section-kicker">Results</span>
+              <h3 id="results-title">Symbolic output</h3>
+            </div>
+            <span id="calculationTime" class="calculation-time"></span>
+          </div>
+          <div class="progress-line" id="progressLine" hidden><span id="progressText">Working…</span></div>
+          <div id="results" class="results-area" aria-live="polite">
+            <div class="results-empty">Choose quantities and calculate. Results will appear here.</div>
+          </div>
+        </section>
+
+        <details class="reference-drawer">
+          <summary>Definitions and sign convention</summary>
+          <div class="formula-grid">
+            <div>\[\Gamma^\rho{}_{\mu\nu}=\frac12g^{\rho\sigma}(\partial_\mu g_{\sigma\nu}+\partial_\nu g_{\mu\sigma}-\partial_\sigma g_{\mu\nu})\]</div>
+            <div>\[R^\rho{}_{\sigma\mu\nu}=\partial_\mu\Gamma^\rho{}_{\nu\sigma}-\partial_\nu\Gamma^\rho{}_{\mu\sigma}+\Gamma^\rho{}_{\mu\lambda}\Gamma^\lambda{}_{\nu\sigma}-\Gamma^\rho{}_{\nu\lambda}\Gamma^\lambda{}_{\mu\sigma}\]</div>
+            <div>\[R_{\sigma\nu}=R^\rho{}_{\sigma\rho\nu},\qquad R=g^{\mu\nu}R_{\mu\nu}\]</div>
+            <div>\[G_{\mu\nu}=R_{\mu\nu}-\frac12Rg_{\mu\nu}\]</div>
+          </div>
+          <p class="convention-note">The Riemann tensor convention is the one displayed above. Built-in Lorentzian presets use (-+++).</p>
+        </details>
       </div>
     </section>
   </main>
+
+  <footer class="site-footer"><span>&copy; 2017–2026 Sjors Heefer</span></footer>
 </div>
+<menubar>
+  <button class="mobile-menu-toggle" type="button" aria-expanded="false" aria-controls="site-menu" onclick="var o=this.parentElement.classList.toggle('menu-open');this.setAttribute('aria-expanded',o?'true':'false');"><span>Menu</span><span class="mobile-menu-icon" aria-hidden="true"></span></button>
+  <menu id="site-menu">
+    <menu-item><a href="index.html">Home</a></menu-item><menu-item><a href="publications.html">Publications</a></menu-item><menu-item><a href="teaching.html">Teaching</a></menu-item><menu-item><a href="pianist.html">Pianist</a></menu-item><menu-item><a href="Balls.html">Balls</a></menu-item><menu-item class="currentpage"><a href="Finsler.html">Geometry</a></menu-item><menu-item><a href="contact.html">Contact</a></menu-item>
+  </menu>
+</menubar>
 </body>
 </html>
