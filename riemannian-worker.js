@@ -2,13 +2,37 @@
 
 importScripts("https://cdn.jsdelivr.net/npm/mathjs@11.11.2/lib/browser/math.js");
 
-var simplifyCache=Object.create(null),derivativeCache=Object.create(null),functionInfo=Object.create(null),baseByKey=Object.create(null);
+var simplifyCache=Object.create(null),finalSimplifyCache=Object.create(null),derivativeCache=Object.create(null),functionInfo=Object.create(null),baseByKey=Object.create(null);
 
 function raw(expr){return typeof expr==="string"?expr:expr.toString({parenthesis:"auto"});}
 function S(expr){
   var text=raw(expr);if(simplifyCache[text]!==undefined)return simplifyCache[text];
-  var out=text;try{out=math.simplify(text).toString({parenthesis:"auto"});}catch(e){}
+  var out=text;try{out=math.simplify(text,{}, {exactFractions:true}).toString({parenthesis:"auto"});}catch(e){try{out=math.simplify(text).toString({parenthesis:"auto"});}catch(e2){}}
   simplifyCache[text]=out;simplifyCache[out]=out;return out;
+}
+function expressionCost(expr){
+  var text=raw(expr),ops=0;try{math.parse(text).traverse(function(node){if(node&&node.isOperatorNode)ops++;});}catch(e){}return ops*24+text.replace(/\s+/g,"").length;
+}
+function rationalizeAtomic(expr){
+  var node=math.parse(raw(expr)),held=[],prefix="__heldfn";
+  node=node.transform(function(child){if(child&&child.isFunctionNode){var token=prefix+held.length;held.push(child);return math.parse(token);}return child;});
+  var candidate=math.rationalize(node);
+  candidate=candidate.transform(function(child){if(child&&child.isSymbolNode&&child.name.indexOf(prefix)===0){var i=Number(child.name.slice(prefix.length));if(Number.isInteger(i)&&held[i])return held[i];}return child;});
+  return candidate;
+}
+function F(expr){
+  var base=S(expr),key=raw(base);if(finalSimplifyCache[key]!==undefined)return finalSimplifyCache[key];
+  var best=base,bestCost=expressionCost(base);
+  try{
+    var candidate=rationalizeAtomic(base);
+    candidate=math.simplify(candidate,{}, {exactFractions:true}).toString({parenthesis:"auto"});
+    var cost=expressionCost(candidate);if(cost<bestCost){best=candidate;bestCost=cost;}
+  }catch(e){}
+  try{
+    var factored=math.simplify(best,["n1*n3 + n2*n3 -> (n1+n2)*n3","n3*n1 + n3*n2 -> n3*(n1+n2)"]).toString({parenthesis:"auto"});
+    factored=S(factored);var factorCost=expressionCost(factored);if(factorCost<bestCost){best=factored;bestCost=factorCost;}
+  }catch(e2){}
+  finalSimplifyCache[key]=best;finalSimplifyCache[best]=best;return best;
 }
 function isZero(expr){var s=S(expr).replace(/\s+/g,"");return s==="0"||s==="0.0"||s==="-0";}
 function add(a,b){if(a==="0")return b;if(b==="0")return a;return "("+a+")+("+b+")";}
@@ -56,7 +80,7 @@ function validateMetric(metric){for(var i=0;i<metric.length;i++)for(var j=0;j<me
 
 function christoffel(metric,inv,x){
   var n=metric.length,G=[],a,b,c,d;
-  for(a=0;a<n;a++){G[a]=[];for(b=0;b<n;b++){G[a][b]=[];for(c=0;c<n;c++){var terms=[];for(d=0;d<n;d++){var bracket=add(add(D(metric[d][c],x[b]),D(metric[b][d],x[c])),neg(D(metric[b][c],x[d])));terms.push(mul(inv[a][d],bracket));}G[a][b][c]=S(mul("0.5",sum(terms)));}}}
+  for(a=0;a<n;a++){G[a]=[];for(b=0;b<n;b++){G[a][b]=[];for(c=0;c<n;c++){var terms=[];for(d=0;d<n;d++){var bracket=add(add(D(metric[d][c],x[b]),D(metric[b][d],x[c])),neg(D(metric[b][c],x[d])));terms.push(mul(inv[a][d],bracket));}G[a][b][c]=S(mul("1/2",sum(terms)));}}}
   return G;
 }
 
@@ -78,13 +102,13 @@ function ricciTensor(G,x){
         terms.push(neg(mul(G[a][v][l],G[l][a][s])));
       }
     }
-    R[s][v]=S(sum(terms));
+    R[s][v]=F(sum(terms));
   }}
   return R;
 }
 
-function ricciScalar(ricci,inv){var terms=[];for(var i=0;i<ricci.length;i++)for(var j=0;j<ricci.length;j++)terms.push(mul(inv[i][j],ricci[i][j]));return S(sum(terms));}
-function einsteinTensor(ricci,scalar,metric){var out=[];for(var i=0;i<metric.length;i++){out[i]=[];for(var j=0;j<metric.length;j++)out[i][j]=S(sub(ricci[i][j],mul("0.5",mul(scalar,metric[i][j]))));}return out;}
+function ricciScalar(ricci,inv){var terms=[];for(var i=0;i<ricci.length;i++)for(var j=0;j<ricci.length;j++)terms.push(mul(inv[i][j],ricci[i][j]));return F(sum(terms));}
+function einsteinTensor(ricci,scalar,metric){var out=[];for(var i=0;i<metric.length;i++){out[i]=[];for(var j=0;j<metric.length;j++)out[i][j]=F(sub(ricci[i][j],mul("1/2",mul(scalar,metric[i][j]))));}return out;}
 
 function riemannOutput(G,x){
   var n=G.length,out=[],total=n*n*n*(n-1)/2,count=0;
@@ -100,7 +124,7 @@ function riemannOutput(G,x){
 onmessage=function(event){
   var data=event.data||{};if(data.type!=="calculate")return;var started=performance.now();
   try{
-    simplifyCache=Object.create(null);derivativeCache=Object.create(null);resetFunctions(data.symbolicFunctions||[]);
+    simplifyCache=Object.create(null);finalSimplifyCache=Object.create(null);derivativeCache=Object.create(null);resetFunctions(data.symbolicFunctions||[]);
     var n=Number(data.n),metric=data.metric,outputs=data.outputs||{},x=vars("x",n),result={};
     if(!Array.isArray(metric)||metric.length!==n)throw new Error("Metric dimension does not match the selected dimension.");validateMetric(metric);
     if(outputs.metric)result.metric=metric.map(function(r){return r.map(S);});
