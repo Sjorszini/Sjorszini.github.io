@@ -3,7 +3,7 @@
 /* Keep calculation expressions optimized for the curvature pipeline, but
    serialize final display values from the exact rational form directly so
    presentation does not re-expand factored denominators. */
-importScripts("riemannian-worker-polish.js?v=1");
+importScripts("riemannian-worker-polish.js?v=2");
 
 function singleLinearAtom(key){
   var exps=parseMonomial(key),ids=Object.keys(exps);
