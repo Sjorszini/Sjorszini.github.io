@@ -1,0 +1,56 @@
+name: Riemannian calculator visual audit
+
+on:
+  push:
+    branches: [finsler-calculator-experiment]
+
+permissions:
+  contents: read
+
+jobs:
+  visual-audit:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install --no-save puppeteer-core@24
+      - run: |
+          python3 -m http.server 8000 > /tmp/riemannian-http.log 2>&1 &
+          sleep 1
+      - name: Capture rendered calculator
+        run: |
+          cat > visual.cjs <<'NODE'
+          const puppeteer=require('puppeteer-core'),cp=require('child_process');
+          const which=c=>{try{return cp.execFileSync('bash',['-lc',`command -v ${c}`],{encoding:'utf8'}).trim()}catch{return ''}};
+          const executablePath=which('google-chrome')||which('chromium')||which('chromium-browser');
+          const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+          (async()=>{
+            const browser=await puppeteer.launch({headless:true,executablePath,args:['--no-sandbox','--disable-dev-shm-usage']});
+            const page=await browser.newPage();
+            await page.setViewport({width:1440,height:1200,deviceScaleFactor:1});
+            await page.goto('http://127.0.0.1:8000/Finsler.html',{waitUntil:'networkidle2',timeout:60000});
+            await page.evaluate(()=>localStorage.clear());
+            await page.reload({waitUntil:'networkidle2'});
+            async function calc(preset,keys,file){
+              await page.select('#presetSelect',preset);await page.click('#loadPreset');
+              await page.evaluate(keys=>{for(const e of document.querySelectorAll('[data-output]'))e.checked=false;for(const k of keys){const e=document.querySelector(`[data-output="${k}"]`);if(e)e.checked=true;}},keys);
+              await page.click('#calculateSelected');
+              await page.waitForFunction(()=>document.querySelector('#status')?.classList.contains('is-success'),{timeout:30000});
+              await sleep(700);
+              await page.screenshot({path:file,fullPage:true});
+            }
+            await calc('schwarzschild',['inverse','christoffel','ricci','scalar','einstein'],'schwarzschild.png');
+            await calc('flrw-flat',['ricci','scalar','einstein'],'flrw.png');
+            await browser.close();
+          })().catch(e=>{console.error(e.stack||e);process.exit(1)});
+          NODE
+          node visual.cjs
+      - uses: actions/upload-artifact@v4
+        with:
+          name: riemannian-visual-audit
+          path: |
+            schwarzschild.png
+            flrw.png
