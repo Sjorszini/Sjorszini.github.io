@@ -1,6 +1,8 @@
 (function(){
   "use strict";
 
+  var BUILTIN_FUNCTIONS={sqrt:1,exp:1,sin:1,cos:1,tan:1,sinh:1,cosh:1,tanh:1,log:1,ln:1,abs:1,asin:1,acos:1,atan:1,atan2:1,min:1,max:1,sign:1};
+
   function splitTopLevel(text){
     var out=[],buf="",depth=0;
     String(text||"").split("").forEach(function(ch){
@@ -23,13 +25,22 @@
     return out;
   }
 
-  function simpleTex(name){
-    var greek={alpha:"\\alpha",beta:"\\beta",gamma:"\\gamma",delta:"\\delta",epsilon:"\\epsilon",eta:"\\eta",theta:"\\theta",lambda:"\\lambda",mu:"\\mu",nu:"\\nu",xi:"\\xi",rho:"\\rho",sigma:"\\sigma",tau:"\\tau",phi:"\\phi",psi:"\\psi",omega:"\\omega"};
+  function atomicTex(name){
+    var greek={
+      alpha:"\\alpha",beta:"\\beta",gamma:"\\gamma",delta:"\\delta",epsilon:"\\epsilon",zeta:"\\zeta",eta:"\\eta",theta:"\\theta",iota:"\\iota",kappa:"\\kappa",lambda:"\\lambda",mu:"\\mu",nu:"\\nu",xi:"\\xi",omicron:"o",pi:"\\pi",rho:"\\rho",sigma:"\\sigma",tau:"\\tau",upsilon:"\\upsilon",phi:"\\phi",chi:"\\chi",psi:"\\psi",omega:"\\omega",
+      Gamma:"\\Gamma",Delta:"\\Delta",Theta:"\\Theta",Lambda:"\\Lambda",Xi:"\\Xi",Pi:"\\Pi",Sigma:"\\Sigma",Upsilon:"\\Upsilon",Phi:"\\Phi",Psi:"\\Psi",Omega:"\\Omega"
+    };
     if(greek[name])return greek[name];
+    if(name==="Infinity")return "\\infty";
     if(/^[A-Za-z]$/.test(name))return name;
-    var sub=/^([A-Za-z]+)_([A-Za-z0-9]+)$/.exec(name);
-    if(sub)return (sub[1].length===1?sub[1]:"\\mathrm{"+sub[1]+"}")+"_{"+sub[2]+"}";
+    if(/^[0-9]+$/.test(name))return name;
     return "\\mathrm{"+String(name).replace(/[^A-Za-z0-9]/g,"")+"}";
+  }
+
+  function simpleTex(name){
+    var text=String(name),parts=text.split("_");
+    if(parts.length>1&&parts.every(function(p){return /^[A-Za-z0-9]+$/.test(p);})){var base=atomicTex(parts.shift()),sub=parts.map(atomicTex).join(",");return base+"_{"+sub+"}";}
+    return atomicTex(text);
   }
 
   function splitSuffix(suffix,args){
@@ -78,6 +89,12 @@
     return null;
   }
 
+  function symbolTex(name){
+    if(BUILTIN_FUNCTIONS[name])return null;
+    if(/^velocity[A-Z]$/.test(name))return null;
+    return simpleTex(name);
+  }
+
   function installTexPatch(){
     if(!window.math||!math.parse||math.__riemannianPrettyPatched)return;
     var originalParse=math.parse.bind(math);
@@ -88,7 +105,10 @@
         var opts=Object.assign({},options||{}),previous=opts.handler;
         opts.parenthesis="auto";opts.implicit="hide";
         opts.handler=function(child,childOptions){
-          if(child&&child.isSymbolNode){var pretty=derivativeTex(child.name);if(pretty)return pretty;}
+          if(child&&child.isSymbolNode){
+            var pretty=derivativeTex(child.name);if(pretty)return pretty;
+            pretty=symbolTex(child.name);if(pretty)return pretty;
+          }
           if(typeof previous==="function")return previous(child,childOptions);
         };
         return originalToTex.call(this,opts);
@@ -103,7 +123,7 @@
     var NativeWorker=window.Worker;
     function PatchedWorker(url,options){
       var target=String(url);
-      if(/(?:^|\/)riemannian-worker\.js(?:\?v=1)?$/.test(target))target=target.replace(/\?v=1$/,"")+"?v=2";
+      if(/(?:^|\/)riemannian-worker\.js(?:\?v=1|\?v=2)?$/.test(target))target=target.replace(/\?v=[12]$/,"")+"?v=2";
       return new NativeWorker(target,options);
     }
     PatchedWorker.prototype=NativeWorker.prototype;
