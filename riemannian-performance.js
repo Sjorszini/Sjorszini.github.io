@@ -12,7 +12,7 @@
   var BaseWorker=window.Worker;
   function PerformanceWorker(url,options){
     var target=String(url);
-    if(/(?:^|\/)riemannian-worker\.js(?:\?v=\d+)?$/.test(target))target="riemannian-worker-fast.js?v=1";
+    if(/(?:^|\/)riemannian-worker\.js(?:\?v=\d+)?$/.test(target))target="riemannian-worker-fast.js?v=2";
     var instance=new BaseWorker(target,options),started=0,timer=null;
     var nativePost=instance.postMessage.bind(instance),nativeTerminate=instance.terminate.bind(instance);
 
@@ -23,13 +23,18 @@
     }
 
     instance.postMessage=function(message,transfer){
-      if(message&&message.type==="calculate")startTimer();
+      if(message&&message.type==="calculate"){
+        window.__riemannianLastPayload=message;
+        window.__riemannianLastResult=null;
+        startTimer();
+      }
       if(arguments.length>1)return nativePost(message,transfer);
       return nativePost(message);
     };
     instance.terminate=function(){stopTimer();clearTiming();return nativeTerminate();};
     instance.addEventListener("message",function(event){
       var data=event.data||{};
+      if(data.type==="result")window.__riemannianLastResult=data.result||null;
       if(data.type==="done"){
         stopTimer();
         var wall=started?performance.now()-started:Number(data.elapsedMs)||0;
