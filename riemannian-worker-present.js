@@ -96,14 +96,19 @@ function presentationMatrix(matrix){
   return matrix.map(function(row){return row.map(presentationExpression);});
 }
 
-/* inverseMatrix() is used internally by the curvature calculation.  Normalize
-   its display copy only when the finished result is posted, so presentation
-   choices cannot feed back into differentiation or contraction. */
+/* Internal tensor expressions stay in the calculation-optimized form. Only
+   the finished result object is canonicalized for display/copying. */
 var nativePostMessage=self.postMessage.bind(self);
 self.postMessage=function(message,transfer){
-  if(message&&message.type==="result"&&message.result&&message.result.inverse){
-    var inverse=message.result.inverse;
-    message.result.inverse={matrix:presentationMatrix(inverse.matrix),det:presentationExpression(inverse.det)};
+  if(message&&message.type==="result"&&message.result){
+    var result=message.result;
+    if(result.inverse){
+      var inverse=result.inverse;
+      result.inverse={matrix:presentationMatrix(inverse.matrix),det:presentationExpression(inverse.det)};
+    }
+    if(result.ricci)result.ricci=presentationMatrix(result.ricci);
+    if(result.scalar!==undefined)result.scalar=presentationExpression(result.scalar);
+    if(result.einstein)result.einstein=presentationMatrix(result.einstein);
   }
   if(arguments.length>1)return nativePostMessage(message,transfer);
   return nativePostMessage(message);
