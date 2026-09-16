@@ -9,15 +9,16 @@ on:
       - riemannian-calculator.css
       - riemannian-calculator.js
       - riemannian-pretty.js
-      - riemannian-worker.js
-      - riemannian-worker-fast.js
-      - riemannian-worker-polish.js
-      - riemannian-worker-present.js
+      - 'riemannian-worker*.js'
       - tests/riemannian-browser-regression.cjs
       - .github/workflows/riemannian-regression.yml
 
 permissions:
   contents: read
+
+concurrency:
+  group: riemannian-regression-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   browser-regression:
