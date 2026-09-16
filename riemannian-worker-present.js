@@ -1,7 +1,7 @@
 "use strict";
 
 /* Keep calculation expressions optimized for the curvature pipeline, but
-   serialize connection coefficients from the exact rational form directly so
+   serialize final display values from the exact rational form directly so
    presentation does not re-expand factored denominators. */
 importScripts("riemannian-worker-polish.js?v=1");
 
@@ -90,4 +90,21 @@ christoffelOutput=function(G){
     component.value=presentationExpression(component.value);
     return component;
   });
+};
+
+function presentationMatrix(matrix){
+  return matrix.map(function(row){return row.map(presentationExpression);});
+}
+
+/* inverseMatrix() is used internally by the curvature calculation.  Normalize
+   its display copy only when the finished result is posted, so presentation
+   choices cannot feed back into differentiation or contraction. */
+var nativePostMessage=self.postMessage.bind(self);
+self.postMessage=function(message,transfer){
+  if(message&&message.type==="result"&&message.result&&message.result.inverse){
+    var inverse=message.result.inverse;
+    message.result.inverse={matrix:presentationMatrix(inverse.matrix),det:presentationExpression(inverse.det)};
+  }
+  if(arguments.length>1)return nativePostMessage(message,transfer);
+  return nativePostMessage(message);
 };
