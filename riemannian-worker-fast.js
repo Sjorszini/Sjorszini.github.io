@@ -1,10 +1,7 @@
 "use strict";
 
 /* Load the symbolic engine, then replace its expensive presentation-oriented
-   final simplifier with a smaller canonicalization pass.  The important part
-   is to canonicalize the nonzero connection coefficients before building
-   curvature: this keeps Schwarzschild expressions small enough that Ricci
-   cancellation is both quick and reliable. */
+   final simplifier with a smaller canonicalization pass. */
 importScripts("riemannian-worker.js?v=2");
 
 var canonicalCache=Object.create(null);
@@ -16,9 +13,6 @@ S=function(expr){
   simplifyCache[text]=out;simplifyCache[out]=out;return out;
 };
 
-/* The base worker used a fresh placeholder for every function occurrence.
-   That makes sin(x) appearing twice look like two unrelated variables to
-   rationalize().  Reuse placeholders for structurally identical calls. */
 rationalizeAtomic=function(expr){
   var node=math.parse(raw(expr)),held=[],byKey=Object.create(null),prefix="__heldfn";
   node=node.transform(function(child){
@@ -61,8 +55,6 @@ function C(expr){
     }else{
       best=S(rationalizeAtomic(base));
       best=S(trigCleanup(best));
-      /* A second rationalization catches cancellations exposed by
-         sin^2+cos^2 identities. */
       if(best.length<2500)best=S(rationalizeAtomic(best));
     }
   }catch(e){best=base;}
@@ -100,10 +92,11 @@ geodesicOutput=function(G){
 };
 
 ricciTensor=function(G,x){
-  var n=G.length,R=[],s,v,a,l,terms,value;
+  var n=G.length,R=[],s,v,a,l,terms,value,componentStart,rawValue;
   for(s=0;s<n;s++)R[s]=new Array(n).fill("0");
-  /* Levi-Civita Ricci is symmetric, so only calculate ten slots in 4D. */
   for(s=0;s<n;s++)for(v=s;v<n;v++){
+    componentStart=performance.now();
+    postProgress("Ricci component R"+(s+1)+(v+1),"assembling");
     terms=[];
     for(a=0;a<n;a++){
       if(!isZero(G[a][v][s]))terms.push(D(G[a][v][s],x[a]));
@@ -113,7 +106,11 @@ ricciTensor=function(G,x){
         if(!isZero(G[a][v][l])&&!isZero(G[l][a][s]))terms.push(neg(mul(G[a][v][l],G[l][a][s])));
       }
     }
-    value=terms.length?C(sum(terms)):"0";R[s][v]=value;R[v][s]=value;
+    rawValue=terms.length?S(sum(terms)):"0";
+    postProgress("Ricci component R"+(s+1)+(v+1),"simplifying · raw length "+rawValue.length);
+    value=isZero(rawValue)?"0":C(rawValue);
+    postProgress("Ricci component R"+(s+1)+(v+1),"done in "+Math.round(performance.now()-componentStart)+" ms");
+    R[s][v]=value;R[v][s]=value;
   }
   return R;
 };
