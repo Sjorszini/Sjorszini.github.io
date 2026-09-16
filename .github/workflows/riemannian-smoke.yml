@@ -7,7 +7,7 @@ on:
 jobs:
   schwarzschild-browser:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -19,7 +19,7 @@ jobs:
         run: |
           python3 -m http.server 8000 > /tmp/riemannian-http.log 2>&1 &
           sleep 1
-      - name: Profile Schwarzschild stages in Chrome
+      - name: Profile Schwarzschild Ricci in Chrome
         run: |
           cat > /tmp/profile.cjs <<'NODE'
           const puppeteer=require(process.cwd()+'/node_modules/puppeteer-core');
@@ -29,30 +29,19 @@ jobs:
           const sleep=ms=>new Promise(r=>setTimeout(r,ms));
           (async()=>{
             const browser=await puppeteer.launch({headless:true,executablePath,args:['--no-sandbox','--disable-dev-shm-usage']});
-            async function freshPage(){
-              const page=await browser.newPage();
-              page.on('pageerror',e=>console.log('PAGEERROR',e.message));
-              await page.goto('http://127.0.0.1:8000/Finsler.html',{waitUntil:'networkidle2',timeout:60000});
-              await page.select('#presetSelect','schwarzschild'); await page.click('#loadPreset'); return page;
+            const page=await browser.newPage();
+            page.on('pageerror',e=>console.log('PAGEERROR',e.message));
+            await page.goto('http://127.0.0.1:8000/Finsler.html',{waitUntil:'networkidle2',timeout:60000});
+            await page.select('#presetSelect','schwarzschild');await page.click('#loadPreset');
+            await page.evaluate(()=>{for(const e of document.querySelectorAll('[data-output]'))e.checked=false;document.querySelector('[data-output="ricci"]').checked=true;});
+            const start=Date.now();await page.click('#calculateSelected');let last='';
+            while(Date.now()-start<8000){
+              const s=await page.evaluate(()=>({status:document.querySelector('#status')?.textContent||'',progress:document.querySelector('#progressText')?.textContent||'',timing:document.querySelector('#calculationTime')?.textContent||'',success:document.querySelector('#status')?.classList.contains('is-success'),error:document.querySelector('#status')?.classList.contains('is-error')}));
+              const sig=s.status+'|'+s.progress;if(sig!==last){console.log('RICCI',Date.now()-start,'ms',JSON.stringify(s));last=sig;}
+              if(s.success||s.error)break;await sleep(100);
             }
-            async function runCase(name,keys,limit){
-              const page=await freshPage();
-              await page.evaluate(keys=>{for(const e of document.querySelectorAll('[data-output]'))e.checked=false;for(const k of keys){const e=document.querySelector(`[data-output="${k}"]`);if(e)e.checked=true;}},keys);
-              const start=Date.now(); await page.click('#calculateSelected'); let last='';
-              while(Date.now()-start<limit){
-                const s=await page.evaluate(()=>({status:document.querySelector('#status')?.textContent||'',progress:document.querySelector('#progressText')?.textContent||'',timing:document.querySelector('#calculationTime')?.textContent||'',success:document.querySelector('#status')?.classList.contains('is-success'),error:document.querySelector('#status')?.classList.contains('is-error')}));
-                const sig=`${s.status}|${s.progress}|${s.timing}`;if(sig!==last){console.log(name,Date.now()-start,'ms',s);last=sig;}
-                if(s.success||s.error){console.log('CASE_RESULT',name,Date.now()-start,s);await page.close();return {name,ms:Date.now()-start,...s};}
-                await sleep(500);
-              }
-              const s=await page.evaluate(()=>({status:document.querySelector('#status')?.textContent||'',progress:document.querySelector('#progressText')?.textContent||'',timing:document.querySelector('#calculationTime')?.textContent||''}));
-              console.log('CASE_TIMEOUT',name,Date.now()-start,s);await page.close();return {name,timeout:true,ms:Date.now()-start,...s};
-            }
-            const results=[];
-            results.push(await runCase('inverse',['inverse'],20000));
-            results.push(await runCase('christoffel',['christoffel'],40000));
-            results.push(await runCase('ricci',['ricci'],60000));
-            console.log('PROFILE_SUMMARY',JSON.stringify(results,null,2));
+            const final=await page.evaluate(()=>({status:document.querySelector('#status')?.textContent||'',progress:document.querySelector('#progressText')?.textContent||'',results:document.querySelector('#results')?.textContent||'',red:[...document.querySelectorAll('mjx-mtext')].map(n=>n.textContent)}));
+            console.log('FINAL',JSON.stringify(final));
             await browser.close();
           })().catch(e=>{console.error(e);process.exit(1)});
           NODE
