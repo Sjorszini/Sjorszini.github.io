@@ -8,6 +8,13 @@
   <link rel="stylesheet" type="text/css" href="style.css">
   <link rel="stylesheet" type="text/css" href="menu-clean.css?v=4">
   <link rel="stylesheet" type="text/css" href="riemannian-calculator.css?v=1">
+  <style>
+    .geometry-workbench #calculator-shell{background:transparent;border:0;border-radius:0;box-shadow:none;overflow:visible}
+    .geometry-workbench .calculator-content-flat{padding:0}
+    .setup-actions{display:flex;align-items:center;justify-content:flex-end;gap:8px;flex-wrap:wrap}
+    .setup-actions .dimension-box{color:var(--navy)}
+    @media(max-width:700px){.setup-actions{justify-content:flex-start}.setup-actions .dimension-box{justify-content:flex-start}}
+  </style>
   <link rel="icon" href="icon.ico" type="image/vnd.microsoft.icon">
   <script defer src="https://cdn.jsdelivr.net/npm/mathjs@11.11.2/lib/browser/math.js"></script>
   <script>
@@ -32,19 +39,8 @@
   </article>
 
   <main class="geometry-workbench">
-    <section class="calculator-shell" id="calculator-shell">
-      <div class="calculator-toolbar">
-        <div aria-hidden="true"></div>
-        <label class="dimension-box" for="dimension">Dimension
-          <select id="dimension">
-            <option value="2">2</option>
-            <option value="3">3</option>
-            <option value="4" selected>4</option>
-          </select>
-        </label>
-      </div>
-
-      <div class="calculator-content">
+    <section id="calculator-shell">
+      <div class="calculator-content calculator-content-flat">
         <section class="setup-card">
           <div class="section-heading-inline">
             <div>
@@ -52,7 +48,16 @@
               <h3>Coordinates and notation</h3>
               <p>Name the coordinates and declare any constants or coordinate-dependent functions used in the metric.</p>
             </div>
-            <button type="button" class="utility-button" id="detectNotation">Detect notation</button>
+            <div class="setup-actions">
+              <label class="dimension-box" for="dimension">Dimension
+                <select id="dimension">
+                  <option value="2">2</option>
+                  <option value="3">3</option>
+                  <option value="4" selected>4</option>
+                </select>
+              </label>
+              <button type="button" class="utility-button" id="detectNotation">Detect notation</button>
+            </div>
           </div>
           <div class="notation-grid">
             <div>
