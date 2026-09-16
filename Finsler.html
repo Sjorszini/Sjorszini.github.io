@@ -14,7 +14,7 @@
     window.MathJax={tex:{inlineMath:[['\\(','\\)']],displayMath:[['\\[','\\]']]},options:{skipHtmlTags:['script','noscript','style','textarea','pre','code']}};
   </script>
   <script defer src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
-  <script defer src="riemannian-pretty.js?v=2"></script>
+  <script defer src="riemannian-pretty.js?v=3"></script>
   <script defer src="riemannian-calculator.js?v=1"></script>
 </head>
 <body>
@@ -34,11 +34,7 @@
   <main class="geometry-workbench">
     <section class="calculator-shell" id="calculator-shell">
       <div class="calculator-toolbar">
-        <div>
-          <span class="toolbar-eyebrow">Symbolic workbench</span>
-          <h2>Metric → connection → curvature</h2>
-          <p>Only requested quantities are computed. Expensive full-curvature output is opt-in.</p>
-        </div>
+        <div aria-hidden="true"></div>
         <label class="dimension-box" for="dimension">Dimension
           <select id="dimension">
             <option value="2">2</option>
