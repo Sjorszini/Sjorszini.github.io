@@ -59,12 +59,30 @@ function primitiveResidual(poly){
   res=polyScale(res,qDiv(Q(1),content));
   return {poly:res,exps:exps,content:content};
 }
+function halfMonomialKey(key){
+  var exps=parseMonomial(key),out=Object.create(null),id;
+  for(id in exps){if(exps[id]%2!==0)return null;if(exps[id])out[id]=exps[id]/2;}
+  return monomialKey(out);
+}
+function perfectSquareBinomialFactor(poly){
+  var keys=Object.keys(poly);if(keys.length!==3)return null;
+  for(var m=0;m<keys.length;m++){
+    var middle=poly[keys[m]];
+    if(middle.d!==1n||absBig(middle.n)!==2n)continue;
+    var outer=keys.filter(function(_,i){return i!==m;}),qa=poly[outer[0]],qb=poly[outer[1]];
+    if(qa.d!==1n||qb.d!==1n||absBig(qa.n)!==1n||qb.n!==qa.n)continue;
+    var sa=halfMonomialKey(outer[0]),sb=halfMonomialKey(outer[1]);
+    if(sa===null||sb===null||multiplyKeys(sa,sb)!==keys[m])continue;
+    var relative=middle.n===2n*qa.n?1:(middle.n===-2n*qa.n?-1:0);if(!relative)continue;
+    var factor=newPoly();addPolyTerm(factor,sa,Q(1));addPolyTerm(factor,sb,Q(relative));return factor;
+  }
+  return null;
+}
 function nonConstantFactor(poly){
   var residual=primitiveResidual(poly);if(!residual)return null;
   var keys=Object.keys(residual.poly);
-  if(keys.length!==2)return null;
-  if(keys.every(function(k){return k==="";}))return null;
-  return residual.poly;
+  if(keys.length===2){if(keys.every(function(k){return k==="";}))return null;return residual.poly;}
+  return perfectSquareBinomialFactor(residual.poly);
 }
 function cancelFactor(rf,factor,ctx){
   if(!factor)return false;
@@ -84,9 +102,9 @@ normalizeRF=function(rf,ctx){
   if(whole){rf.n=whole;rf.d=polyConst(Q(1));return rf;}
 
   /* Cancel small non-monomial factors exposed after the base monomial pass.
-     A few bounded rounds cover expressions such as (r-r_s)^2 without a
-     general-purpose polynomial GCD algorithm. */
-  for(var round=0;round<3;round++){
+     Perfect-square trinomials are reduced to their binomial factor first, so
+     coordinate denominators such as (1-k*r^2)^2 cancel without expansion. */
+  for(var round=0;round<4;round++){
     var changed=false;
     changed=cancelFactor(rf,nonConstantFactor(rf.n),ctx)||changed;
     if(!changed)changed=cancelFactor(rf,nonConstantFactor(rf.d),ctx)||changed;
