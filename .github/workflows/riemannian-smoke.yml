@@ -1,0 +1,85 @@
+name: Riemannian calculator smoke
+on:
+  push:
+    branches: [finsler-calculator-experiment]
+  workflow_dispatch:
+
+jobs:
+  schwarzschild-browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install browser test dependency
+        run: npm install --no-save puppeteer-core@24
+      - name: Run local server
+        run: |
+          python3 -m http.server 8000 > /tmp/riemannian-http.log 2>&1 &
+          echo $! > /tmp/riemannian-http.pid
+          sleep 1
+      - name: Run Schwarzschild smoke test
+        run: |
+          cat > /tmp/smoke.cjs <<'NODE'
+          const puppeteer = require(process.cwd() + '/node_modules/puppeteer-core');
+          const fs = require('fs');
+          const cp = require('child_process');
+          function which(cmd){try{return cp.execFileSync('bash',['-lc',`command -v ${cmd}`],{encoding:'utf8'}).trim()}catch{return ''}}
+          const executablePath = which('google-chrome') || which('chromium') || which('chromium-browser');
+          if (!executablePath) throw new Error('No Chrome/Chromium executable found');
+          (async()=>{
+            const browser=await puppeteer.launch({headless:true,executablePath,args:['--no-sandbox','--disable-dev-shm-usage']});
+            const page=await browser.newPage();
+            page.on('console',m=>console.log('BROWSER',m.type(),m.text()));
+            page.on('pageerror',e=>console.log('PAGEERROR',e.message));
+            await page.goto('http://127.0.0.1:8000/Finsler.html',{waitUntil:'networkidle2',timeout:60000});
+            await page.select('#presetSelect','schwarzschild');
+            await page.click('#loadPreset');
+            await page.evaluate(()=>{
+              for(const el of document.querySelectorAll('[data-output]')) el.checked=false;
+              for(const key of ['inverse','christoffel','ricci','scalar']){
+                const el=document.querySelector(`[data-output="${key}"]`); if(el) el.checked=true;
+              }
+              document.querySelector('[data-output="ricci"]').dispatchEvent(new Event('change',{bubbles:true}));
+            });
+            const started=Date.now();
+            await page.click('#calculateSelected');
+            await page.waitForFunction(()=>document.querySelector('#status')?.classList.contains('is-success'),{timeout:120000});
+            await page.waitForFunction(()=>document.querySelector('#results')?.textContent.includes('Ricci scalar'),{timeout:10000});
+            await new Promise(r=>setTimeout(r,750));
+            const data=await page.evaluate(()=>{
+              function card(title){return [...document.querySelectorAll('.result-card')].find(c=>c.querySelector('summary strong')?.textContent.trim()===title)}
+              const ricci=card('Ricci tensor'), scalar=card('Ricci scalar'), det=card('Inverse metric and determinant'), chr=card('Christoffel symbols');
+              return {
+                status:document.querySelector('#status')?.textContent||'',
+                timing:document.querySelector('#calculationTime')?.textContent||'',
+                ricci:ricci?.textContent||'',
+                scalar:scalar?.textContent||'',
+                determinant:det?.textContent||'',
+                christoffel:chr?.textContent||'',
+                redMathJax:[...document.querySelectorAll('mjx-mtext')].filter(n=>(n.getAttribute('style')||'').includes('color: red')).map(n=>n.textContent),
+                componentRows:ricci?.querySelectorAll('.component-row').length||0,
+                ricciZero:ricci?.textContent.includes('All components simplify to zero.')||false
+              };
+            });
+            data.wallMs=Date.now()-started;
+            console.log(JSON.stringify(data,null,2));
+            fs.writeFileSync('riemannian-smoke.json',JSON.stringify(data,null,2));
+            await page.screenshot({path:'riemannian-smoke.png',fullPage:true});
+            if(data.redMathJax.length) throw new Error('MathJax rendered red error text: '+data.redMathJax.join(', '));
+            if(!data.ricciZero) throw new Error('Schwarzschild Ricci tensor did not simplify to zero');
+            const scalarText=data.scalar.replace(/\s+/g,'');
+            if(!scalarText.includes('R=0')) throw new Error('Schwarzschild Ricci scalar did not render as R=0: '+data.scalar);
+            await browser.close();
+          })().catch(e=>{console.error(e);process.exit(1)});
+          NODE
+          node /tmp/smoke.cjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: riemannian-smoke
+          path: |
+            riemannian-smoke.json
+            riemannian-smoke.png
