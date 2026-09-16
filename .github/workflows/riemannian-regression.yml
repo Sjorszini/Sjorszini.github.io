@@ -1,0 +1,45 @@
+name: Riemannian calculator regression
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [finsler-calculator-experiment]
+    paths:
+      - Finsler.html
+      - riemannian-calculator.css
+      - riemannian-calculator.js
+      - riemannian-pretty.js
+      - riemannian-worker.js
+      - riemannian-worker-fast.js
+      - riemannian-worker-polish.js
+      - riemannian-worker-present.js
+      - tests/riemannian-browser-regression.cjs
+      - .github/workflows/riemannian-regression.yml
+
+permissions:
+  contents: read
+
+jobs:
+  browser-regression:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install browser test dependency
+        run: npm install --no-save puppeteer-core@24
+      - name: Serve calculator
+        run: |
+          python3 -m http.server 8000 > /tmp/riemannian-http.log 2>&1 &
+          sleep 1
+      - name: Run real-Chrome geometry regression
+        run: node tests/riemannian-browser-regression.cjs
+      - name: Upload failure screenshot
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: riemannian-regression-failure
+          path: riemannian-regression-failure.png
+          if-no-files-found: ignore
