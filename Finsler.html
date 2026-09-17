@@ -25,6 +25,7 @@
   <script defer src="riemannian-pretty.js?v=9"></script>
   <script defer src="riemannian-calculator.js?v=4"></script>
   <script defer src="riemannian-live-preview.js?v=3"></script>
+  <script defer src="riemannian-extra-presets.js?v=1"></script>
 </head>
 <body>
 <div class="container geometry-page">
@@ -58,7 +59,7 @@
                   <option value="4" selected>4</option>
                 </select>
               </label>
-              <button type="button" class="utility-button" id="detectNotation">Detect notation</button>
+              <span id="detectNotation" hidden aria-hidden="true"></span>
             </div>
           </div>
           <div class="notation-grid">
@@ -196,7 +197,7 @@
 <menubar>
   <button class="mobile-menu-toggle" type="button" aria-expanded="false" aria-controls="site-menu" onclick="var o=this.parentElement.classList.toggle('menu-open');this.setAttribute('aria-expanded',o?'true':'false');"><span>Menu</span><span class="mobile-menu-icon" aria-hidden="true"></span></button>
   <menu id="site-menu">
-    <menu-item><a href="index.html">Home</a></menu-item><menu-item><a href="publications.html">Publications</a></menu-item><menu-item><a href="teaching.html">Teaching</a></menu-item><menu-item><a href="pianist.html">Pianist</a></menu-item><menu-item><a href="Balls.html">Balls</a></menu-item><menu-item class="currentpage"><a href="Finsler.html">Geometry</a></menu-item><menu-item><a href="contact.html">Contact</a></menu-item>
+    <menu-item><a href="index.html">Home</a></menu-item><menu-item><a href="publications.html">Publications</a></menu-item><menu-item><a href="teaching.html">Teaching</a></menu-item><menu-item><a href="pianist.html">Pianist</a></menu-item><menu-item><a href="Balls.html">Balls</a></menu-item><menu-item class="currentpage"><a href="Finsler.html">Calc</a></menu-item><menu-item><a href="contact.html">Contact</a></menu-item>
   </menu>
 </menubar>
 </body>
