@@ -225,7 +225,7 @@
     var payload;try{payload=preparePayload();}catch(err){setStatus(err.message||String(err),"error");return;}
     cancelCalculation(false);activeContext=payload.ctx;runToken++;var token=runToken;
     el("results").innerHTML="";el("progressText").textContent="Starting worker…";setBusy(true);setStatus("Starting symbolic calculation…","working");startTiming();
-    worker=new Worker("riemannian-worker.js?v=4");
+    worker=new Worker("riemannian-worker-connection-fast.js?v=5");
     worker.onmessage=function(event){if(token!==runToken)return;handleWorkerMessage(event.data||{},payload.ctx);};
     worker.onerror=function(event){if(token!==runToken)return;stopTiming(true);setBusy(false);el("progressLine").hidden=true;setStatus("Worker error: "+(event.message||"unknown error"),"error");};
     worker.postMessage(payload.data);saveState();

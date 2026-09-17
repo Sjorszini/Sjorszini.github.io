@@ -49,7 +49,8 @@
       coords:["t","r","theta","phi"],
       constants:"M, a",
       functions:"",
-      note:"Rotating vacuum black hole in Boyer–Lindquist coordinates, with Σ=r²+a²cos²θ and Δ=r²-2Mr+a².",
+      defaultOutputs:["metric","inverse","christoffel"],
+      note:"Rotating vacuum black hole in Boyer–Lindquist coordinates, with Σ=r²+a²cos²θ and Δ=r²-2Mr+a². Loads with metric, inverse and Christoffels selected; curvature can be enabled explicitly.",
       matrix:[
         ["-(1-2*M*r/(r^2+a^2*cos(theta)^2))","0","0","-2*M*a*r*sin(theta)^2/(r^2+a^2*cos(theta)^2)"],
         ["0","(r^2+a^2*cos(theta)^2)/(r^2-2*M*r+a^2)","0","0"],
@@ -173,6 +174,12 @@
     var first=document.querySelector(".metric-entry");if(first)first.dispatchEvent(event("change"));
 
     el("presetNote").textContent=p.note;
+    if(p.defaultOutputs){
+      document.querySelectorAll("[data-output]").forEach(function(box){
+        box.checked=p.defaultOutputs.indexOf(box.dataset.output)>=0;
+        box.dispatchEvent(event("change"));
+      });
+    }
     if(el("clearResults"))el("clearResults").click();
     setStatus("Loaded "+p.name+".","success");
   }
