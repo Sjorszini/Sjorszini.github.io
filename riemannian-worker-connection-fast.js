@@ -14,7 +14,10 @@ function metricDependsOn(expr,variable){
   if(expr==="0")return false;
   try{
     var found=false;
-    math.parse(expr).traverse(function(node){if(node&&node.isSymbolNode&&node.name===variable)found=true;});
+    math.parse(expr).traverse(function(node){
+      if(!node||!node.isSymbolNode)return;
+      if(node.name===variable||functionInfo[node.name])found=true;
+    });
     return found;
   }catch(e){return true;}
 }
