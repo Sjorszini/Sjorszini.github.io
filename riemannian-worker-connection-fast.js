@@ -2,22 +2,38 @@
 
 importScripts("riemannian-worker.js?v=4");
 
+var connectionNeedsCurvature=false;
+var importedOnMessage=onmessage;
+onmessage=function(event){
+  var outputs=event&&event.data&&event.data.outputs||{};
+  connectionNeedsCurvature=!!(outputs.riemann||outputs.ricci||outputs.scalar||outputs.einstein);
+  return importedOnMessage(event);
+};
+
+function metricDependsOn(expr,variable){
+  if(expr==="0")return false;
+  try{
+    var found=false;
+    math.parse(expr).traverse(function(node){if(node&&node.isSymbolNode&&node.name===variable)found=true;});
+    return found;
+  }catch(e){return true;}
+}
+
 /* Sparse/symmetric Levi-Civita fast path.
-   This is generic: it uses only metric/inverse sparsity and Γ^a_bc = Γ^a_cb. */
+   Generic optimizations only: cached metric derivatives, sparse inverse support,
+   lower-index symmetry, and a lighter rational normalization for curvature work. */
 christoffel=function(metric,inv,x){
   var n=metric.length,G=[],dg=[],invNZ=[],a,b,c,d,i,j,k;
 
-  /* Derivatives of metric entries are reused throughout the connection. */
   for(i=0;i<n;i++){
     dg[i]=[];
     for(j=0;j<n;j++){
       dg[i][j]=new Array(n).fill("0");
       if(isZero(metric[i][j]))continue;
-      for(k=0;k<n;k++)dg[i][j][k]=D(metric[i][j],x[k]);
+      for(k=0;k<n;k++)if(metricDependsOn(metric[i][j],x[k]))dg[i][j][k]=D(metric[i][j],x[k]);
     }
   }
 
-  /* Most physically useful coordinate metrics have a sparse inverse. */
   for(a=0;a<n;a++){
     invNZ[a]=[];
     for(d=0;d<n;d++)if(!isZero(inv[a][d]))invNZ[a].push(d);
@@ -28,10 +44,6 @@ christoffel=function(metric,inv,x){
     for(b=0;b<n;b++)G[a][b]=new Array(n).fill("0");
   }
 
-  /* Compute only the independent lower-index half and mirror it.
-     Keep the calculation form light; displayed Christoffels are polished later
-     by the existing presentation serializer, while curvature quantities have
-     their own exact canonicalization at contraction time. */
   for(a=0;a<n;a++)for(b=0;b<n;b++)for(c=b;c<n;c++){
     var terms=[];
     for(var q=0;q<invNZ[a].length;q++){
@@ -46,6 +58,7 @@ christoffel=function(metric,inv,x){
     }
     var value=terms.length?S(mul("1/2",sum(terms))):"0";
     if(value!=="0"&&isZero(value))value="0";
+    else if(value!=="0"&&connectionNeedsCurvature)value=F(value);
     G[a][b][c]=value;
     G[a][c][b]=value;
   }
