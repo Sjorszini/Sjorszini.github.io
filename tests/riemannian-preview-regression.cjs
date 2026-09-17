@@ -35,9 +35,12 @@ function assert(condition, message) { if (!condition) throw new Error(message); 
   assert(directTex.inverseTrig.includes('\\arcsin') && !/\\arcsin[^\n]*\\left\(/.test(directTex.inverseTrig), `asin(theta) was not compacted: ${directTex.inverseTrig}`);
   console.log('PASS compact TeX notation');
 
-  const initial = await page.$eval('#metricPreview', node => ({tex: node.dataset.tex, text: node.textContent, errors: node.querySelectorAll('mjx-merror').length}));
+  const initial = await page.$eval('#metricPreview', node => ({tex: node.dataset.tex, coords: node.dataset.coords, text: node.textContent, errors: node.querySelectorAll('mjx-merror').length}));
+  assert(initial.tex.startsWith('g_{ij}='), `Live preview should use a compact metric label: ${initial.tex}`);
+  assert(!/left|right/i.test(initial.tex), `Literal delimiter commands leaked into live preview: ${initial.tex}`);
   assert(initial.tex.includes('r_{s}'), `Schwarzschild subscript missing in live preview: ${initial.tex}`);
   assert(!initial.tex.includes('\\cdot'), `Live preview contains multiplication dots: ${initial.tex}`);
+  assert(initial.coords === 't,r,theta,phi', `Initial coordinate order is wrong: ${initial.coords}`);
   assert(initial.errors === 0, 'Initial metric preview contains a MathJax error.');
 
   await page.$eval('.metric-entry[data-i="2"][data-j="2"]', node => {
@@ -57,7 +60,7 @@ function assert(condition, message) { if (!condition) throw new Error(message); 
     node.value = 'tau';
     node.dispatchEvent(new Event('input', {bubbles: true}));
   });
-  await page.waitForFunction(() => (document.querySelector('#metricPreview')?.dataset.tex || '').includes('\\tau'), {timeout: 5000});
+  await page.waitForFunction(() => (document.querySelector('#metricPreview')?.dataset.coords || '').startsWith('tau,'), {timeout: 5000});
   console.log('PASS live coordinate updates');
 
   await page.$eval('.metric-entry[data-i="0"][data-j="0"]', node => {
@@ -78,10 +81,12 @@ function assert(condition, message) { if (!condition) throw new Error(message); 
   await sleep(500);
   const spherePreview = await page.evaluate(() => ({
     tex: document.querySelector('#metricPreview')?.dataset.tex || '',
+    coords: document.querySelector('#metricPreview')?.dataset.coords || '',
     cells: document.querySelectorAll('#metricGrid .metric-entry').length,
     hasError: document.querySelector('#metricPreview')?.classList.contains('has-preview-error')
   }));
   assert(spherePreview.cells === 4, `2-sphere editor did not resize to 2x2: ${JSON.stringify(spherePreview)}`);
+  assert(spherePreview.coords === 'theta,phi', `2-sphere coordinate order did not refresh: ${spherePreview.coords}`);
   assert(!spherePreview.hasError && spherePreview.tex.includes('R') && spherePreview.tex.includes('\\sin') && !spherePreview.tex.includes('r_{s}'), `2-sphere live preview did not refresh: ${spherePreview.tex}`);
   const finalErrors = await page.$$eval('mjx-merror', nodes => nodes.map(node => node.textContent));
   assert(finalErrors.length === 0, `MathJax errors after preview interactions: ${JSON.stringify(finalErrors)}`);
