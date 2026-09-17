@@ -21,6 +21,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # This is the regression gate for the single production geometry worker.
   browser-regression:
     runs-on: ubuntu-24.04
     timeout-minutes: 8
