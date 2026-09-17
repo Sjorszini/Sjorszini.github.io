@@ -75,6 +75,35 @@ function assert(condition, message) { if (!condition) throw new Error(message); 
   await page.waitForFunction(() => document.querySelector('#metricPreview')?.dataset.tex && !document.querySelector('#metricPreview').classList.contains('has-preview-error'), {timeout: 5000});
   console.log('PASS preview invalid-input recovery');
 
+  await page.select('#presetSelect', 'flrw-flat');
+  await page.click('#loadPreset');
+  await page.waitForFunction(() => document.querySelector('#functionsInput')?.value === 'a(t)' && (document.querySelector('#metricPreview')?.dataset.tex || '').includes('a'), {timeout: 5000});
+  await sleep(350);
+  const functionNotation = await page.evaluate(() => ({
+    preview: document.querySelector('#metricPreview')?.dataset.tex || '',
+    output: math.parse('a(t)^2 + a_t^2 + a_tt').toTex({parenthesis: 'auto', implicit: 'hide'})
+  }));
+  assert(functionNotation.preview.includes('t') && /a[^\n]*(?:\\left|\()/.test(functionNotation.preview), `Live metric preview lost the explicit a(t) argument: ${functionNotation.preview}`);
+  assert(functionNotation.output.includes('\\dot{a}') && functionNotation.output.includes('\\ddot{a}'), `Derivative notation regressed: ${functionNotation.output}`);
+  assert(!/a[^\n]*(?:\\left|\()[^\n]*t/.test(functionNotation.output), `Calculated-output notation still shows a(t): ${functionNotation.output}`);
+
+  await page.evaluate(() => {
+    document.querySelectorAll('[data-output]').forEach(node => { node.checked = false; });
+    const metric = document.querySelector('[data-output="metric"]');
+    metric.checked = true;
+    metric.dispatchEvent(new Event('change', {bubbles: true}));
+  });
+  await page.click('#calculateSelected');
+  await page.waitForFunction(() => document.querySelector('#status')?.classList.contains('is-success'), {timeout: 15000});
+  await sleep(250);
+  const metricResultTex = await page.evaluate(() => {
+    const card = Array.from(document.querySelectorAll('#results details')).find(node => node.querySelector('summary strong')?.textContent === 'Metric');
+    return card?.querySelector('.copy-button')?.dataset.copy || '';
+  });
+  assert(metricResultTex.includes('{a}') || metricResultTex.includes('a'), `Calculated metric lost the scale factor: ${metricResultTex}`);
+  assert(!/a[^\n]*(?:\\left|\()[^\n]*t/.test(metricResultTex), `Calculated metric still shows the a(t) argument: ${metricResultTex}`);
+  console.log('PASS function arguments hidden in output but retained in live preview');
+
   await page.select('#presetSelect', 'sphere2');
   await page.click('#loadPreset');
   await page.waitForFunction(() => document.querySelector('#dimension')?.value === '2', {timeout: 5000});
