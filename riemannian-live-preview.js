@@ -51,7 +51,7 @@
     var host=el("metricPreview");if(!host||!window.math)return;
     var serial=++renderSerial,coords=coordinates(),values=matrixValues(),tex;
     try{
-      tex="g_{ij}\!\left("+coords.map(coordinateTex).join(",")+"\right)="+matrixTex(values);
+      tex="g_{ij}="+matrixTex(values);
       host.classList.remove("has-preview-error");
       host.dataset.tex=tex;
       host.innerHTML='<div class="metric-preview-formula">\\['+tex+'\\]</div><div class="metric-preview-order"><span>Coordinate order</span><strong>\\(('+coords.map(coordinateTex).join(", ")+')\\)</strong></div>';
