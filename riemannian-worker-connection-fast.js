@@ -21,9 +21,11 @@ function metricDependsOn(expr,variable){
 
 /* Sparse/symmetric Levi-Civita fast path.
    Generic optimizations only: cached metric derivatives, sparse inverse support,
-   lower-index symmetry, and a lighter rational normalization for curvature work. */
+   lower-index symmetry, and a lighter rational normalization for function-free
+   curvature work. Custom symbolic functions retain the ordinary simplifier. */
 christoffel=function(metric,inv,x){
   var n=metric.length,G=[],dg=[],invNZ=[],a,b,c,d,i,j,k;
+  var hasSymbolicFunctions=Object.keys(functionInfo).length>0;
 
   for(i=0;i<n;i++){
     dg[i]=[];
@@ -58,7 +60,7 @@ christoffel=function(metric,inv,x){
     }
     var value=terms.length?S(mul("1/2",sum(terms))):"0";
     if(value!=="0"&&isZero(value))value="0";
-    else if(value!=="0"&&connectionNeedsCurvature)value=F(value);
+    else if(value!=="0"&&connectionNeedsCurvature&&!hasSymbolicFunctions)value=F(value);
     G[a][b][c]=value;
     G[a][c][b]=value;
   }
