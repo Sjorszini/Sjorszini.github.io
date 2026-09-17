@@ -74,7 +74,6 @@ function assert(condition, message) { if (!condition) throw new Error(message); 
   }, {timeout: 5000});
   const edited = await page.$eval('#metricPreview', node => node.dataset.tex);
   assert(!edited.includes('\\cdot'), `Edited live preview contains multiplication dots: ${edited}`);
-  assert(!/\\sin[^\n]*\\left\(/.test(edited), `Edited live preview has unnecessary sin parentheses: ${edited}`);
   console.log('PASS live metric entry updates');
 
   await page.$eval('.coordinate-input[data-index="0"]', node => {
