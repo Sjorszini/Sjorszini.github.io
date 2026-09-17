@@ -96,15 +96,27 @@
     return "{"+simpleTex(name)+"}";
   }
 
-  function compactFunctionTex(node){
+  function compactFunctionTex(node,childOptions){
     if(!node||!node.isFunctionNode||!node.fn||!node.fn.isSymbolNode||node.args.length!==1)return null;
     var command=COMPACT_FUNCTIONS[node.fn.name];if(!command)return null;
     var arg=node.args[0];if(arg&&arg.isParenthesisNode)arg=arg.content;
     var argTex=null;
     if(arg&&arg.isSymbolNode)argTex=derivativeTex(arg.name)||symbolTex(arg.name)||simpleTex(arg.name);
     else if(arg&&arg.isConstantNode)argTex=String(arg.value);
-    if(!argTex)return null;
-    return command+" "+argTex;
+    if(argTex)return command+" "+argTex;
+    if(!arg||typeof arg.toTex!=="function")return null;
+    try{return command+"\\left("+arg.toTex(childOptions||{})+"\\right)";}catch(e){return null;}
+  }
+
+  function compactFunctionPowerTex(node,childOptions){
+    if(!node||!node.isOperatorNode||node.op!=="^"||!node.args||node.args.length!==2)return null;
+    var base=node.args[0],exponent=node.args[1];
+    if(base&&base.isParenthesisNode)base=base.content;
+    if(!base||!base.isFunctionNode||!base.fn||!base.fn.isSymbolNode||!COMPACT_FUNCTIONS[base.fn.name])return null;
+    var baseTex=compactFunctionTex(base,childOptions),exponentTex=null;
+    if(!baseTex||!exponent||typeof exponent.toTex!=="function")return null;
+    try{exponentTex=exponent.toTex(childOptions||{});}catch(e){return null;}
+    return "\\left("+baseTex+"\\right)^{"+exponentTex+"}";
   }
 
   function declaredFunctionTex(node){
@@ -133,8 +145,11 @@
         var opts=Object.assign({},options||{}),previous=opts.handler;
         opts.parenthesis="auto";opts.implicit="hide";
         opts.handler=function(child,childOptions){
+          if(child&&child.isOperatorNode){
+            var powerPretty=compactFunctionPowerTex(child,childOptions);if(powerPretty)return powerPretty;
+          }
           if(child&&child.isFunctionNode){
-            var fnPretty=compactFunctionTex(child);if(fnPretty)return fnPretty;
+            var fnPretty=compactFunctionTex(child,childOptions);if(fnPretty)return fnPretty;
             if(!opts.preserveFunctionArguments){fnPretty=declaredFunctionTex(child);if(fnPretty)return fnPretty;}
           }
           if(child&&child.isSymbolNode){
