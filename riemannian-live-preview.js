@@ -25,7 +25,7 @@
   function expressionTex(value){
     var text=String(value||"").trim();
     if(!text)throw new Error("one or more metric entries are empty");
-    return math.parse(text).toTex({parenthesis:"auto",implicit:"hide"});
+    return math.parse(text).toTex({parenthesis:"auto",implicit:"hide",preserveFunctionArguments:true});
   }
 
   function coordinateTex(name){
