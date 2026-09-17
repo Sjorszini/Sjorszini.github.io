@@ -41,6 +41,7 @@ function assert(condition, message) { if (!condition) throw new Error(message); 
     await page.click('#loadPreset');
     await page.waitForFunction(id => document.querySelector('#presetSelect')?.value === id, {}, id);
     await page.waitForFunction(() => document.querySelector('#metricPreview')?.dataset.tex && !document.querySelector('#metricPreview')?.classList.contains('has-preview-error'), {timeout: 10000});
+    await sleep(250);
     const state = await page.evaluate(() => ({
       dim: document.querySelector('#dimension')?.value,
       functions: document.querySelector('#functionsInput')?.value,
