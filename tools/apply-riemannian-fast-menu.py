@@ -3,7 +3,7 @@ import re
 
 calc=Path('riemannian-calculator.js')
 text=calc.read_text()
-text=text.replace('riemannian-worker.js?v=4','riemannian-worker-connection-fast.js?v=1')
+text=text.replace('riemannian-worker.js?v=4','riemannian-worker-connection-fast.js?v=2')
 calc.write_text(text)
 
 html=Path('Finsler.html')
