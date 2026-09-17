@@ -2,6 +2,7 @@
   "use strict";
 
   var BUILTIN_FUNCTIONS={sqrt:1,exp:1,sin:1,cos:1,tan:1,sinh:1,cosh:1,tanh:1,log:1,ln:1,abs:1,asin:1,acos:1,atan:1,atan2:1,min:1,max:1,sign:1};
+  var COMPACT_FUNCTIONS={sin:"\\sin",cos:"\\cos",tan:"\\tan",sinh:"\\sinh",cosh:"\\cosh",tanh:"\\tanh",log:"\\log",ln:"\\ln",exp:"\\exp",asin:"\\arcsin",acos:"\\arccos",atan:"\\arctan"};
 
   function splitTopLevel(text){
     var out=[],buf="",depth=0;
@@ -92,10 +93,25 @@
   function symbolTex(name){
     if(BUILTIN_FUNCTIONS[name])return null;
     if(/^velocity[A-Z]$/.test(name))return null;
-    /* Always group custom symbol TeX. math.js can concatenate a preceding
-       control word such as \\cdot directly with a symbol handler result;
-       grouping prevents invalid commands like \\cdotr_s. */
     return "{"+simpleTex(name)+"}";
+  }
+
+  function compactFunctionTex(node){
+    if(!node||!node.isFunctionNode||!node.fn||!node.fn.isSymbolNode||node.args.length!==1)return null;
+    var command=COMPACT_FUNCTIONS[node.fn.name];if(!command)return null;
+    var arg=node.args[0];if(arg&&arg.isParenthesisNode)arg=arg.content;
+    var argTex=null;
+    if(arg&&arg.isSymbolNode)argTex=derivativeTex(arg.name)||symbolTex(arg.name)||simpleTex(arg.name);
+    else if(arg&&arg.isConstantNode)argTex=String(arg.value);
+    if(!argTex)return null;
+    return command+" "+argTex;
+  }
+
+  function cleanMultiplicationTex(tex){
+    /* In ordinary tensor formulas juxtaposition is clearer than explicit dots:
+       r\\cdot t -> rt and 2\\cdot r -> 2r. Keep a TeX source-space so control
+       sequences can never merge with the following symbol. */
+    return String(tex).replace(/\\cdot\s*/g," ");
   }
 
   function installTexPatch(){
@@ -108,13 +124,14 @@
         var opts=Object.assign({},options||{}),previous=opts.handler;
         opts.parenthesis="auto";opts.implicit="hide";
         opts.handler=function(child,childOptions){
+          if(child&&child.isFunctionNode){var fnPretty=compactFunctionTex(child);if(fnPretty)return fnPretty;}
           if(child&&child.isSymbolNode){
             var pretty=derivativeTex(child.name);if(pretty)return pretty;
             pretty=symbolTex(child.name);if(pretty)return pretty;
           }
           if(typeof previous==="function")return previous(child,childOptions);
         };
-        return originalToTex.call(this,opts);
+        return cleanMultiplicationTex(originalToTex.call(this,opts));
       };
       return node;
     };
