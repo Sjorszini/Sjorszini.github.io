@@ -11,6 +11,10 @@ if (!executablePath) throw new Error('No Chrome/Chromium executable found.');
 
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 function assert(condition, message) { if (!condition) throw new Error(message); }
+function hasAOfT(tex) {
+  const compact = String(tex).replace(/[{}\s]/g, '');
+  return compact.includes('a(t)') || compact.includes('a\\left(t\\right)');
+}
 
 (async () => {
   const browser = await puppeteer.launch({headless: true, executablePath, args: ['--no-sandbox', '--disable-dev-shm-usage']});
@@ -105,7 +109,7 @@ function assert(condition, message) { if (!condition) throw new Error(message); 
   }));
   assert(functionNotation.preview.includes('t') && /a[^\n]*(?:\\left|\()/.test(functionNotation.preview), `Live metric preview lost the explicit a(t) argument: ${functionNotation.preview}`);
   assert(functionNotation.output.includes('\\dot{a}') && functionNotation.output.includes('\\ddot{a}'), `Derivative notation regressed: ${functionNotation.output}`);
-  assert(!/a[^\n]*(?:\\left|\()[^\n]*t/.test(functionNotation.output), `Calculated-output notation still shows a(t): ${functionNotation.output}`);
+  assert(!hasAOfT(functionNotation.output), `Calculated-output notation still shows a(t): ${functionNotation.output}`);
 
   await page.evaluate(() => {
     document.querySelectorAll('[data-output]').forEach(node => { node.checked = false; });
@@ -124,7 +128,7 @@ function assert(condition, message) { if (!condition) throw new Error(message); 
     return {metric: copyFor('Metric'), connection: copyFor('Levi-Civita connection')};
   });
   assert(calculatedTex.metric.includes('{a}') || calculatedTex.metric.includes('a'), `Calculated metric lost the scale factor: ${calculatedTex.metric}`);
-  assert(!/a[^\n]*(?:\\left|\()[^\n]*t/.test(calculatedTex.metric), `Calculated metric still shows the a(t) argument: ${calculatedTex.metric}`);
+  assert(!hasAOfT(calculatedTex.metric), `Calculated metric still shows the a(t) argument: ${calculatedTex.metric}`);
   assert(calculatedTex.connection.includes('\\left(\\sin') && calculatedTex.connection.includes('\\right)^{2}'), `FLRW connection does not group sin(theta)^2 unambiguously: ${calculatedTex.connection}`);
   assert(!/\\sin\s*\{?\\theta\}?\s*\^\{2\}/.test(calculatedTex.connection), `FLRW connection visually attaches the square to theta: ${calculatedTex.connection}`);
   console.log('PASS function arguments hidden in output and powered trig grouped correctly');
