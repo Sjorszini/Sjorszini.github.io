@@ -54,10 +54,12 @@
       tex="g_{ij}="+matrixTex(values);
       host.classList.remove("has-preview-error");
       host.dataset.tex=tex;
+      host.dataset.coords=coords.join(",");
       host.innerHTML='<div class="metric-preview-formula">\\['+tex+'\\]</div><div class="metric-preview-order"><span>Coordinate order</span><strong>\\(('+coords.map(coordinateTex).join(", ")+')\\)</strong></div>';
       queueTypeset(host,serial);
     }catch(err){
       delete host.dataset.tex;
+      host.dataset.coords=coords.join(",");
       host.classList.add("has-preview-error");
       host.innerHTML='<div class="metric-preview-error"><strong>Preview paused</strong><span>Finish the current expression to render the metric.</span></div>';
     }
