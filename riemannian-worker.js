@@ -610,17 +610,18 @@ self.postMessage=function(message,transfer){
   function connectedBlocks(matrix){
     var n=matrix.length,seen=new Array(n).fill(false),blocks=[];
     for(var start=0;start<n;start++){
-      if(seen[start])continue;
-      var stack=[start],block=[];seen[start]=true;
-      while(stack.length){
-        var i=stack.pop();block.push(i);
-        for(var j=0;j<n;j++){
-          if(seen[j]||i===j
-continue;
-          if(!isZero(matrix[i][j])||!isZero(matrix[j][i])){seen[j]=true;stack.push(j);}
+      if(!seen[start]){
+        var stack=[start],block=[];seen[start]=true;
+        while(stack.length){
+          var i=stack.pop();block.push(i);
+          for(var j=0;j<n;j++){
+            if(!seen[j]&&i!==j&&(!isZero(matrix[i][j])||!isZero(matrix[j][i]))){
+              seen[j]=true;stack.push(j);
+            }
+          }
         }
+        block.sort(function(a,b){return a-b;});blocks.push(block);
       }
-      block.sort(function(a,b){return a-b;});blocks.push(block)g;
     }
     return blocks;
   }
@@ -637,10 +638,8 @@ continue;
       if(indices.length===1){
         var p=indices[0],d=S(matrix[p][p]);
         if(isZero(d))throw new Error("The metric is degenerate.");
-        inv[p][p]=S(div("1",d));detFactors.push(d);continue;
-      }
-
-      if(indices.length===2){
+        inv[p][p]=S(div("1",d));detFactors.push(d);
+      } else if(indices.length===2){
         var p0=indices[0],p1=indices[1];
         var a=S(matrix[p0][p0]),bb=S(matrix[p0][p1]),c=S(matrix[p1][p0]),d2=S(matrix[p1][p1]);
         var det2=S(sub(mul(a,d2),mul(bb,c)));
@@ -649,16 +648,18 @@ continue;
         inv[p0][p1]=S(div(neg(bb),det2));
         inv[p1][p0]=S(div(neg(c),det2));
         inv[p1][p1]=S(div(a,det2));
-        detFactors.push(det2);continue;
+        detFactors.push(det2);
+      } else {
+        var submatrix=[];
+        for(var r = 0;r < indices.length;r++){
+          submatrix[r]=[];
+          for(var cidx=0;cidx<indices.length;cidx++)submatrix[r][cidx]=matrix[indices[r]][indices[cidx]];
+        }
+        var subInverse=generalInverseMatrix(submatrix);detFactors.push(subInverse.det);
+        for(var r2=0;r2<indices.length;r2++){
+          for(var c2=0;c2<indices.length;c2++)inv[indices[r2]][indices[c2]]=subInverse.matrix[r2][c2];
+        }
       }
-
-      var submatrix=[];
-      for(var r = 0;r < indices.length;r++){
-        submatrix[r]=[];
-        for(var cidx=0;cidx<indices.length;cidx++)submatrix[r][cidx]=matrix[indices[r]][indices[cidx]];
-      }
-      var subInverse=generalInverseMatrix(submatrix);detFactors.push(subInverse.det);
-      for(var r2=0;r2<indices.length;r2++)for(var c2=0;c2<indices.length;c2++)inv[indices[r2]][indices[c2]]=subInverse.matrix[r2][c2];
     }
 
     return {matrix:inv,det:S(detFactors.reduce(function(a,b){return mul(a,b);},"1"))};
