@@ -1,0 +1,75 @@
+name: Sync Calc menu
+
+on:
+  push:
+    branches: [finsler-calculator-experiment]
+    paths:
+      - .github/workflows/sync-calc-menu.yml
+
+permissions:
+  contents: write
+
+jobs:
+  sync-menu:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: finsler-calculator-experiment
+      - name: Synchronize calculator menu item
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+
+          changed=[]
+          for path in sorted(Path('.').glob('*.html')):
+              text=path.read_text()
+              start=text.find('<menu id="site-menu">')
+              if start < 0:
+                  continue
+              end=text.find('</menu>', start)
+              if end < 0:
+                  raise SystemExit(f'{path}: site menu has no closing tag')
+              block=text[start:end]
+              count=block.count('href="Finsler.html"')
+              if count > 1:
+                  raise SystemExit(f'{path}: duplicate calculator menu links')
+              if count == 0:
+                  item='    <menu-item><a href="Finsler.html">Calc</a></menu-item>\n'
+                  contact=re.search(r'(?m)^(\s*<menu-item(?: class="currentpage")?><a href="contact\.html">Contact</a></menu-item>)', block)
+                  if contact:
+                      block=block[:contact.start()]+item+block[contact.start():]
+                  else:
+                      block=block.rstrip()+"\n"+item
+                  text=text[:start]+block+text[end:]
+                  path.write_text(text)
+                  changed.append(path.name)
+
+          for path in sorted(Path('.').glob('*.html')):
+              text=path.read_text()
+              start=text.find('<menu id="site-menu">')
+              if start < 0:
+                  continue
+              end=text.find('</menu>', start)
+              block=text[start:end]
+              if block.count('href="Finsler.html"') != 1:
+                  raise SystemExit(f'{path}: expected exactly one Calc link')
+              m=re.search(r'<a href="Finsler\.html">([^<]+)</a>', block)
+              if not m or m.group(1).strip() != 'Calc':
+                  raise SystemExit(f'{path}: calculator menu label is not Calc')
+
+          print('SYNCED', ','.join(changed) if changed else 'nothing')
+          PY
+      - name: Commit synchronized menus
+        shell: bash
+        run: |
+          if ! git diff --quiet -- '*.html'; then
+            git config user.name 'github-actions[bot]'
+            git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+            git add '*.html'
+            git commit -m 'Synchronize Calc link across site menus'
+            git push origin HEAD:finsler-calculator-experiment
+          fi
