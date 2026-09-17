@@ -5,7 +5,7 @@ on:
   push:
     branches: [finsler-calculator-experiment]
     paths:
-      - Finsler.html
+      - '*.html'
       - riemannian-calculator.css
       - riemannian-live-preview.css
       - riemannian-calculator.js
@@ -16,11 +16,11 @@ on:
       - tests/riemannian-browser-regression.cjs
       - tests/riemannian-preview-regression.cjs
       - tests/riemannian-extra-presets-regression.cjs
-      - tools/apply-riemannian-fast-menu.py
+      - tests/site-menu-regression.cjs
       - .github/workflows/riemannian-regression.yml
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: riemannian-regression-${{ github.ref }}
@@ -32,12 +32,6 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
-        with:
-          ref: finsler-calculator-experiment
-      - name: Apply verified candidate changes
-        run: |
-          python3 tools/apply-riemannian-fast-menu.py
-          node --check riemannian-worker-connection-fast.js
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -51,18 +45,10 @@ jobs:
         run: node tests/riemannian-browser-regression.cjs
       - name: Run live-preview and notation regression
         run: node tests/riemannian-preview-regression.cjs
-      - name: Run representative-preset, Kerr, and menu regression
+      - name: Run representative-preset regression
         run: node tests/riemannian-extra-presets-regression.cjs
-      - name: Commit verified fixes
-        if: success()
-        run: |
-          if ! git diff --quiet; then
-            git config user.name 'github-actions[bot]'
-            git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-            git add '*.html' riemannian-calculator.js tests/riemannian-extra-presets-regression.cjs
-            git commit -m 'Speed up Kerr connection and synchronize Calc menus'
-            git push origin HEAD:finsler-calculator-experiment
-          fi
+      - name: Run shared-menu regression
+        run: node tests/site-menu-regression.cjs
       - name: Upload failure screenshot
         if: failure()
         uses: actions/upload-artifact@v4
