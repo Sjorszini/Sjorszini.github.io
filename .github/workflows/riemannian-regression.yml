@@ -16,6 +16,7 @@ on:
       - tests/riemannian-browser-regression.cjs
       - tests/riemannian-preview-regression.cjs
       - tests/riemannian-extra-presets-regression.cjs
+      - tests/riemannian-kerr-connection-regression.cjs
       - tests/site-menu-regression.cjs
       - .github/workflows/riemannian-regression.yml
 
@@ -47,6 +48,8 @@ jobs:
         run: node tests/riemannian-preview-regression.cjs
       - name: Run representative-preset regression
         run: node tests/riemannian-extra-presets-regression.cjs
+      - name: Run Kerr connection performance regression
+        run: node tests/riemannian-kerr-connection-regression.cjs
       - name: Run shared-menu regression
         run: node tests/site-menu-regression.cjs
       - name: Upload failure screenshot
