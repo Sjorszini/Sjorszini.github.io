@@ -74,11 +74,15 @@ function assert(condition, message) { if (!condition) throw new Error(message); 
 
   await page.select('#presetSelect', 'sphere2');
   await page.click('#loadPreset');
-  await page.waitForFunction(() => {
-    const tex = document.querySelector('#metricPreview')?.dataset.tex || '';
-    return document.querySelector('#dimension')?.value === '2' && tex.includes('R^{2}') && tex.includes('\\sin');
-  }, {timeout: 5000});
-  await sleep(300);
+  await page.waitForFunction(() => document.querySelector('#dimension')?.value === '2', {timeout: 5000});
+  await sleep(500);
+  const spherePreview = await page.evaluate(() => ({
+    tex: document.querySelector('#metricPreview')?.dataset.tex || '',
+    cells: document.querySelectorAll('#metricGrid .metric-entry').length,
+    hasError: document.querySelector('#metricPreview')?.classList.contains('has-preview-error')
+  }));
+  assert(spherePreview.cells === 4, `2-sphere editor did not resize to 2x2: ${JSON.stringify(spherePreview)}`);
+  assert(!spherePreview.hasError && spherePreview.tex.includes('R') && spherePreview.tex.includes('\\sin') && !spherePreview.tex.includes('r_{s}'), `2-sphere live preview did not refresh: ${spherePreview.tex}`);
   const finalErrors = await page.$$eval('mjx-merror', nodes => nodes.map(node => node.textContent));
   assert(finalErrors.length === 0, `MathJax errors after preview interactions: ${JSON.stringify(finalErrors)}`);
   assert(browserErrors.length === 0, `Browser errors: ${JSON.stringify(browserErrors)}`);
