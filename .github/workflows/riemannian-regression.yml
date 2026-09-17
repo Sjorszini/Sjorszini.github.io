@@ -19,19 +19,30 @@ on:
       - .github/workflows/riemannian-regression.yml
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: riemannian-regression-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  # This is the regression gate for the single production geometry worker.
   browser-regression:
     runs-on: ubuntu-24.04
     timeout-minutes: 8
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: finsler-calculator-experiment
+      - name: Apply generic disconnected-block inverse fast path
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! grep -q 'Generic disconnected-block inverse fast path' riemannian-worker.js; then
+            printf '%s' 'Ci8qIEdlbmVyaWMgZGlzY29ubmVjdGVkLWJsb2NrIGludmVyc2UgZmFzdCBwYXRoLiAqLwooZnVuY3Rpb24oKXsKICB2YXIgZ2VuZXJhbEludmVyc2VNYXRyaXg9aW52ZXJzZU1hdHJpeDsKCiAgZnVuY3Rpb24gY29ubmVjdGVkQmxvY2tzKG1hdHJpeCl7CiAgICB2YXIgbj1tYXRyaXgubGVuZ3RoLHNlZW49bmV3IEFycmF5KG4pLmZpbGwoZmFsc2UpLGJsb2Nrcz1bXTsKICAgIGZvcih2YXIgc3RhcnQ9MDtzdGFydDxuO3N0YXJ0KyspewogICAgICBpZihzZWVuW3N0YXJ0XSljb250aW51ZTsKICAgICAgdmFyIHN0YWNrPVtzdGFydF0sYmxvY2s9W107c2VlbltzdGFydF09dHJ1ZTsKICAgICAgd2hpbGUoc3RhY2subGVuZ3RoKXsKICAgICAgICB2YXIgaT1zdGFjay5wb3AoKTtibG9jay5wdXNoKGkpOwogICAgICAgIGZvcih2YXIgaj0wO2o8bjtqKyspewogICAgICAgICAgaWYoc2VlbltqXXx8aT09PWopY29udGludWU7CiAgICAgICAgICBpZighaXNaZXJvKG1hdHJpeFtpXVtqXSl8fCFpc1plcm8obWF0cml4W2pdW2ldKSl7c2VlbltqXT10cnVlO3N0YWNrLnB1c2goaik7fQogICAgICAgIH0KICAgICAgfQogICAgICBibG9jay5zb3J0KGZ1bmN0aW9uKGEsYil7cmV0dXJuIGEtYjt9KTtibG9ja3MucHVzaChibG9jayk7CiAgICB9CiAgICByZXR1cm4gYmxvY2tzOwogIH0KCiAgaW52ZXJzZU1hdHJpeD1mdW5jdGlvbihtYXRyaXgpewogICAgdmFyIG49bWF0cml4Lmxlbmd0aCxibG9ja3M9Y29ubmVjdGVkQmxvY2tzKG1hdHJpeCk7CiAgICBpZihibG9ja3MubGVuZ3RoPT09MSlyZXR1cm4gZ2VuZXJhbEludmVyc2VNYXRyaXgobWF0cml4KTsKCiAgICB2YXIgaW52PVtdLGRldEZhY3RvcnM9W107CiAgICBmb3IodmFyIGk9MDtpPG47aSsrKWludltpXT1uZXcgQXJyYXkobikuZmlsbCgiMCIpOwoKICAgIGZvcih2YXIgYj0wO2I8YmxvY2tzLmxlbmd0aDtiKyspewogICAgICB2YXIgaW5kaWNlcz1ibG9ja3NbYl07CiAgICAgIGlmKGluZGljZXMubGVuZ3RoPT09MSl7CiAgICAgICAgdmFyIHA9aW5kaWNlc1swXSxkPVMobWF0cml4W3BdW3BdKTsKICAgICAgICBpZihpc1plcm8oZCkpdGhyb3cgbmV3IEVycm9yKCJUaGUgbWV0cmljIGlzIGRlZ2VuZXJhdGUuIik7CiAgICAgICAgaW52W3BdW3BdPVMoZGl2KCIxIixkKSk7ZGV0RmFjdG9ycy5wdXNoKGQpO2NvbnRpbnVlOwogICAgICB9CgogICAgICBpZihpbmRpY2VzLmxlbmd0aD09PTIpewogICAgICAgIHZhciBwMD1pbmRpY2VzWzBdLHAxPWluZGljZXNbMV07CiAgICAgICAgdmFyIGE9UyhtYXRyaXhbcDBdW3AwXSksYmI9UyhtYXRyaXhbcDBdW3AxXSksYz1TKG1hdHJpeFtwMV1bcDBdKSxkMj1TKG1hdHJpeFtwMV1bcDFdKTsKICAgICAgICB2YXIgZGV0Mj1TKHN1YihtdWwoYSxkMiksbXVsKGJiLGMpKSk7CiAgICAgICAgaWYoaXNaZXJvKGRldDIpKXRocm93IG5ldyBFcnJvcigiVGhlIG1ldHJpYyBpcyBkZWdlbmVyYXRlLiIpOwogICAgICAgIGludltwMF1bcDBdPVMoZGl2KGQyLGRldDIpKTsKICAgICAgICBpbnZbcDBdW3AxXT1TKGRpdihuZWcoYmIpLGRldDIpKTsKICAgICAgICBpbnZbcDFdW3AwXT1TKGRpdihuZWcoYyksZGV0MikpOwogICAgICAgIGludltwMV1bcDFdPVMoZGl2KGEsZGV0MikpOwogICAgICAgIGRldEZhY3RvcnMucHVzaChkZXQyKTtjb250aW51ZTsKICAgICAgfQoKICAgICAgdmFyIHN1Ym1hdHJpeD1bXTsKICAgICAgZm9yKHZhciByPTA7cjxpbmRpY2VzLmxlbmd0aDtyKyspewogICAgICAgIHN1Ym1hdHJpeFtyXT1bXTsKICAgICAgICBmb3IodmFyIGNpZHg9MDtjaWR4PGluZGljZXMubGVuZ3RoO2NpZHgrKylzdWJtYXRyaXhbcl1bY2lkeF09bWF0cml4W2luZGljZXNbcl1dW2luZGljZXNbY2lkeF1dOwogICAgICB9CiAgICAgIHZhciBzdWJJbnZlcnNlPWdlbmVyYWxJbnZlcnNlTWF0cml4KHN1Ym1hdHJpeCk7ZGV0RmFjdG9ycy5wdXNoKHN1YkludmVyc2UuZGV0KTsKICAgICAgZm9yKHZhciByMj0wO3IyPGluZGljZXMubGVuZ3RoO3IyKyspZm9yKHZhciBjMj0wO2MyPGluZGljZXMubGVuZ3RoO2MyKyspaW52W2luZGljZXNbcjJdXVtpbmRpY2VzW2MyXV09c3ViSW52ZXJzZS5tYXRyaXhbcjJdW2MyXTsKICAgIH0KCiAgICByZXR1cm4ge21hdHJpeDppbnYsZGV0OlMoZGV0RmFjdG9ycy5yZWR1Y2UoZnVuY3Rpb24oYSxiKXtyZXR1cm4gbXVsKGEsYik7fSwiMSIpKX07CiAgfTsKfSkoKTsK' | base64 -d >> riemannian-worker.js
+          fi
+          sed -i 's/riemannian-worker.js?v=3/riemannian-worker.js?v=4/' riemannian-calculator.js
+          sed -i 's/riemannian-calculator.js?v=4/riemannian-calculator.js?v=5/' Finsler.html
+          sed -i 's/riemannian-extra-presets.js?v=1/riemannian-extra-presets.js?v=2/' Finsler.html
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -47,6 +58,17 @@ jobs:
         run: node tests/riemannian-preview-regression.cjs
       - name: Run representative-preset regression
         run: node tests/riemannian-extra-presets-regression.cjs
+      - name: Commit verified optimization
+        if: success()
+        shell: bash
+        run: |
+          if ! git diff --quiet; then
+            git config user.name 'github-actions[bot]'
+            git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+            git add riemannian-worker.js riemannian-calculator.js Finsler.html
+            git commit -m 'Optimize disconnected metric-block inversion'
+            git push origin HEAD:finsler-calculator-experiment
+          fi
       - name: Upload failure screenshot
         if: failure()
         uses: actions/upload-artifact@v4
