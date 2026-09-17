@@ -33,6 +33,16 @@
       matrix:[["-(1-Lambda*r^2/3)","0","0","0"],["0","1/(1-Lambda*r^2/3)","0","0"],["0","0","r^2","0"],["0","0","0","r^2*sin(theta)^2"]]
     },
     {
+      id:"ads-static",
+      name:"anti-de Sitter spacetime (static)",
+      n:4,
+      coords:["t","r","theta","phi"],
+      constants:"L",
+      functions:"",
+      note:"Static global anti-de Sitter form with curvature radius L: f(r)=1+r²/L².",
+      matrix:[["-(1+r^2/L^2)","0","0","0"],["0","1/(1+r^2/L^2)","0","0"],["0","0","r^2","0"],["0","0","0","r^2*sin(theta)^2"]]
+    },
+    {
       id:"kerr-bl",
       name:"Kerr spacetime (Boyer–Lindquist)",
       n:4,
@@ -46,6 +56,56 @@
         ["0","0","r^2+a^2*cos(theta)^2","0"],
         ["-2*M*a*r*sin(theta)^2/(r^2+a^2*cos(theta)^2)","0","0","sin(theta)^2*(r^2+a^2+2*M*a^2*r*sin(theta)^2/(r^2+a^2*cos(theta)^2))"]
       ]
+    },
+    {
+      id:"schwarzschild-ef",
+      name:"Schwarzschild (ingoing Eddington–Finkelstein)",
+      n:4,
+      coords:["v","r","theta","phi"],
+      constants:"r_s",
+      functions:"",
+      note:"Schwarzschild geometry in horizon-penetrating ingoing Eddington–Finkelstein coordinates.",
+      matrix:[["-(1-r_s/r)","1","0","0"],["1","0","0","0"],["0","0","r^2","0"],["0","0","0","r^2*sin(theta)^2"]]
+    },
+    {
+      id:"godel",
+      name:"Gödel universe",
+      n:4,
+      coords:["t","x","y","z"],
+      constants:"L",
+      functions:"",
+      note:"Gödel rotating cosmology in a standard Cartesian-like chart; the t–z block carries the characteristic rotation.",
+      matrix:[["-L^2","0","0","-L^2*exp(x)"],["0","L^2","0","0"],["0","0","L^2","0"],["-L^2*exp(x)","0","0","-L^2*exp(2*x)/2"]]
+    },
+    {
+      id:"ellis-wormhole",
+      name:"Ellis wormhole",
+      n:4,
+      coords:["t","l","theta","phi"],
+      constants:"b",
+      functions:"",
+      note:"Ultrastatic Ellis drainhole in proper radial coordinate l, with throat radius b.",
+      matrix:[["-1","0","0","0"],["0","1","0","0"],["0","0","l^2+b^2","0"],["0","0","0","(l^2+b^2)*sin(theta)^2"]]
+    },
+    {
+      id:"rindler",
+      name:"Rindler spacetime",
+      n:4,
+      coords:["t","x","y","z"],
+      constants:"alpha",
+      functions:"",
+      note:"Flat spacetime in uniformly accelerated coordinates: ds²=-(αx)²dt²+dx²+dy²+dz².",
+      matrix:[["-alpha^2*x^2","0","0","0"],["0","1","0","0"],["0","0","1","0"],["0","0","0","1"]]
+    },
+    {
+      id:"alcubierre",
+      name:"Alcubierre warp-drive ansatz",
+      n:4,
+      coords:["t","x","y","z"],
+      constants:"v",
+      functions:"F(t,x,y,z)",
+      note:"ADM-form warp-drive ansatz with symbolic shape function F: ds²=-dt²+[dx-vF dt]²+dy²+dz².",
+      matrix:[["-(1-v^2*F(t,x,y,z)^2)","-v*F(t,x,y,z)","0","0"],["-v*F(t,x,y,z)","1","0","0"],["0","0","1","0"],["0","0","0","1"]]
     },
     {
       id:"bianchi-i",
@@ -66,6 +126,16 @@
       functions:"",
       note:"Kasner form ds²=-dt²+t^{2p₁}dx²+t^{2p₂}dy²+t^{2p₃}dz². It is vacuum when Σpᵢ=Σpᵢ²=1.",
       matrix:[["-1","0","0","0"],["0","t^(2*p_1)","0","0"],["0","0","t^(2*p_2)","0"],["0","0","0","t^(2*p_3)"]]
+    },
+    {
+      id:"btz-rotating",
+      name:"Rotating BTZ black hole",
+      n:3,
+      coords:["t","r","phi"],
+      constants:"M, J, L",
+      functions:"",
+      note:"Rotating (2+1)-dimensional BTZ black hole with AdS radius L; a compact off-diagonal 3D example.",
+      matrix:[["M-r^2/L^2","0","-J/2"],["0","1/(-M+r^2/L^2+J^2/(4*r^2))","0"],["-J/2","0","r^2"]]
     }
   ];
   var byId=Object.create(null);
