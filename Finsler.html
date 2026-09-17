@@ -8,6 +8,7 @@
   <link rel="stylesheet" type="text/css" href="style.css">
   <link rel="stylesheet" type="text/css" href="menu-clean.css?v=4">
   <link rel="stylesheet" type="text/css" href="riemannian-calculator.css?v=1">
+  <link rel="stylesheet" type="text/css" href="riemannian-live-preview.css?v=1">
   <style>
     .geometry-workbench #calculator-shell{background:transparent;border:0;border-radius:0;box-shadow:none;overflow:visible}
     .geometry-workbench .calculator-content-flat{padding:0}
@@ -21,8 +22,9 @@
     window.MathJax={tex:{inlineMath:[['\\(','\\)']],displayMath:[['\\[','\\]']]},options:{skipHtmlTags:['script','noscript','style','textarea','pre','code']}};
   </script>
   <script defer src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
-  <script defer src="riemannian-pretty.js?v=6"></script>
+  <script defer src="riemannian-pretty.js?v=7"></script>
   <script defer src="riemannian-calculator.js?v=4"></script>
+  <script defer src="riemannian-live-preview.js?v=1"></script>
 </head>
 <body>
 <div class="container geometry-page">
@@ -103,6 +105,13 @@
             <div class="matrix-editor-wrap">
               <div id="metricGrid" class="matrix-editor" aria-label="Metric matrix editor"></div>
             </div>
+            <section class="metric-preview" aria-labelledby="metric-preview-title">
+              <div class="metric-preview-heading">
+                <strong id="metric-preview-title">Live metric preview</strong>
+                <span>Updates as you type</span>
+              </div>
+              <div id="metricPreview" class="metric-preview-body" aria-live="polite"></div>
+            </section>
             <div class="input-guidance">
               <strong>Syntax</strong>
               <span>Use math.js notation: <code>^</code> for powers, <code>*</code> for multiplication, and functions such as <code>sin(theta)</code>. Examples: <code>1/(1-r_s/r)</code>, <code>a(t)^2</code>.</span>
