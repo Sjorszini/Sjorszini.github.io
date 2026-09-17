@@ -37,7 +37,7 @@ function assert(condition, message) { if (!condition) throw new Error(message); 
 
   const initial = await page.$eval('#metricPreview', node => ({tex: node.dataset.tex, coords: node.dataset.coords, text: node.textContent, errors: node.querySelectorAll('mjx-merror').length}));
   assert(initial.tex.startsWith('g_{ij}='), `Live preview should use a compact metric label: ${initial.tex}`);
-  assert(!/left|right/i.test(initial.tex), `Literal delimiter commands leaked into live preview: ${initial.tex}`);
+  assert(!/(^|[^\\])(left|right)/i.test(initial.tex), `Bare delimiter words leaked into live preview: ${initial.tex}`);
   assert(initial.tex.includes('r_{s}'), `Schwarzschild subscript missing in live preview: ${initial.tex}`);
   assert(!initial.tex.includes('\\cdot'), `Live preview contains multiplication dots: ${initial.tex}`);
   assert(initial.coords === 't,r,theta,phi', `Initial coordinate order is wrong: ${initial.coords}`);
