@@ -28,7 +28,10 @@ christoffel=function(metric,inv,x){
     for(b=0;b<n;b++)G[a][b]=new Array(n).fill("0");
   }
 
-  /* Compute only the independent lower-index half and mirror it. */
+  /* Compute only the independent lower-index half and mirror it.
+     Keep the calculation form light; displayed Christoffels are polished later
+     by the existing presentation serializer, while curvature quantities have
+     their own exact canonicalization at contraction time. */
   for(a=0;a<n;a++)for(b=0;b<n;b++)for(c=b;c<n;c++){
     var terms=[];
     for(var q=0;q<invNZ[a].length;q++){
@@ -42,7 +45,7 @@ christoffel=function(metric,inv,x){
       terms.push(mul(inv[a][d],sum(bracketTerms)));
     }
     var value=terms.length?S(mul("1/2",sum(terms))):"0";
-    if(value!=="0"&&!isZero(value))value=C(value);else value="0";
+    if(value!=="0"&&isZero(value))value="0";
     G[a][b][c]=value;
     G[a][c][b]=value;
   }
