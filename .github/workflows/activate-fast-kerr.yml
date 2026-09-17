@@ -1,0 +1,91 @@
+name: Activate fast Kerr connection
+
+on:
+  push:
+    branches: [finsler-calculator-experiment]
+    paths:
+      - .github/workflows/activate-fast-kerr.yml
+
+permissions:
+  contents: write
+
+jobs:
+  verify-and-activate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: finsler-calculator-experiment
+      - name: Apply candidate activation
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+
+          calc=Path('riemannian-calculator.js')
+          text=calc.read_text()
+          old='worker=new Worker("riemannian-worker.js?v=4");'
+          new='worker=new Worker("riemannian-worker-connection-fast.js?v=5");'
+          if old not in text and new not in text:
+              raise SystemExit('worker URL anchor not found')
+          text=text.replace(old,new)
+          calc.write_text(text)
+
+          html=Path('Finsler.html')
+          text=html.read_text()
+          text=text.replace('riemannian-calculator.js?v=5','riemannian-calculator.js?v=6')
+          text=text.replace('riemannian-extra-presets.js?v=2','riemannian-extra-presets.js?v=3')
+          html.write_text(text)
+
+          presets=Path('riemannian-extra-presets.js')
+          text=presets.read_text()
+          kerr_anchor='''      constants:"M, a",\n      functions:"",\n      note:"Rotating vacuum black hole in Boyer–Lindquist coordinates, with Σ=r²+a²cos²θ and Δ=r²-2Mr+a².",'''
+          kerr_repl='''      constants:"M, a",\n      functions:"",\n      defaultOutputs:["metric","inverse","christoffel"],\n      note:"Rotating vacuum black hole in Boyer–Lindquist coordinates, with Σ=r²+a²cos²θ and Δ=r²-2Mr+a². Loads with metric, inverse and Christoffels selected; curvature can be enabled explicitly.",'''
+          if kerr_anchor in text:
+              text=text.replace(kerr_anchor,kerr_repl,1)
+          elif 'defaultOutputs:["metric","inverse","christoffel"]' not in text:
+              raise SystemExit('Kerr preset anchor not found')
+
+          load_anchor='''    el("presetNote").textContent=p.note;\n    if(el("clearResults"))el("clearResults").click();\n    setStatus("Loaded "+p.name+".","success");'''
+          load_repl='''    el("presetNote").textContent=p.note;\n    if(p.defaultOutputs){\n      document.querySelectorAll("[data-output]").forEach(function(box){\n        box.checked=p.defaultOutputs.indexOf(box.dataset.output)>=0;\n        box.dispatchEvent(event("change"));\n      });\n    }\n    if(el("clearResults"))el("clearResults").click();\n    setStatus("Loaded "+p.name+".","success");'''
+          if load_anchor in text:
+              text=text.replace(load_anchor,load_repl,1)
+          elif 'if(p.defaultOutputs)' not in text:
+              raise SystemExit('extra-preset load anchor not found')
+          presets.write_text(text)
+          PY
+          node --check riemannian-worker-connection-fast.js
+          node --check riemannian-calculator.js
+          node --check riemannian-extra-presets.js
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install browser test dependency
+        run: npm install --no-save puppeteer-core@24
+      - name: Serve branch build
+        run: |
+          python3 -m http.server 8000 > /tmp/riemannian-http.log 2>&1 &
+          sleep 1
+      - name: Run core geometry regression
+        run: node tests/riemannian-browser-regression.cjs
+      - name: Run notation and preview regression
+        run: node tests/riemannian-preview-regression.cjs
+      - name: Run representative preset regression
+        run: node tests/riemannian-extra-presets-regression.cjs
+      - name: Run shared menu regression
+        run: node tests/site-menu-regression.cjs
+      - name: Run Kerr connection regression
+        run: node tests/riemannian-kerr-connection-regression.cjs
+      - name: Commit verified activation
+        if: success()
+        shell: bash
+        run: |
+          if ! git diff --quiet -- Finsler.html riemannian-calculator.js riemannian-extra-presets.js; then
+            git config user.name 'github-actions[bot]'
+            git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+            git add Finsler.html riemannian-calculator.js riemannian-extra-presets.js
+            git commit -m 'Activate fast Kerr connection path'
+            git push origin HEAD:finsler-calculator-experiment
+          fi
