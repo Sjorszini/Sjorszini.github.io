@@ -1,0 +1,105 @@
+name: Apply block inverse optimization
+
+on:
+  push:
+    branches: [finsler-calculator-experiment]
+    paths:
+      - .github/workflows/riemannian-inverse-optimize.yml
+
+permissions:
+  contents: write
+
+jobs:
+  optimize:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: finsler-calculator-experiment
+      - name: Apply generic sparse-block inverse fast path
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          worker = Path('riemannian-worker.js')
+          text = worker.read_text()
+          marker = '/* Generic disconnected-block inverse fast path. */'
+          if marker not in text:
+              text += r'''
+
+/* Generic disconnected-block inverse fast path. */
+(function(){
+  var generalInverseMatrix=inverseMatrix;
+
+  function connectedBlocks(matrix){
+    var n=matrix.length,seen=new Array(n).fill(false),blocks=[];
+    for(var start=0;start<n;start++){
+      if(seen[start])continue;
+      var stack=[start],block=[];seen[start]=true;
+      while(stack.length){
+        var i=stack.pop();block.push(i);
+        for(var j=0;j<n;j++){
+          if(seen[j]||i===j)continue;
+          if(!isZero(matrix[i][j])||!isZero(matrix[j][i])){seen[j]=true;stack.push(j);}
+        }
+      }
+      block.sort(function(a,b){return a-b;});blocks.push(block);
+    }
+    return blocks;
+  }
+
+  inverseMatrix=function(matrix){
+    var n=matrix.length,blocks=connectedBlocks(matrix);
+    if(blocks.length===1)return generalInverseMatrix(matrix);
+
+    var inv=[],detFactors=[];
+    for(var i=0;i<n;i++)inv[i]=new Array(n).fill("0");
+
+    for(var b=0;b<blocks.length;b++){
+      var indices=blocks[b];
+      if(indices.length===1){
+        var p=indices[0],d=S(matrix[p][p]);
+        if(isZero(d))throw new Error("The metric is degenerate.");
+        inv[p][p]=S(div("1",d));detFactors.push(d);continue;
+      }
+
+      if(indices.length===2){
+        var p0=indices[0],p1=indices[1];
+        var a=S(matrix[p0][p0]),bb=S(matrix[p0][p1]),c=S(matrix[p1][p0]),d2=S(matrix[p1][p1]);
+        var det2=S(sub(mul(a,d2),mul(bb,c)));
+        if(isZero(det2))throw new Error("The metric is degenerate.");
+        inv[p0][p0]=S(div(d2,det2));
+        inv[p0][p1]=S(div(neg(bb),det2));
+        inv[p1][p0]=S(div(neg(c),det2));
+        inv[p1][p1]=S(div(a,det2));
+        detFactors.push(det2);continue;
+      }
+
+      var submatrix=[];
+      for(var r=0;r<indices.length;r++){
+        submatrix[r]=[];
+        for(var cidx=0;cidx<indices.length;cidx++)submatrix[r][cidx]=matrix[indices[r]][indices[cidx]];
+      }
+      var subInverse=generalInverseMatrix(submatrix);detFactors.push(subInverse.det);
+      for(var r2=0;r2<indices.length;r2++)for(var c2=0;c2<indices.length;c2++)inv[indices[r2]][indices[c2]]=subInverse.matrix[r2][c2];
+    }
+
+    return {matrix:inv,det:S(detFactors.reduce(function(a,b){return mul(a,b);},"1"))};
+  };
+})();
+'''
+              worker.write_text(text)
+
+          calc = Path('riemannian-calculator.js')
+          c = calc.read_text().replace('riemannian-worker.js?v=3','riemannian-worker.js?v=4')
+          calc.write_text(c)
+
+          html = Path('Finsler.html')
+          h = html.read_text().replace('riemannian-calculator.js?v=4','riemannian-calculator.js?v=5').replace('riemannian-extra-presets.js?v=1','riemannian-extra-presets.js?v=2')
+          html.write_text(h)
+          PY
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add riemannian-worker.js riemannian-calculator.js Finsler.html
+          git commit -m "Optimize disconnected metric-block inversion"
+          git push origin HEAD:finsler-calculator-experiment
