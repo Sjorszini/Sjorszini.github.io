@@ -26,7 +26,7 @@ function assert(condition, message) { if (!condition) throw new Error(message); 
 
   const directTex = await page.evaluate(() => ({
     product: math.parse('r*t').toTex({parenthesis: 'auto', implicit: 'hide'}),
-    trig: math.parse('r*sin(theta)^2').toTex({parenthesis: 'auto', implicit: 'hide'}),
+    trig: math.parse('r*sin(theta)').toTex({parenthesis: 'auto', implicit: 'hide'}),
     inverseTrig: math.parse('asin(theta)').toTex({parenthesis: 'auto', implicit: 'hide'})
   }));
   assert(!directTex.product.includes('\\cdot'), `Explicit multiplication dot remains: ${directTex.product}`);
@@ -34,6 +34,27 @@ function assert(condition, message) { if (!condition) throw new Error(message); 
   assert(directTex.trig.includes('\\sin') && !/\\sin[^\n]*\\left\(/.test(directTex.trig), `sin(theta) was not compacted: ${directTex.trig}`);
   assert(directTex.inverseTrig.includes('\\arcsin') && !/\\arcsin[^\n]*\\left\(/.test(directTex.inverseTrig), `asin(theta) was not compacted: ${directTex.inverseTrig}`);
   console.log('PASS compact TeX notation');
+
+  const powerAudit = await page.evaluate(async () => {
+    const expressions = [
+      'sin(theta)^2', 'cos(theta)^3', 'tan(theta)^2',
+      'sinh(theta)^2', 'cosh(theta)^2', 'tanh(theta)^2',
+      'asin(theta)^2', 'acos(theta)^2', 'atan(theta)^2',
+      'exp(theta)^2', 'log(theta)^2', 'sin(theta + phi)^2'
+    ];
+    const tex = expressions.map(expr => math.parse(expr).toTex({parenthesis: 'auto', implicit: 'hide'}));
+    const host = document.createElement('div');
+    host.id = 'function-power-audit';
+    host.innerHTML = tex.map(item => `\\[${item}\\]`).join('');
+    document.body.appendChild(host);
+    if (window.MathJax?.typesetPromise) await window.MathJax.typesetPromise([host]);
+    return {expressions, tex, errors: Array.from(host.querySelectorAll('mjx-merror')).map(node => node.textContent)};
+  });
+  powerAudit.tex.forEach((tex, index) => {
+    assert(tex.includes('\\left(') && tex.includes('\\right)^{'), `Powered function is not grouped as a whole for ${powerAudit.expressions[index]}: ${tex}`);
+  });
+  assert(powerAudit.errors.length === 0, `MathJax errors in powered-function audit: ${JSON.stringify(powerAudit.errors)}`);
+  console.log('PASS powered function precedence');
 
   const initial = await page.$eval('#metricPreview', node => ({tex: node.dataset.tex, coords: node.dataset.coords, text: node.textContent, errors: node.querySelectorAll('mjx-merror').length}));
   assert(initial.tex.startsWith('g_{ij}='), `Live preview should use a compact metric label: ${initial.tex}`);
@@ -89,20 +110,25 @@ function assert(condition, message) { if (!condition) throw new Error(message); 
 
   await page.evaluate(() => {
     document.querySelectorAll('[data-output]').forEach(node => { node.checked = false; });
-    const metric = document.querySelector('[data-output="metric"]');
-    metric.checked = true;
-    metric.dispatchEvent(new Event('change', {bubbles: true}));
+    for (const key of ['metric', 'christoffel']) {
+      const input = document.querySelector(`[data-output="${key}"]`);
+      input.checked = true;
+      input.dispatchEvent(new Event('change', {bubbles: true}));
+    }
   });
   await page.click('#calculateSelected');
   await page.waitForFunction(() => document.querySelector('#status')?.classList.contains('is-success'), {timeout: 15000});
   await sleep(250);
-  const metricResultTex = await page.evaluate(() => {
-    const card = Array.from(document.querySelectorAll('#results details')).find(node => node.querySelector('summary strong')?.textContent === 'Metric');
-    return card?.querySelector('.copy-button')?.dataset.copy || '';
+  const calculatedTex = await page.evaluate(() => {
+    const cards = Array.from(document.querySelectorAll('#results details'));
+    const copyFor = title => cards.find(node => node.querySelector('summary strong')?.textContent === title)?.querySelector('.copy-button')?.dataset.copy || '';
+    return {metric: copyFor('Metric'), connection: copyFor('Levi-Civita connection')};
   });
-  assert(metricResultTex.includes('{a}') || metricResultTex.includes('a'), `Calculated metric lost the scale factor: ${metricResultTex}`);
-  assert(!/a[^\n]*(?:\\left|\()[^\n]*t/.test(metricResultTex), `Calculated metric still shows the a(t) argument: ${metricResultTex}`);
-  console.log('PASS function arguments hidden in output but retained in live preview');
+  assert(calculatedTex.metric.includes('{a}') || calculatedTex.metric.includes('a'), `Calculated metric lost the scale factor: ${calculatedTex.metric}`);
+  assert(!/a[^\n]*(?:\\left|\()[^\n]*t/.test(calculatedTex.metric), `Calculated metric still shows the a(t) argument: ${calculatedTex.metric}`);
+  assert(calculatedTex.connection.includes('\\left(\\sin') && calculatedTex.connection.includes('\\right)^{2}'), `FLRW connection does not group sin(theta)^2 unambiguously: ${calculatedTex.connection}`);
+  assert(!/\\sin\s*\{?\\theta\}?\s*\^\{2\}/.test(calculatedTex.connection), `FLRW connection visually attaches the square to theta: ${calculatedTex.connection}`);
+  console.log('PASS function arguments hidden in output and powered trig grouped correctly');
 
   await page.select('#presetSelect', 'sphere2');
   await page.click('#loadPreset');
@@ -117,6 +143,7 @@ function assert(condition, message) { if (!condition) throw new Error(message); 
   assert(spherePreview.cells === 4, `2-sphere editor did not resize to 2x2: ${JSON.stringify(spherePreview)}`);
   assert(spherePreview.coords === 'theta,phi', `2-sphere coordinate order did not refresh: ${spherePreview.coords}`);
   assert(!spherePreview.hasError && spherePreview.tex.includes('R') && spherePreview.tex.includes('\\sin') && !spherePreview.tex.includes('r_{s}'), `2-sphere live preview did not refresh: ${spherePreview.tex}`);
+  assert(spherePreview.tex.includes('\\left(\\sin') && spherePreview.tex.includes('\\right)^{2}'), `2-sphere preview has ambiguous sin(theta)^2 precedence: ${spherePreview.tex}`);
   const finalErrors = await page.$$eval('mjx-merror', nodes => nodes.map(node => node.textContent));
   assert(finalErrors.length === 0, `MathJax errors after preview interactions: ${JSON.stringify(finalErrors)}`);
   assert(browserErrors.length === 0, `Browser errors: ${JSON.stringify(browserErrors)}`);
