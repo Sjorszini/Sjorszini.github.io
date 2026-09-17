@@ -107,6 +107,15 @@
     return command+" "+argTex;
   }
 
+  function declaredFunctionTex(node){
+    if(!node||!node.isFunctionNode||!node.fn||!node.fn.isSymbolNode)return null;
+    var defs=declaredFunctions();
+    for(var i=0;i<defs.length;i++){
+      if(defs[i].name===node.fn.name&&defs[i].args.length===node.args.length)return "{"+simpleTex(defs[i].name)+"}";
+    }
+    return null;
+  }
+
   function cleanMultiplicationTex(tex){
     /* In ordinary tensor formulas juxtaposition is clearer than explicit dots:
        r\\cdot t -> rt and 2\\cdot r -> 2r. Keep a TeX source-space so control
@@ -124,7 +133,10 @@
         var opts=Object.assign({},options||{}),previous=opts.handler;
         opts.parenthesis="auto";opts.implicit="hide";
         opts.handler=function(child,childOptions){
-          if(child&&child.isFunctionNode){var fnPretty=compactFunctionTex(child);if(fnPretty)return fnPretty;}
+          if(child&&child.isFunctionNode){
+            var fnPretty=compactFunctionTex(child);if(fnPretty)return fnPretty;
+            if(!opts.preserveFunctionArguments){fnPretty=declaredFunctionTex(child);if(fnPretty)return fnPretty;}
+          }
           if(child&&child.isSymbolNode){
             var pretty=derivativeTex(child.name);if(pretty)return pretty;
             pretty=symbolTex(child.name);if(pretty)return pretty;
