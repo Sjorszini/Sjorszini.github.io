@@ -7,10 +7,13 @@ on:
     paths:
       - Finsler.html
       - riemannian-calculator.css
+      - riemannian-live-preview.css
       - riemannian-calculator.js
+      - riemannian-live-preview.js
       - riemannian-pretty.js
       - 'riemannian-worker*.js'
       - tests/riemannian-browser-regression.cjs
+      - tests/riemannian-preview-regression.cjs
       - .github/workflows/riemannian-regression.yml
 
 permissions:
@@ -38,6 +41,8 @@ jobs:
           sleep 1
       - name: Run real-Chrome geometry regression
         run: node tests/riemannian-browser-regression.cjs
+      - name: Run live-preview and notation regression
+        run: node tests/riemannian-preview-regression.cjs
       - name: Upload failure screenshot
         if: failure()
         uses: actions/upload-artifact@v4
