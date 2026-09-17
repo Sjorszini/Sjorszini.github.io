@@ -19,7 +19,7 @@ on:
       - .github/workflows/riemannian-regression.yml
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: riemannian-regression-${{ github.ref }}
@@ -31,24 +31,6 @@ jobs:
     timeout-minutes: 8
     steps:
       - uses: actions/checkout@v4
-        with:
-          ref: finsler-calculator-experiment
-      - name: Normalize generic disconnected-block inverse fast path
-        shell: bash
-        run: |
-          set -euo pipefail
-          python3 - <<'PY'
-          from pathlib import Path
-          import base64
-          marker='/* Generic disconnected-block inverse fast path. */'
-          p=Path('riemannian-worker.js')
-          text=p.read_text()
-          base=text.split(marker,1)[0].rstrip()
-          encoded='Ci8qIEdlbmVyaWMgZGlzY29ubmVjdGVkLWJsb2NrIGludmVyc2UgZmFzdCBwYXRoLiAqLwooZnVuY3Rpb24oKXsKICB2YXIgZ2VuZXJhbEludmVyc2VNYXRyaXg9aW52ZXJzZU1hdHJpeDsKCiAgZnVuY3Rpb24gY29ubmVjdGVkQmxvY2tzKG1hdHJpeCl7CiAgICB2YXIgbj1tYXRyaXgubGVuZ3RoLHNlZW49bmV3IEFycmF5KG4pLmZpbGwoZmFsc2UpLGJsb2Nrcz1bXTsKICAgIGZvcih2YXIgc3RhcnQ9MDtzdGFydDxuO3N0YXJ0KyspewogICAgICBpZighc2VlbltzdGFydF0pewogICAgICAgIHZhciBzdGFjaz1bc3RhcnRdLGJsb2NrPVtdO3NlZW5bc3RhcnRdPXRydWU7CiAgICAgICAgd2hpbGUoc3RhY2subGVuZ3RoKXsKICAgICAgICAgIHZhciBpPXN0YWNrLnBvcCgpO2Jsb2NrLnB1c2goaSk7CiAgICAgICAgICBmb3IodmFyIGo9MDtqPG47aisrKXsKICAgICAgICAgICAgaWYoIXNlZW5bal0mJmkhPT1qJiYoIWlzWmVybyhtYXRyaXhbaV1bal0pfHwhaXNaZXJvKG1hdHJpeFtqXVtpXSkpKXsKICAgICAgICAgICAgICBzZWVuW2pdPXRydWU7c3RhY2sucHVzaChqKTsKICAgICAgICAgICAgfQogICAgICAgICAgfQogICAgICAgIH0KICAgICAgICBibG9jay5zb3J0KGZ1bmN0aW9uKGEsYil7cmV0dXJuIGEtYjt9KTtibG9ja3MucHVzaChibG9jayk7CiAgICAgIH0KICAgIH0KICAgIHJldHVybiBibG9ja3M7CiAgfQoKICBpbnZlcnNlTWF0cml4PWZ1bmN0aW9uKG1hdHJpeCl7CiAgICB2YXIgbj1tYXRyaXgubGVuZ3RoLGJsb2Nrcz1jb25uZWN0ZWRCbG9ja3MobWF0cml4KTsKICAgIGlmKGJsb2Nrcy5sZW5ndGg9PT0xKXJldHVybiBnZW5lcmFsSW52ZXJzZU1hdHJpeChtYXRyaXgpOwoKICAgIHZhciBpbnY9W10sZGV0RmFjdG9ycz1bXTsKICAgIGZvcih2YXIgaT0wO2k8bjtpKyspaW52W2ldPW5ldyBBcnJheShuKS5maWxsKCIwIik7CgogICAgZm9yKHZhciBiPTA7YjxibG9ja3MubGVuZ3RoO2IrKyl7CiAgICAgIHZhciBpbmRpY2VzPWJsb2Nrc1tiXTsKICAgICAgaWYoaW5kaWNlcy5sZW5ndGg9PT0xKXsKICAgICAgICB2YXIgcD1pbmRpY2VzWzBdLGQ9UyhtYXRyaXhbcF1bcF0pOwogICAgICAgIGlmKGlzWmVybyhkKSl0aHJvdyBuZXcgRXJyb3IoIlRoZSBtZXRyaWMgaXMgZGVnZW5lcmF0ZS4iKTsKICAgICAgICBpbnZbcF1bcF09UyhkaXYoIjEiLGQpKTtkZXRGYWN0b3JzLnB1c2goZCk7CiAgICAgIH0gZWxzZSBpZihpbmRpY2VzLmxlbmd0aD09PTIpewogICAgICAgIHZhciBwMD1pbmRpY2VzWzBdLHAxPWluZGljZXNbMV07CiAgICAgICAgdmFyIGE9UyhtYXRyaXhbcDBdW3AwXSksYmI9UyhtYXRyaXhbcDBdW3AxXSksYz1TKG1hdHJpeFtwMV1bcDBdKSxkMj1TKG1hdHJpeFtwMV1bcDFdKTsKICAgICAgICB2YXIgZGV0Mj1TKHN1YihtdWwoYSxkMiksbXVsKGJiLGMpKSk7CiAgICAgICAgaWYoaXNaZXJvKGRldDIpKXRocm93IG5ldyBFcnJvcigiVGhlIG1ldHJpYyBpcyBkZWdlbmVyYXRlLiIpOwogICAgICAgIGludltwMF1bcDBdPVMoZGl2KGQyLGRldDIpKTsKICAgICAgICBpbnZbcDBdW3AxXT1TKGRpdihuZWcoYmIpLGRldDIpKTsKICAgICAgICBpbnZbcDFdW3AwXT1TKGRpdihuZWcoYyksZGV0MikpOwogICAgICAgIGludltwMV1bcDFdPVMoZGl2KGEsZGV0MikpOwogICAgICAgIGRldEZhY3RvcnMucHVzaChkZXQyKTsKICAgICAgfSBlbHNlIHsKICAgICAgICB2YXIgc3VibWF0cml4PVtdOwogICAgICAgIGZvcih2YXIgciA9IDA7ciA8IGluZGljZXMubGVuZ3RoO3IrKyl7CiAgICAgICAgICBzdWJtYXRyaXhbcl09W107CiAgICAgICAgICBmb3IodmFyIGNpZHg9MDtjaWR4PGluZGljZXMubGVuZ3RoO2NpZHgrKylzdWJtYXRyaXhbcl1bY2lkeF09bWF0cml4W2luZGljZXNbcl1dW2luZGljZXNbY2lkeF1dOwogICAgICAgIH0KICAgICAgICB2YXIgc3ViSW52ZXJzZT1nZW5lcmFsSW52ZXJzZU1hdHJpeChzdWJtYXRyaXgpO2RldEZhY3RvcnMucHVzaChzdWJJbnZlcnNlLmRldCk7CiAgICAgICAgZm9yKHZhciByMj0wO3IyPGluZGljZXMubGVuZ3RoO3IyKyspewogICAgICAgICAgZm9yKHZhciBjMj0wO2MyPGluZGljZXMubGVuZ3RoO2MyKyspaW52W2luZGljZXNbcjJdXVtpbmRpY2VzW2MyXV09c3ViSW52ZXJzZS5tYXRyaXhbcjJdW2MyXTsKICAgICAgICB9CiAgICAgIH0KICAgIH0KCiAgICByZXR1cm4ge21hdHJpeDppbnYsZGV0OlMoZGV0RmFjdG9ycy5yZWR1Y2UoZnVuY3Rpb24oYSxiKXtyZXR1cm4gbXVsKGEsYik7fSwiMSIpKX07CiAgfTsKfSkoKTsK'
-          opt=base64.b64decode(encoded).decode()
-          p.write_text(base+'\n'+opt)
-          PY
-          node --check riemannian-worker.js
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -64,17 +46,6 @@ jobs:
         run: node tests/riemannian-preview-regression.cjs
       - name: Run representative-preset regression
         run: node tests/riemannian-extra-presets-regression.cjs
-      - name: Commit verified optimization
-        if: success()
-        shell: bash
-        run: |
-          if ! git diff --quiet; then
-            git config user.name 'github-actions[bot]'
-            git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-            git add riemannian-worker.js
-            git commit -m 'Repair and optimize disconnected metric-block inversion'
-            git push origin HEAD:finsler-calculator-experiment
-          fi
       - name: Upload failure screenshot
         if: failure()
         uses: actions/upload-artifact@v4
